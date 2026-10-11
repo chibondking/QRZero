@@ -93,7 +93,7 @@ Send and Call CQ only go out while Enable Tx is on in WSJT-X, and QRZero can't t
 
 WSJT-X's UDP interface only accepts a short list of requests, so some things still need WSJT-X itself:
 
-- **Ticking Enable Tx.** There is no request for it. Answering a decode (double-click) can tick it, as above; Halt TX and Stop after this can untick it.
+- **Ticking Enable Tx.** There is no request for it. Answering a decode (double-click) can tick it, as above; Halt TX and Stop after this can untick it. This is why **Call CQ** and **Send** do nothing on the air while Enable Tx is off: they only fill in and select Tx5, and QRZero tells you when Enable Tx is off. Tick Enable Tx in WSJT-X (the checkbox, or Alt+N) and the message goes out at the next period. QRZero doesn't press that key for you.
 - **Choosing Tx1 to Tx6.** WSJT-X moves through them by itself; QRZero can only set and send Tx5 (free text).
 - **The Tx offset.** Only the Rx offset can be set. Set the Tx offset in WSJT-X (Shift+click the waterfall, or the Rx to Tx button).
 - **Clearing the DX call.** An empty DX call means "leave it as it is", so it can be changed but not emptied.

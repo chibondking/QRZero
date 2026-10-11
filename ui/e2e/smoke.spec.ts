@@ -246,18 +246,24 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
         const r = await fetch(`/api${p}`, { method: m as string, headers: { "x-qrzero-token": "e2e", "content-type": "application/json" }, body: b ? JSON.stringify(b) : undefined });
         return r.json();
       }, [method, path, body] as const);
-    const cty = (await api("GET", "/cty")) as { entities: number };
+    // A country file that knows New Zealand, so a ZL station is a new DXCC.
+    await page.evaluate(async () => {
+      await fetch("/api/cty", { method: "POST", headers: { "x-qrzero-token": "e2e" }, body: "ZL,New Zealand,170,OC,32,60,-41.28,-174.78,-12.0,ZL ZM;\n" });
+    });
     await fromRadio(decode(75000, -5, "CQ ZL1ABC RF73"));
     await page.waitForTimeout(500);
     expect(sentKind(13).length).toBe(0);
-    if (cty.entities > 0) {
-      const cur = (await api("GET", "/integrations")) as { config: Record<string, unknown> };
-      await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: true });
-      await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
-      await expect.poll(() => sentKind(13).length).toBeGreaterThan(0);
-      expect(sentKind(13)[0].includes(Buffer.from("ZL2ABC"))).toBe(true);
-      await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: false });
-    }
+    const cur = (await api("GET", "/integrations")) as { config: Record<string, unknown> };
+    await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: true });
+    // Saving restarts the listeners, which forget WSJT-X's address until its next packet.
+    await page.waitForTimeout(500);
+    await fromRadio(fullStatus({ transmitting: false, txMessage: "", dx: "", report: "" }));
+    await page.waitForTimeout(500);
+    await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
+    await expect.poll(() => sentKind(13).length).toBeGreaterThan(0);
+    expect(sentKind(13)[0].includes(Buffer.from("ZL2ABC"))).toBe(true);
+    await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: false });
+    await fromRadio(fullStatus({ transmitting: false, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
     await strip.getByRole("button", { name: "More controls" }).click();
     await strip.getByLabel("DX call").fill("dl1abc");
     await strip.getByRole("button", { name: "Set DX" }).click();
