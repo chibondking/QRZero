@@ -45,10 +45,14 @@ function InstanceLine({ i, mycall, label, tag, title, onMsg }: {
   const stage = qsoStage({ tx_message: i.tx_message, dx_call: i.dx_call, mycall: call, tx_enabled: i.tx_enabled, transmitting: i.transmitting });
   const name = label;
 
-  const run = async (what: string, f: () => Promise<unknown>) => {
+  // WSJT-X has no UDP request for Enable Tx, so a message that was set and sent only goes out
+  // on the air if the user has already ticked it.
+  const run = async (what: string, f: () => Promise<unknown>, needsTx = false) => {
     try {
       await f();
-      onMsg(`${what} (${name}).`);
+      onMsg(needsTx && !i.tx_enabled
+        ? `${what} (${name}), but Enable Tx is off in WSJT-X, so nothing is transmitted until you tick it there.`
+        : `${what} (${name}).`);
     } catch (e) {
       onMsg(`${name}: ${(e as Error).message}`);
     }
@@ -57,13 +61,13 @@ function InstanceLine({ i, mycall, label, tag, title, onMsg }: {
   const cq = () => {
     if (!call) return onMsg("Set your callsign first.");
     const msg = ["CQ", call, i.de_grid.slice(0, 4)].filter(Boolean).join(" ");
-    return run(`Asked to send ${msg}`, () => api.ftxFreeText(i.id, msg, true));
+    return run(`Asked to send ${msg}`, () => api.ftxFreeText(i.id, msg, true), true);
   };
   const sendText = (send: boolean) => (e?: FormEvent) => {
     e?.preventDefault();
     const t = text.trim();
     if (!t) return;
-    void run(send ? `Asked to send ${t.toUpperCase()}` : `Set Tx5 to ${t.toUpperCase()}`, () => api.ftxFreeText(i.id, t, send));
+    void run(send ? `Asked to send ${t.toUpperCase()}` : `Set Tx5 to ${t.toUpperCase()}`, () => api.ftxFreeText(i.id, t, send), send);
   };
   const setDxCall = (e: FormEvent) => {
     e.preventDefault();
@@ -96,7 +100,7 @@ function InstanceLine({ i, mycall, label, tag, title, onMsg }: {
         <span className="spacer" />
         <button className="halt" onClick={() => void halt(false)} title="Stop transmitting now (Halt Tx)">Halt TX</button>
         <button onClick={() => void halt(true)} title="Untick Enable Tx so this transmission finishes and no more follow">Stop after this</button>
-        <button onClick={() => void cq()} title={`Send "CQ ${call || "your call"} ${i.de_grid.slice(0, 4)}" as free text. WSJT-X transmits it while Enable Tx is on.`}>Call CQ</button>
+        <button onClick={() => void cq()} title={`Send "CQ ${call || "your call"} ${i.de_grid.slice(0, 4)}" as free text. WSJT-X can't be told to tick Enable Tx, so tick it in WSJT-X to transmit.`}>Call CQ</button>
         <button onClick={() => setOpen(!open)} aria-expanded={open} title="Free text, DX call, Rx offset, mode and more">{open ? "Fewer controls" : "More controls"}</button>
       </div>
       {open && (

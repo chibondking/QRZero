@@ -83,7 +83,7 @@ Nothing is shown when Enable Tx is off and nothing is being sent. WSJT-X doesn't
   - **Clear windows**: clears WSJT-X's Band Activity and Rx Frequency windows, and that program's decodes here.
 - **Double-click** a decode to answer it, as before.
 
-Send and Call CQ only go out while Enable Tx is on in WSJT-X. Answering a decode by double-clicking it ticks Enable Tx too, if WSJT-X's **Double-click on call sets Tx enable** setting is on.
+Send and Call CQ only go out while Enable Tx is on in WSJT-X, and QRZero can't tick it for you (see below). If it is off, Call CQ still puts the CQ in Tx5 and clicks Now, then tells you to tick Enable Tx in WSJT-X; the message is sent at the next period once you do. Both also need **Accept UDP requests** ticked in WSJT-X. Answering a decode by double-clicking it ticks Enable Tx too, if WSJT-X's **Double-click on call sets Tx enable** setting is on.
 
 #### What can't be done from here
 
