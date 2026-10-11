@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment, type ReactNode } from "react";
 import { api } from "../api";
+import { useColumnDrag } from "../columnDrag";
 import { distanceKm } from "../geo";
 import { onLive } from "../live";
 import { BANDS, MODE_GROUP_NAME, modeGroup } from "../modes";
@@ -63,6 +64,27 @@ function flagsOf(s: Spot): { text: string; cls: string }[] {
   return out;
 }
 
+interface SpotCol {
+  key: string;
+  label: string;
+  /** Grid track used until the column is dragged to a width. */
+  track: string;
+  /** Pixels the track takes at least (for the sideways scroll). */
+  min: number;
+  cell: (s: Spot, group: ReturnType<typeof modeGroup>, flags: ReturnType<typeof flagsOf>) => ReactNode;
+}
+
+const SPOT_COLS: SpotCol[] = [
+  { key: "utc", label: "UTC", track: "50px", min: 50, cell: (s) => <span className="mono">{s.time ? `${s.time.slice(0, 2)}:${s.time.slice(2, 4)}` : ""}</span> },
+  { key: "freq", label: "Freq", track: "72px", min: 72, cell: (s) => <span className="mono num">{(s.freq_hz / 1000).toFixed(1)}</span> },
+  { key: "call", label: "Call", track: "96px", min: 96, cell: (s) => <span className={`mono call ${s.watched ? "watched" : ""}`}>{s.call}</span> },
+  { key: "country", label: "Country", track: "minmax(90px, 1fr)", min: 90, cell: (s) => <span>{s.entity?.name ?? ""}</span> },
+  { key: "mode", label: "Mode", track: "54px", min: 54, cell: (s, group) => <span className="mono mode" title={group ? MODE_GROUP_NAME[group] : "Mode not known"}>{s.mode}</span> },
+  { key: "spotter", label: "Spotter", track: "96px", min: 96, cell: (s) => <span className="mono">{s.spotter}</span> },
+  { key: "comment", label: "Comment", track: "minmax(120px, 2fr)", min: 120, cell: (s) => <span className="comment">{s.comment}</span> },
+  { key: "flags", label: "Flags", track: "minmax(110px, 1.2fr)", min: 110, cell: (s, _g, flags) => <span className="flags">{s.watched ? <span className="flag watched" title="On your watch list">Watched</span> : null}{flags.map((f) => <span key={f.text} className={`flag ${f.cls}`}>{f.text}</span>)}</span> },
+];
+
 const isNeeded = (s: Spot) => needRank(s) !== null;
 
 export default function ClusterPane({ onPick, onSettings }: { onPick: (p: DecodePick) => void; onSettings: () => void }) {
@@ -78,6 +100,12 @@ export default function ClusterPane({ onPick, onSettings }: { onPick: (p: Decode
   const [err, setErr] = useState("");
   const [now, setNow] = useState(Date.now() / 1000);
   const consoleRef = useRef<HTMLPreElement>(null);
+  const head = useRef<HTMLDivElement>(null);
+  const colDrag = useColumnDrag("qrzero.clusterCols", SPOT_COLS.map((c) => c.key), head);
+  const cols = colDrag.order.map((k) => SPOT_COLS.find((c) => c.key === k)!);
+  // Columns without a dragged width share what's left; below `minWidth` the table scrolls sideways.
+  const template = cols.map((c) => (colDrag.widths[c.key] ? `${colDrag.widths[c.key]}px` : c.track)).join(" ");
+  const rowStyle = { gridTemplateColumns: template, minWidth: 3 + cols.reduce((n, c) => n + (colDrag.widths[c.key] ?? c.min), 0) };
 
   useEffect(() => {
     api
@@ -179,6 +207,7 @@ export default function ClusterPane({ onPick, onSettings }: { onPick: (p: Decode
         </button>
         <span className="spacer" />
         <ModeKey />
+        {colDrag.changed && <button onClick={colDrag.reset} title="Put the columns back in their usual order and widths">Reset columns</button>}
         <button className={console_ ? "on" : ""} onClick={() => setConsole(!console_)}>Console</button>
       </div>
       {more && (
@@ -209,8 +238,21 @@ export default function ClusterPane({ onPick, onSettings }: { onPick: (p: Decode
       )}
       {err && <div className="ftx-msg small err">{err}</div>}
       <div className="ftx-table" role="table" aria-label="Spots">
-        <div className="spot-row head" role="row">
-          <span>UTC</span><span>Freq</span><span>Call</span><span>Country</span><span>Mode</span><span>Spotter</span><span>Comment</span><span>Flags</span>
+        <div className="spot-row head" role="row" ref={head} style={rowStyle}>
+          {cols.map((c, i) => {
+            const m = colDrag.moving;
+            return (
+              <span
+                key={c.key}
+                className={`col-head ${m?.key === c.key ? "moving" : ""} ${m && m.to === i && m.key !== c.key ? "drop-before" : ""} ${m && m.to === cols.length && i === cols.length - 1 ? "drop-after" : ""}`}
+                title="Drag to move this column, drag its right edge to resize"
+                onPointerDown={(e) => colDrag.move(e, c.key)}
+              >
+                {c.label}
+                <span className="col-resize" onPointerDown={(e) => colDrag.resize(e, c.key)} onDoubleClick={() => colDrag.setWidth(c.key, 0)} title="Drag to resize, double-click to reset" />
+              </span>
+            );
+          })}
         </div>
         {shown.length === 0 && <div className="empty muted">No spots{spots.length ? " match the filters" : state.connected ? " yet" : ". Connect to a cluster to see spots"}.</div>}
         {shown.map((s) => {
@@ -221,18 +263,12 @@ export default function ClusterPane({ onPick, onSettings }: { onPick: (p: Decode
               key={s.seq}
               className={`spot-row ${group ? `mode-${group}` : ""} ${flags[0]?.cls === "new" ? "needed" : ""} ${flags.some((f) => f.cls === "dupe") ? "worked" : ""}`}
               role="row"
+              style={rowStyle}
               onClick={() => onPick({ call: s.call, grid: null, band: s.band, mode: s.mode, freq_hz: s.freq_hz, tx_freq_hz: s.tx_freq_hz ?? undefined })}
               onDoubleClick={() => onPick({ call: s.call, grid: null, band: s.band, mode: s.mode, freq_hz: s.freq_hz, tx_freq_hz: s.tx_freq_hz ?? undefined, qsy: true })}
               title={s.tx_freq_hz ? `Click to fill in ${s.call}; double-click to tune too and set split to ${(s.tx_freq_hz / 1000).toFixed(2)} kHz` : `Click to fill in ${s.call}; double-click to tune too`}
             >
-              <span className="mono">{s.time ? `${s.time.slice(0, 2)}:${s.time.slice(2, 4)}` : ""}</span>
-              <span className="mono num">{(s.freq_hz / 1000).toFixed(1)}</span>
-              <span className={`mono call ${s.watched ? "watched" : ""}`}>{s.call}</span>
-              <span>{s.entity?.name ?? ""}</span>
-              <span className="mono mode" title={group ? MODE_GROUP_NAME[group] : "Mode not known"}>{s.mode}</span>
-              <span className="mono">{s.spotter}</span>
-              <span className="comment">{s.comment}</span>
-              <span className="flags">{s.watched ? <span className="flag watched" title="On your watch list">Watched</span> : null}{flags.map((f) => <span key={f.text} className={`flag ${f.cls}`}>{f.text}</span>)}</span>
+              {cols.map((c) => <Fragment key={c.key}>{c.cell(s, group, flags)}</Fragment>)}
             </div>
           );
         })}
