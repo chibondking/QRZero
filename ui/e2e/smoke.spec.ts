@@ -505,6 +505,20 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await closeWindow(popup.getByRole("button", { name: "Dock back" }));
   await expect(page.getByRole("tab", { name: "FTx monitor" })).toBeVisible();
 
+  // The New QSO form pops out too: logging from it lands in the main window's log, and spots still fill it.
+  const [entryWin] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "Pop out New QSO" }).click()]);
+  await expect(page.getByTestId("call")).toHaveCount(0);
+  const popCall = entryWin.getByTestId("call");
+  await popCall.fill("dl1abc");
+  await popCall.press("Space");
+  await expect(entryWin.locator("#rst-sent")).toBeFocused();
+  await entryWin.locator("#rst-sent").press("Enter");
+  await expect(entryWin.getByText("Logged DL1ABC")).toBeVisible();
+  await page.getByRole("tab", { name: "Log", exact: true }).click();
+  await expect(page.locator(".grid-row").first()).toContainText("DL1ABC");
+  await closeWindow(entryWin.getByRole("button", { name: "Dock back" }));
+  await expect(page.getByTestId("call")).toBeVisible();
+
   // Entry fields can differ by mode group: CW gets its own layout with an SKCC box.
   await fromMenu(page, "Settings…");
   await page.getByRole("button", { name: "Entry fields", exact: true }).click();
