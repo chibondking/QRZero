@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { onLive } from "../live";
-import type { Location, QslConfig, QslDownload, QslOverview, QslRun, QslService, StationCallsign } from "../types";
+import type { Location, QslConfig, QslDownload, QslLogLine, QslOverview, QslRun, QslService, StationCallsign } from "../types";
 import SaveBar from "./SaveBar";
 import Modal from "./Modal";
 import PaperQsl from "./PaperQsl";
@@ -75,6 +75,21 @@ function RunLine({ run }: { run?: QslRun }) {
   );
 }
 
+/** What the uploads to a service have been doing this session (kept in memory, newest last). */
+function UploadLog({ lines }: { lines?: QslLogLine[] }) {
+  const ref = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [lines]);
+  const text = (lines ?? []).map((l) => `${new Date(l.at * 1000).toISOString().slice(11, 19)}Z  ${l.text}`).join("\n");
+  return (
+    <div className="upload-log">
+      <div className="small muted">Upload log (this session)</div>
+      <pre ref={ref} className="mono">{text || "Nothing uploaded yet."}</pre>
+    </div>
+  );
+}
+
 type Tab = "queue" | "online";
 
 export default function QslDialog(props: Props & { tab?: Tab }) {
@@ -112,6 +127,12 @@ function Online({ callsigns, locations, onClose }: Props) {
     load().catch((e) => setMsg({ text: e.message, ok: false }));
     return onLive((e) => {
       if (e.type === "qsl") setO((cur) => (cur ? { ...cur, runs: { ...cur.runs, [e.service]: e.run } } : cur));
+      if (e.type === "qsl_log")
+        setO((cur) => {
+          if (!cur) return cur;
+          const old = cur.logs?.[e.service] ?? [];
+          return { ...cur, logs: { ...cur.logs, [e.service]: [...old, e.line].slice(-200) } };
+        });
       if (e.type === "qsl_download") setO((cur) => (cur ? { ...cur, downloads: { ...cur.downloads, [e.service]: e.run } } : cur));
     });
   }, []);
@@ -265,6 +286,7 @@ function Online({ callsigns, locations, onClose }: Props) {
             <QueueUpload service="lotw" name="LoTW" ready={cfg.lotw.length > 0} save={save} onChange={load} location={lotwLoc} />
             <p className="small muted"><b>Moving from another logger?</b> Download confirmations before your first upload. Matching QSOs are marked sent and confirmed, so they aren't uploaded again.</p>
           </details>
+          <UploadLog lines={o.logs?.lotw} />
           <p className="small muted">To download confirmations (for awards), enter your LoTW website login. It's not your TQSL password.</p>
           <div className="row">
             <label className="f w-m"><span>LoTW username</span><input value={cfg.lotw_username} onChange={(e) => set({ lotw_username: e.target.value })} /></label>
@@ -317,6 +339,7 @@ function Online({ callsigns, locations, onClose }: Props) {
             <summary>Upload by date range</summary>
             <QueueUpload service="qrz" name="QRZ Logbook" ready={cfg.qrz_calls.length > 0} save={save} onChange={load} />
           </details>
+          <UploadLog lines={o.logs?.qrz} />
           <div className="row">
             <button disabled={!!busy || !cfg.qrz_calls.length} onClick={() => download("qrz")}>{busy === "qrz-rcvd" ? "Downloading…" : "Download confirmations"}</button>
             <DownloadLine d={o.downloads.qrz} />
@@ -352,6 +375,7 @@ function Online({ callsigns, locations, onClose }: Props) {
             <summary>Upload by date range</summary>
             <QueueUpload service="clublog" name="Club Log" ready={cfg.clublog_calls.length > 0} save={save} onChange={load} />
           </details>
+          <UploadLog lines={o.logs?.clublog} />
           <div className="row">
             <button disabled={!!busy || !cfg.clublog_calls.length || !cfg.clublog_email} onClick={() => download("clublog")}>{busy === "clublog-rcvd" ? "Downloading…" : "Download matches"}</button>
             <DownloadLine d={o.downloads.clublog} />
@@ -388,6 +412,7 @@ function Online({ callsigns, locations, onClose }: Props) {
             <summary>Upload by date range</summary>
             <QueueUpload service="eqsl" name="eQSL" ready={cfg.eqsl_calls.length > 0} save={save} onChange={load} />
           </details>
+          <UploadLog lines={o.logs?.eqsl} />
           <div className="row">
             <button disabled={!!busy || !cfg.eqsl_username} onClick={() => download("eqsl")}>{busy === "eqsl-rcvd" ? "Downloading…" : "Download confirmations"}</button>
             <DownloadLine d={o.downloads.eqsl} />

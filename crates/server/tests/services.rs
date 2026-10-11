@@ -353,6 +353,8 @@ async fn clublog_large_uploads_use_the_batch_endpoint() {
     assert!(body.contains("name=\"file\"") && body.contains("name=\"api\""), "multipart upload");
     assert_eq!(body.matches("<EOR>").count(), 8);
     assert_eq!(api.get("/qsl").await["pending"]["clublog"], 0);
+    let log = api.get("/qsl").await["logs"]["clublog"].to_string();
+    assert!(log.contains("batch of 8 QSO(s) accepted") && log.contains("Finished: 8 uploaded"), "{log}");
 }
 
 #[tokio::test]

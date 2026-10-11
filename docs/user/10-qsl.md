@@ -61,7 +61,7 @@ A confirmation matches a QSO when the call and band are the same, the mode is th
 
 ## Uploading a date range by hand
 
-Every service page (LoTW, QRZ Logbook, Club Log, eQSL) has an **Upload by date range** panel for sending a batch yourself, for example after a trip or when you first set a service up.
+Every service page (LoTW, QRZ Logbook, Club Log, eQSL) has an **Upload by date range** panel for sending a batch yourself, for example after a trip or when you first set a service up. Under it, each service page also has an **Upload log** showing what its uploads have done since QRZero started: when a run began, which service address it used, whether QSOs went one at a time or as a batch file, each QSO the service refused with its reason, and how the run ended (or the service's exact error message). The last 200 lines are kept, in memory only.
 
 1. Pick **From** and **To** (both days are included, UTC). A blank date means no limit on that side. The service's **QSOs from** date doesn't apply here; the range you pick decides.
 2. Click **Show QSOs**. The list is every QSO in that range the service hasn't been sent (its status is N or blank), oldest first, for the callsigns you ticked on that page (for LoTW, the locations you matched to a TQSL station location). **Everything not yet sent** does the same with both dates blank, so it lists every QSO that service is missing.
