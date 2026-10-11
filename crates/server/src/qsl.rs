@@ -156,6 +156,16 @@ pub struct Run {
     pub error: Option<String>,
 }
 
+/// One line of a service's upload activity log.
+#[derive(Clone, Debug, Serialize)]
+pub struct LogLine {
+    pub at: i64,
+    pub text: String,
+}
+
+/// Lines kept per service (in memory only, gone when the app closes).
+const LOG_LINES: usize = 200;
+
 /// The outcome of the last confirmation download from LoTW or eQSL.
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Download {
@@ -179,6 +189,7 @@ pub struct Download {
 struct Inner {
     config: QslConfig,
     runs: BTreeMap<&'static str, Run>,
+    logs: BTreeMap<&'static str, std::collections::VecDeque<LogLine>>,
     downloads: BTreeMap<&'static str, Download>,
     /// QSOs a service refused this session, so they aren't retried every few minutes.
     refused: HashSet<(&'static str, i64)>,
@@ -533,6 +544,7 @@ impl Qsl {
                 "lotw": lotw,
             },
             "runs": self.lock().runs,
+            "logs": self.lock().logs,
             "downloads": self.lock().downloads,
             "tqsl": {
                 "path": tqsl.as_ref().map(|p| p.display().to_string()),
@@ -592,6 +604,38 @@ impl Qsl {
         QrzLogbook::new(&self.endpoints.qrz, &key).status().await.map_err(|e| e.to_string())
     }
 
+    /// Adds a line to a service's activity log (newest last, capped).
+    fn log(&self, name: &'static str, text: impl Into<String>) {
+        // One line each: services sometimes answer with a whole HTML page.
+        let text: String = text.into().split_whitespace().collect::<Vec<_>>().join(" ");
+        let text = if text.chars().count() > 300 { format!("{}…", text.chars().take(300).collect::<String>()) } else { text };
+        let line = LogLine { at: Utc::now().timestamp(), text };
+        {
+            let mut inner = self.lock();
+            let lines = inner.logs.entry(name).or_default();
+            if lines.len() >= LOG_LINES {
+                lines.pop_front();
+            }
+            lines.push_back(line.clone());
+        }
+        self.hub.emit(json!({"type": "qsl_log", "service": name, "line": line}));
+    }
+
+    /// Logs how a run ended.
+    fn log_done(&self, name: &'static str, run: &Run) {
+        let mut text = format!("Finished: {} uploaded", run.uploaded);
+        if run.duplicates > 0 {
+            text.push_str(&format!(", {} already there", run.duplicates));
+        }
+        if !run.rejected.is_empty() {
+            text.push_str(&format!(", {} refused", run.rejected.len()));
+        }
+        match &run.error {
+            Some(e) => self.log(name, format!("{text}. Stopped: {e}")),
+            None => self.log(name, format!("{text}.")),
+        }
+    }
+
     fn set_run(&self, name: &'static str, run: Run) {
         self.lock().runs.insert(name, run.clone());
         self.hub.emit(json!({"type": "qsl", "service": name, "run": run}));
@@ -608,7 +652,9 @@ impl Qsl {
             let only: HashSet<i64> = ids.iter().copied().collect();
             let _busy = self.busy.lock().await;
             self.set_run(LOTW.name, Run { running: true, at: Utc::now().timestamp(), ..Run::default() });
+            self.log(LOTW.name, "Upload of picked QSOs started");
             let run = self.lotw_run(None, Some(&only), None).await;
+            self.log_done(LOTW.name, &run);
             self.set_run(LOTW.name, run.clone());
             return run;
         }
@@ -643,7 +689,9 @@ impl Qsl {
         };
         let _busy = self.busy.lock().await;
         self.set_run(svc.name, Run { running: true, at: Utc::now().timestamp(), ..Run::default() });
+        self.log(svc.name, if only.is_some() { "Upload of picked QSOs started" } else if bounds.is_some() { "Upload by date range started" } else { "Upload started" });
         let run = self.upload_service(svc, only, bounds).await;
+        self.log_done(svc.name, &run);
         self.set_run(svc.name, run.clone());
         run
     }
@@ -724,6 +772,15 @@ impl Qsl {
                 .unwrap_or_default();
             let mut changed_logs = HashSet::new();
             let mut pending = pending;
+            if !pending.is_empty() {
+                let how = match &client {
+                    Client::ClubLog(_) if pending.len() >= CLUBLOG_BATCH_MIN => format!("as batch file(s) to {}", self.endpoints.clublog_batch),
+                    Client::ClubLog(_) => format!("one at a time (realtime) to {}", self.endpoints.clublog),
+                    Client::Qrz(_) => format!("one at a time to {}", self.endpoints.qrz),
+                    Client::Eqsl(_) => format!("one at a time to {}", self.endpoints.eqsl_upload),
+                };
+                self.log(svc.name, format!("{call}: sending {} QSO(s) {how}", pending.len()));
+            }
             if let Client::ClubLog(c) = &client {
                 if pending.len() >= CLUBLOG_BATCH_MIN {
                     let refused = self.lock().refused.clone();
@@ -734,6 +791,7 @@ impl Qsl {
                         let fields: Vec<&Fields> = chunk.iter().map(|q| &q.fields).collect();
                         match c.upload_batch(&fields).await {
                             Ok(()) => {
+                                self.log(svc.name, format!("{call}: batch of {} QSO(s) accepted by Club Log", chunk.len()));
                                 let ids: Vec<i64> = chunk.iter().map(|q| q.id).collect();
                                 let set: Fields = [(svc.status_key.to_string(), "Y".to_string()), (svc.date_key.to_string(), today())].into();
                                 if let Err(e) = self.db(|st| st.mark_qsos(&ids, &set)) {
@@ -744,10 +802,12 @@ impl Qsl {
                                 changed_logs.extend(chunk.iter().map(|q| q.log_id));
                             }
                             Err(e) => {
-                                run.error = Some(match e {
+                                let msg = match e {
                                     QslError::Auth(m) => format!("{call}: login refused ({m})"),
                                     other => other.to_string(),
-                                });
+                                };
+                                self.log(svc.name, format!("Batch of {} QSO(s) failed: {msg}", chunk.len()));
+                                run.error = Some(msg);
                                 break;
                             }
                         }
@@ -784,6 +844,7 @@ impl Qsl {
                     Ok(Upload::Rejected(reason)) => {
                         self.lock().refused.insert((svc.name, qso.id));
                         let call = qso.fields.get("CALL").cloned().unwrap_or_default();
+                        self.log(svc.name, format!("Refused {call}: {reason}"));
                         run.rejected.push(format!("{call}: {reason}"));
                     }
                     Err(e) => {
@@ -986,7 +1047,9 @@ impl Qsl {
     pub async fn upload_lotw(&self, bounds: Option<(i64, i64)>, location: Option<&str>) -> Run {
         let _busy = self.busy.lock().await;
         self.set_run(LOTW.name, Run { running: true, at: Utc::now().timestamp(), ..Run::default() });
+        self.log(LOTW.name, "Upload started");
         let run = self.lotw_run(bounds, None, location.filter(|l| !l.is_empty())).await;
+        self.log_done(LOTW.name, &run);
         self.set_run(LOTW.name, run.clone());
         run
     }
@@ -1044,6 +1107,7 @@ impl Qsl {
                 return run;
             }
             let station_location = location.unwrap_or(&m.station_location).to_string();
+            self.log(LOTW.name, format!("{}: signing {} QSO(s) with TQSL, station location {station_location}", m.callsign, pending.len()));
             let job = TqslJob { tqsl_path: tqsl.clone(), station_location, use_log_qth: cfg.lotw_use_log_qth, adif_path: file.clone() };
             let mut cmd = tokio::process::Command::new(&job.tqsl_path);
             cmd.args(job.args());
@@ -1059,6 +1123,7 @@ impl Qsl {
                 }
             };
             let outcome = qsl::tqsl_outcome(code);
+            self.log(LOTW.name, format!("{}: TQSL finished with code {code}: {}", m.callsign, outcome.message));
             if !outcome.ok {
                 run.error = Some(format!("{} at {}: {} (TQSL code {code})", m.callsign, job.station_location, outcome.message));
                 return run;

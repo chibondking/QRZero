@@ -207,6 +207,7 @@ export interface ClusterSnapshot { home?: Entity | null; config: ClusterConfig; 
 export interface QueueRow { id: number; call: string; date: string; time: string; band: string; mode: string; station: string }
 export interface QslQueue { total: number; rows: QueueRow[] }
 export interface QslRun { at: number; running: boolean; uploaded: number; duplicates: number; rejected: string[]; error: string | null }
+export interface QslLogLine { at: number; text: string }
 export interface LotwMapping { callsign: string; location_id: number; station_location: string }
 export interface QslConfig {
   qrz_live_delay_min: number;
@@ -245,6 +246,7 @@ export interface QslOverview {
   secrets: { qrz_calls: string[]; clublog_password: boolean; lotw_password: boolean; eqsl_password: boolean };
   pending: { qrz: number; clublog: number; eqsl: number; lotw: { mapping: LotwMapping; pending: number }[] };
   runs: Partial<Record<QslService, QslRun>>;
+  logs: Partial<Record<QslService, QslLogLine[]>>;
   downloads: Partial<Record<QslService, QslDownload>>;
   tqsl: { path: string | null; found: boolean; locations: string[] };
 }

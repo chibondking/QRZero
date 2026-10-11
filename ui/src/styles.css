@@ -686,3 +686,6 @@ pre.udp-sent { font: 11px var(--mono); background: var(--panel-2); border: 1px s
 .queue-list thead th { position: sticky; top: 0; background: var(--panel); }
 .ql-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 2px 12px; margin: 4px 0; }
 .ql-fields label { display: flex; align-items: center; gap: 4px; }
+
+.upload-log { margin: 6px 0; }
+.upload-log pre { margin: 2px 0 0; padding: 4px 6px; max-height: 9em; overflow: auto; font-size: 11px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; background: var(--panel-2, var(--bg)); border: 1px solid var(--border-line); border-radius: 2px; }

@@ -2,7 +2,7 @@
 // by other programs. Read with fetch so the session token can go in a header.
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import type { FtxDecode, FtxInstance, Integrations, QslDownload, QslRun, QslService, Radio, Spot, WatchHit } from "./types";
+import type { FtxDecode, FtxInstance, Integrations, QslDownload, QslLogLine, QslRun, QslService, Radio, Spot, WatchHit } from "./types";
 
 export type LiveEvent =
   | { type: "radios"; radios: Radio[] }
@@ -19,6 +19,7 @@ export type LiveEvent =
   | { type: "cluster_line"; text: string }
   | { type: "cluster_state"; state: string; connected: boolean }
   | { type: "qsl"; service: QslService; run: QslRun }
+  | { type: "qsl_log"; service: QslService; line: QslLogLine }
   | { type: "qsl_download"; service: QslService; run: QslDownload }
   | { type: "watch_hit"; hit: WatchHit }
   | { type: "error"; message: string };
