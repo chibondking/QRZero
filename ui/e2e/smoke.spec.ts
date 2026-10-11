@@ -579,6 +579,21 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await page.locator("label.f", { has: page.locator("span", { hasText: "Mode" }) }).locator("select").selectOption("CW");
   await expect(page.getByLabel("SKCC")).toBeVisible();
 
+  // The QRZ buttons can be hidden to make the New QSO panel as short as possible.
+  const entryPanel = page.locator("section.panel.entry");
+  await expect(entryPanel.getByRole("button", { name: "Fill from QRZ" })).toBeVisible();
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Entry fields", exact: true }).click();
+  await page.getByRole("checkbox", { name: /Show Fill from QRZ/ }).uncheck();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(entryPanel.getByRole("button", { name: "Fill from QRZ" })).toHaveCount(0);
+  await expect(entryPanel.getByText("View on QRZ.com")).toHaveCount(0);
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Entry fields", exact: true }).click();
+  await page.getByRole("checkbox", { name: /Show Fill from QRZ/ }).check();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(entryPanel.getByRole("button", { name: "Fill from QRZ" })).toBeVisible();
+
   // Backups: back up now, download it, then stage a restore and cancel it.
   await fromMenu(page, "Settings…");
   await page.getByRole("button", { name: "Backups", exact: true }).click();

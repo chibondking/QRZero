@@ -10,6 +10,8 @@ export interface Display {
   freqUnit: "mhz" | "khz";
   confirmDelete: boolean;
   soundOnLog: boolean;
+  /** Show the QRZ buttons (Fill from QRZ, View on QRZ.com) in the New QSO panel. */
+  qrzButtons: boolean;
   /** RST to fill in per mode label, when not the usual one. */
   rst: Record<string, string>;
 }
@@ -22,6 +24,7 @@ export const DISPLAY_DEFAULTS: Display = {
   freqUnit: "mhz",
   confirmDelete: true,
   soundOnLog: false,
+  qrzButtons: true,
   rst: {},
 };
 

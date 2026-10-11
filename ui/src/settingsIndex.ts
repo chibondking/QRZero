@@ -16,6 +16,7 @@ export const SETTING_ENTRIES: SettingEntry[] = [
   E("locations", "Add location", "qth grid home park pota sota"),
   E("logs", "New log", "create rename delete switch operator"),
   E("fields", "Entry fields", "qso panel layout line sticky keep default label width"),
+  E("fields", "Buttons on the New QSO panel", "qrz hide show fill view button room space compact"),
   E("lookup", "Look up callsigns on QRZ.com", "qrz xml login lookup"),
   E("lookup", "QRZ username", "login"),
   E("lookup", "QRZ password", "login secret"),

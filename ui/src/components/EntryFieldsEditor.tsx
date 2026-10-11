@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CUSTOM_PREFIX, ENTRY_FIELDS, PRESETS, customKey, fieldDef, type EntryItem, type EntryLayout, type ModeLayouts, type Width } from "../fields";
 import { MODE_GROUP_NAME, type ModeGroup } from "../modes";
+import { setDisplay, useDisplay } from "../display";
 
 const WIDTHS: [Width, string][] = [["s", "Narrow"], ["m", "Medium"], ["l", "Wide"], ["xl", "Widest"]];
 
@@ -46,7 +47,25 @@ export default function EntryFieldsEditor({ layout, onChange, modeLayouts, onMod
         </p>
       )}
       {target === "main" && <LayoutEditor layout={layout} onChange={onChange} />}
+      <PanelButtons />
     </div>
+  );
+}
+
+/** Buttons on the New QSO panel's bottom bar that can be hidden to save room. */
+function PanelButtons() {
+  const d = useDisplay();
+  return (
+    <fieldset>
+      <legend>Buttons on the New QSO panel</legend>
+      <label className="check">
+        <input type="checkbox" checked={d.qrzButtons} onChange={(e) => setDisplay({ qrzButtons: e.target.checked })} /> Show <b>Fill from QRZ</b> and <b>View on QRZ.com</b>
+      </label>
+      <p className="muted">
+        Hide them for a shorter bottom bar on a crowded screen. Leaving the call box still looks the call up, and the
+        QSO editor keeps both buttons.
+      </p>
+    </fieldset>
   );
 }
 
