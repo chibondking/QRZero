@@ -18,6 +18,10 @@ use serde_json::json;
 use crate::station::{cty_facts, Hub};
 
 const BATCH: i64 = 500;
+/// Club Log's realtime endpoint is for single, just-logged QSOs; this many or more go as one ADIF file.
+const CLUBLOG_BATCH_MIN: usize = 5;
+/// QSOs per Club Log file.
+const CLUBLOG_FILE_MAX: usize = 2000;
 /// Shortest wait (minutes) before a live upload, so a burst of edits goes up once.
 const LIVE_MIN: u32 = 1;
 /// Minutes between sweeps of everything not yet uploaded, for services set to upload automatically.
@@ -196,6 +200,7 @@ pub struct Qsl {
 pub struct Endpoints {
     pub qrz: String,
     pub clublog: String,
+    pub clublog_batch: String,
     pub clublog_matches: String,
     pub eqsl_upload: String,
     pub eqsl_inbox: String,
@@ -207,6 +212,7 @@ impl Default for Endpoints {
         Endpoints {
             qrz: qsl::QRZ_LOGBOOK_ENDPOINT.into(),
             clublog: qsl::CLUBLOG_ENDPOINT.into(),
+            clublog_batch: qsl::CLUBLOG_BATCH_ENDPOINT.into(),
             clublog_matches: confirm::CLUBLOG_MATCHES_ENDPOINT.into(),
             eqsl_upload: confirm::EQSL_UPLOAD_ENDPOINT.into(),
             eqsl_inbox: confirm::EQSL_INBOX_ENDPOINT.into(),
@@ -683,7 +689,7 @@ impl Qsl {
                 }
             } else {
                 match (&password, &app_key) {
-                    (Some(p), Some(k)) if !cfg.clublog_email.is_empty() => Client::ClubLog(ClubLog::new(&self.endpoints.clublog, &cfg.clublog_email, p, call, k)),
+                    (Some(p), Some(k)) if !cfg.clublog_email.is_empty() => Client::ClubLog(ClubLog::new(&self.endpoints.clublog, &self.endpoints.clublog_batch, &cfg.clublog_email, p, call, k)),
                     _ => {
                         run.error = Some(if app_key.is_none() && password.is_some() && !cfg.clublog_email.is_empty() {
                             "this build of QRZero has no Club Log application key yet".into()
@@ -717,6 +723,38 @@ impl Qsl {
                 })
                 .unwrap_or_default();
             let mut changed_logs = HashSet::new();
+            let mut pending = pending;
+            if let Client::ClubLog(c) = &client {
+                if pending.len() >= CLUBLOG_BATCH_MIN {
+                    let refused = self.lock().refused.clone();
+                    if only.is_none() {
+                        pending.retain(|q| !refused.contains(&(svc.name, q.id)));
+                    }
+                    for chunk in pending.chunks(CLUBLOG_FILE_MAX) {
+                        let fields: Vec<&Fields> = chunk.iter().map(|q| &q.fields).collect();
+                        match c.upload_batch(&fields).await {
+                            Ok(()) => {
+                                let ids: Vec<i64> = chunk.iter().map(|q| q.id).collect();
+                                let set: Fields = [(svc.status_key.to_string(), "Y".to_string()), (svc.date_key.to_string(), today())].into();
+                                if let Err(e) = self.db(|st| st.mark_qsos(&ids, &set)) {
+                                    run.error = Some(e.to_string());
+                                    return run;
+                                }
+                                run.uploaded += chunk.len();
+                                changed_logs.extend(chunk.iter().map(|q| q.log_id));
+                            }
+                            Err(e) => {
+                                run.error = Some(match e {
+                                    QslError::Auth(m) => format!("{call}: login refused ({m})"),
+                                    other => other.to_string(),
+                                });
+                                break;
+                            }
+                        }
+                    }
+                    pending.clear();
+                }
+            }
             for qso in pending {
                 if only.is_none() && self.lock().refused.contains(&(svc.name, qso.id)) {
                     continue;

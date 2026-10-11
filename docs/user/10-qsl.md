@@ -80,7 +80,7 @@ When you edit a QSO that was already uploaded, QRZero marks it modified and send
 
 ## Club Log
 
-Enter your Club Log email and password (an application password works if you use two-step login) and tick the callsigns to upload. There is no API key to enter; QRZero carries its own. Each callsign goes to its own log on Club Log.
+Enter your Club Log email and password (an application password works if you use two-step login) and tick the callsigns to upload. There is no API key to enter; QRZero carries its own. Each callsign goes to its own log on Club Log. A few QSOs go up one at a time as you log them; five or more at once (an import, a date range, **Upload now**) are sent to Club Log as a single ADIF file, which is how Club Log expects bulk uploads. Club Log checks the file after it arrives and skips QSOs it already has.
 
 **Download matches** gets the QSOs Club Log has matched against the other station's log (both of you uploaded the QSO) and sets **Club Log R** on the matching QSOs, as the editor's Club Log line shows. Matches work like LoTW's, within 15 minutes. Club Log asks for an **application password** here (Club Log, Settings, App Passwords), not your login password; if the download says the login was refused, that is the usual reason. The next download only asks for matches made since the last one. Matches with no mode, or for a QSO that isn't in your log, are counted but change nothing.
 
