@@ -18,6 +18,7 @@ import NeededPane from "./NeededPane";
 import PropagationPane from "./PropagationPane";
 import RotatorPane from "./RotatorPane";
 import NotesPane from "./NotesPane";
+import EntryHost from "./EntryHost";
 
 export interface PaneActions {
   onPick: (p: DecodePick) => void;
@@ -35,6 +36,8 @@ export default function SharedPane({ id, ctx, act }: { id: PaneId; ctx: PopConte
   const [mapShade, setMapShade] = useState<boolean>(localGet("qrzero.map", { shade: true }).shade);
 
   switch (id) {
+    case "entry":
+      return <EntryHost ctx={ctx} />;
     case "lookup":
       return <LookupPanel logId={ctx.logId} result={ctx.lookup} entry={ctx.entry} refreshKey={ctx.refreshKey} />;
     case "worked":

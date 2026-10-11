@@ -3,9 +3,10 @@
 import { api } from "./api";
 import { localGet, localSet } from "./prefs";
 import type { DecodePick } from "./components/FtxMonitor";
-import type { EntryContext } from "./components/EntryPanel";
+import type { EntryContext, Prefill } from "./components/EntryPanel";
 import type { LatLon } from "./geo";
 import type { Equipment, Fields, Location, LookupResult, Qso, QsoFilter, StationCallsign } from "./types";
+import type { EntryLayout, ModeLayouts } from "./fields";
 import type { PaneId } from "./workspace";
 
 /** What popped-out panes need to know from the main window. */
@@ -23,6 +24,15 @@ export interface PopContext {
   editingId: number | null;
   /** The radio the entry panel follows ("" for none). */
   radioKey: string;
+  /** What the New QSO pane needs when it is in its own window. */
+  entryHost: {
+    location: Location | null;
+    layout: EntryLayout;
+    modeLayouts: ModeLayouts;
+    equipment: Equipment[];
+    prefill: Prefill | null;
+    copy: { nonce: number; fields: Fields } | null;
+  };
 }
 
 /** A window QRZero opens: a popped-out pane, or the QSO editor. */
@@ -46,6 +56,11 @@ export type BusMsg =
   | { t: "copy"; fields: Fields }
   | { t: "show-qsos"; filter: QsoFilter }
   | { t: "settings"; tab: string }
+  | { t: "radio"; key: string }
+  | { t: "logged" }
+  | { t: "lookup"; lookup: LookupResult | null }
+  | { t: "entry"; entry: EntryContext }
+  | { t: "setup" }
   | { t: "close-all" }
   | { t: "edit-open"; edit: EditPayload }
   | { t: "edit-step"; id: number; dir: -1 | 1 }
@@ -71,6 +86,7 @@ export interface Geometry { w: number; h: number; x: number | null; y: number | 
 const geoKey = (id: WindowId) => `qrzero.popout.${id}`;
 const DEFAULT_SIZE: Partial<Record<WindowId, Geometry>> = {
   editor: { w: 640, h: 780, x: null, y: null },
+  entry: { w: 760, h: 520, x: null, y: null },
   ftx: { w: 900, h: 560, x: null, y: null },
   map: { w: 700, h: 460, x: null, y: null },
   awards: { w: 900, h: 640, x: null, y: null },

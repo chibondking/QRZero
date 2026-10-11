@@ -230,6 +230,11 @@ export default function App() {
     windows.current.delete(id);
     const cur = wsRef.current;
     if (!cur.popped.includes(id)) return;
+    // The entry panel starts fresh when it comes back; don't replay the last spot into it.
+    if (id === "entry") {
+      setPrefill(null);
+      setCopy(null);
+    }
     setWs({ ...cur, popped: cur.popped.filter((p) => p !== id), root: dockBack(cur.root, id) });
   };
 
@@ -319,6 +324,7 @@ export default function App() {
           refreshKey,
           editingId: editing?.id ?? null,
           radioKey,
+          entryHost: { location, layout, modeLayouts, equipment: equipment.filter((e) => e.location_id === location?.id), prefill, copy },
         };
 
   // Messages from popped-out panes; a ref so the listener always sees current state.
@@ -353,6 +359,11 @@ export default function App() {
     if (m.t === "copy") actions.onCopy(m.fields);
     if (m.t === "show-qsos") showQsos(m.filter);
     if (m.t === "settings") actions.onSettings(m.tab);
+    if (m.t === "radio") chooseRadio(m.key);
+    if (m.t === "logged") refreshGrid();
+    if (m.t === "lookup") setLookup(m.lookup);
+    if (m.t === "entry") setEntry(m.entry);
+    if (m.t === "setup") setDialog("wizard");
   };
   useEffect(() => listen((m) => onBus.current(m)), []);
 
