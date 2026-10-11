@@ -159,6 +159,7 @@ export interface Integrations {
   wsjtx_multicast: string;
   wsjtx_forward: string[];
   wsjtx_auto_log: boolean;
+  wsjtx_highlight: boolean;
   n1mm_enabled: boolean;
   n1mm_listen: string;
   n1mm_auto_log: boolean;

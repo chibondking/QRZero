@@ -41,6 +41,8 @@ pub struct Integrations {
     /// Other programs (GridTracker, JTAlert, ...) to pass the stream on to.
     pub wsjtx_forward: Vec<String>,
     pub wsjtx_auto_log: bool,
+    /// Colour needed and watched stations in WSJT-X's Band Activity window (its Highlight Callsign request).
+    pub wsjtx_highlight: bool,
     pub n1mm_enabled: bool,
     pub n1mm_listen: String,
     pub n1mm_auto_log: bool,
@@ -80,6 +82,7 @@ impl Default for Integrations {
             wsjtx_multicast: String::new(),
             wsjtx_forward: Vec::new(),
             wsjtx_auto_log: true,
+            wsjtx_highlight: false,
             n1mm_enabled: false,
             n1mm_listen: "127.0.0.1:12060".into(),
             n1mm_auto_log: true,
@@ -1089,6 +1092,9 @@ impl Hub {
                 }
                 if let Some(decode) = self.make_decode(d) {
                     self.emit(json!({"type": "decode", "decode": &decode}));
+                    if decode.raw.new {
+                        self.highlight_in_wsjtx(&decode);
+                    }
                     if let (Some(id), Some(call)) = (decode.watched, &decode.call) {
                         let s = crate::watch::Sighting {
                             call,
@@ -1127,6 +1133,27 @@ impl Hub {
             }
             _ => {}
         }
+    }
+
+    /// Colours the sender of a decode in WSJT-X's Band Activity window when it is needed (new
+    /// DXCC orange, new band for the DXCC yellow) or on the watch list (blue). Off by default.
+    fn highlight_in_wsjtx(&self, d: &FtxDecode) {
+        let Some(call) = &d.call else { return };
+        let background = match &d.needed {
+            Some(n) if n.new_dxcc => (255, 150, 40),
+            Some(n) if n.new_band => (255, 235, 120),
+            _ if d.watched.is_some() => (160, 210, 255),
+            _ => return,
+        };
+        let inner = self.lock();
+        if !inner.integrations.wsjtx_highlight {
+            return;
+        }
+        let Some(inst) = inner.instances.get(&d.instance) else { return };
+        let Some(socket) = inner.wsjtx_sockets.get(&inst.addr) else { return };
+        let packet = wsjtx::encode_highlight_callsign(&inst.id, call, Some(background), Some((0, 0, 0)), true);
+        // A request is best effort: a full buffer just means this one is skipped.
+        let _ = socket.try_send_to(&packet, inst.addr);
     }
 
     fn make_decode(&self, d: wsjtx::Decode) -> Option<FtxDecode> {

@@ -52,6 +52,10 @@ Above the decodes there is one short line for each WSJT-X or JTDX, in its colour
 
 With the source box set to one program, only its line shows.
 
+#### Colouring stations in WSJT-X
+
+In **Settings → Radios and programs**, tick **Colour needed and watched stations in WSJT-X's Band Activity window** and QRZero asks WSJT-X to colour each new decode's sender there: **orange** for a new DXCC, **yellow** for a new band for that DXCC, **blue** for a station on your watch list. It is off by default, needs **Accept UDP requests** like the controls, and WSJT-X keeps a colour for the rest of its session, even after you have worked the station.
+
 #### Where the QSO is
 
 QRZero works this out from the message being sent, compared with your call:
@@ -83,13 +87,13 @@ Nothing is shown when Enable Tx is off and nothing is being sent. WSJT-X doesn't
   - **Clear windows**: clears WSJT-X's Band Activity and Rx Frequency windows, and that program's decodes here.
 - **Double-click** a decode to answer it, as before.
 
-Send and Call CQ only go out while Enable Tx is on in WSJT-X. Answering a decode by double-clicking it ticks Enable Tx too, if WSJT-X's **Double-click on call sets Tx enable** setting is on.
+Send and Call CQ only go out while Enable Tx is on in WSJT-X, and QRZero can't tick it for you (see below). If it is off, Call CQ still puts the CQ in Tx5 and clicks Now, then tells you to tick Enable Tx in WSJT-X; the message is sent at the next period once you do. Both also need **Accept UDP requests** ticked in WSJT-X. Answering a decode by double-clicking it ticks Enable Tx too, if WSJT-X's **Double-click on call sets Tx enable** setting is on.
 
 #### What can't be done from here
 
 WSJT-X's UDP interface only accepts a short list of requests, so some things still need WSJT-X itself:
 
-- **Ticking Enable Tx.** There is no request for it. Answering a decode (double-click) can tick it, as above; Halt TX and Stop after this can untick it.
+- **Ticking Enable Tx.** There is no request for it. Answering a decode (double-click) can tick it, as above; Halt TX and Stop after this can untick it. This is why **Call CQ** and **Send** do nothing on the air while Enable Tx is off: they only fill in and select Tx5, and QRZero tells you when Enable Tx is off. Tick Enable Tx in WSJT-X (the checkbox, or Alt+N) and the message goes out at the next period. QRZero doesn't press that key for you.
 - **Choosing Tx1 to Tx6.** WSJT-X moves through them by itself; QRZero can only set and send Tx5 (free text).
 - **The Tx offset.** Only the Rx offset can be set. Set the Tx offset in WSJT-X (Shift+click the waterfall, or the Rx to Tx button).
 - **Clearing the DX call.** An empty DX call means "leave it as it is", so it can be changed but not emptied.

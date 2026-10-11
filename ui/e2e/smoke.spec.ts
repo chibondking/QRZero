@@ -232,6 +232,38 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     await strip.getByRole("button", { name: "Call CQ" }).click();
     await expect.poll(() => sentKind(9).length).toBe(1);
     expect(sentKind(9)[0].subarray(-15).toString("latin1")).toBe("CQ N0CALL EN34\x01");
+    await expect(ftx.locator(".ftx-msg")).not.toContainText("Enable Tx is off");
+    // With Enable Tx off in WSJT-X, Call CQ says so instead of looking as if it transmitted.
+    await fromRadio(fullStatus({ transmitting: false, enabled: false, txMessage: "", dx: "", report: "" }));
+    await expect(strip.getByTestId("ftx-state")).not.toHaveText("TX");
+    await strip.getByRole("button", { name: "Call CQ" }).click();
+    await expect(ftx.locator(".ftx-msg")).toContainText("Enable Tx is off in WSJT-X");
+    await page.screenshot({ path: "e2e-results/ftx-call-cq-tx-off.png" });
+    await fromRadio(fullStatus({ transmitting: true, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
+    // Colouring needed stations in WSJT-X is off until ticked, then asks for a highlight (type 13).
+    const api = (method: string, path: string, body?: unknown) =>
+      page.evaluate(async ([m, p, b]) => {
+        const r = await fetch(`/api${p}`, { method: m as string, headers: { "x-qrzero-token": "e2e", "content-type": "application/json" }, body: b ? JSON.stringify(b) : undefined });
+        return r.json();
+      }, [method, path, body] as const);
+    // A country file that knows New Zealand, so a ZL station is a new DXCC.
+    await page.evaluate(async () => {
+      await fetch("/api/cty", { method: "POST", headers: { "x-qrzero-token": "e2e" }, body: "ZL,New Zealand,170,OC,32,60,-41.28,-174.78,-12.0,ZL ZM;\n" });
+    });
+    await fromRadio(decode(75000, -5, "CQ ZL1ABC RF73"));
+    await page.waitForTimeout(500);
+    expect(sentKind(13).length).toBe(0);
+    const cur = (await api("GET", "/integrations")) as { config: Record<string, unknown> };
+    await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: true });
+    // Saving restarts the listeners, which forget WSJT-X's address until its next packet.
+    await page.waitForTimeout(500);
+    await fromRadio(fullStatus({ transmitting: false, txMessage: "", dx: "", report: "" }));
+    await page.waitForTimeout(500);
+    await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
+    await expect.poll(() => sentKind(13).length).toBeGreaterThan(0);
+    expect(sentKind(13)[0].includes(Buffer.from("ZL2ABC"))).toBe(true);
+    await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: false });
+    await fromRadio(fullStatus({ transmitting: false, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
     await strip.getByRole("button", { name: "More controls" }).click();
     await strip.getByLabel("DX call").fill("dl1abc");
     await strip.getByRole("button", { name: "Set DX" }).click();
@@ -262,6 +294,9 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.locator(".setting-hit")).toContainText("Control a rotator");
   await page.getByRole("button", { name: "Radios and programs" }).click();
   await expect(page.getByLabel("Listen to WSJT-X / JTDX")).toBeChecked();
+  await expect(page.getByLabel(/Colour needed and watched stations in WSJT-X/)).not.toBeChecked();
+  await page.getByLabel(/Colour needed and watched stations in WSJT-X/).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "e2e-results/settings-ftx-highlight.png" });
 
   // A UDP connection from a preset is saved and can send a test message.
   await page.getByRole("button", { name: "UDP connections" }).click();
@@ -668,11 +703,11 @@ function status(): Buffer {
   return wsjtx(1, [freq, qstr("FT8"), qstr(""), qstr(""), qstr("FT8"), bools(false, false, true), u32(1500), u32(1500), qstr("N0CALL"), qstr("EN34"), qstr("")]);
 }
 /** A full WSJT-X 2.6 status: Enable Tx on, Rx 1500 Hz, Tx 1210 Hz, FT8 15 s periods. */
-function fullStatus(o: { transmitting: boolean; txMessage: string; dx: string; report: string }): Buffer {
+function fullStatus(o: { transmitting: boolean; txMessage: string; dx: string; report: string; enabled?: boolean }): Buffer {
   const freq = Buffer.alloc(8);
   freq.writeBigUInt64BE(14_074_000n);
   return wsjtx(1, [
-    freq, qstr("FT8"), qstr(o.dx), qstr(o.report), qstr("FT8"), bools(true, o.transmitting, false), u32(1500), u32(1210),
+    freq, qstr("FT8"), qstr(o.dx), qstr(o.report), qstr("FT8"), bools(o.enabled ?? true, o.transmitting, false), u32(1500), u32(1210),
     qstr("N0CALL"), qstr("EN34"), qstr("IL18"), bools(false), qstr(""), bools(false), Buffer.from([0]), u32(10), u32(15),
     qstr("Default"), qstr(o.txMessage),
   ]);
