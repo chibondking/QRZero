@@ -35,6 +35,7 @@ impl Api {
         cfg.secret_service = format!("QRZero-test-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::SeqCst));
         cfg.update_cty = false;
         cfg.qsl_endpoints.qrz = qrz;
+        cfg.qsl_endpoints.clublog_batch = format!("{clublog}-batch");
         cfg.qsl_endpoints.clublog = clublog;
         let running = start(cfg).await.unwrap();
         Api { base: format!("http://{}/api", running.addr), token: running.token, http: reqwest::Client::new(), dir }
@@ -130,6 +131,7 @@ fn form(body: &str) -> HashMap<String, String> {
 /// A stand-in for the QRZ Logbook API: W1AW is already in the logbook.
 async fn mock_services(seen: Seen) -> (String, String) {
     let qrz_seen = seen.clone();
+    let batch_seen = seen.clone();
     let app = Router::new()
         .route(
             "/qrz",
@@ -160,6 +162,16 @@ async fn mock_services(seen: Seen) -> (String, String) {
                     if f["password"] != "pw" {
                         return (axum::http::StatusCode::FORBIDDEN, "Invalid login".to_string());
                     }
+                    (axum::http::StatusCode::OK, "OK".to_string())
+                }
+            }),
+        )
+        .route(
+            "/clublog-batch",
+            post(move |body: String| {
+                let seen = batch_seen.clone();
+                async move {
+                    seen.lock().unwrap().push(HashMap::from([("batch".to_string(), body)]));
                     (axum::http::StatusCode::OK, "OK".to_string())
                 }
             }),
@@ -314,6 +326,33 @@ async fn qrz_and_clublog_uploads() {
     let run = api.post("/qsl/upload/qrz", json!(null)).await;
     assert!(run["error"].as_str().unwrap().contains("login refused"), "{run}");
     assert_eq!(api.fields(log, "K5ABC").await.get("QRZCOM_QSO_UPLOAD_STATUS"), None);
+}
+
+#[tokio::test]
+async fn clublog_large_uploads_use_the_batch_endpoint() {
+    let seen = Seen::default();
+    let (qrz, clublog) = mock_services(seen.clone()).await;
+    let api = Api::new(qrz, clublog).await;
+    let (log, loc) = api.setup().await;
+    for i in 0..8 {
+        api.qso(log, loc, &format!("K{i}ABC")).await;
+    }
+    let mut cfg = api.get("/qsl").await["config"].clone();
+    cfg["clublog_calls"] = json!(["N0CALL"]);
+    cfg["clublog_since"] = json!("2025-01-01");
+    cfg["clublog_email"] = json!("op@example.com");
+    api.put("/qsl", json!({"config": cfg, "secrets": {"clublog_password": "pw", "clublog_app_key": "app"}})).await;
+    let run = api.post("/qsl/upload/clublog", json!(null)).await;
+    assert_eq!(run["uploaded"], 8, "{run}");
+    assert!(run["error"].is_null(), "{run}");
+    let (count, body) = {
+        let seen = seen.lock().unwrap();
+        (seen.len(), seen[0]["batch"].clone())
+    };
+    assert_eq!(count, 1, "one file, not eight single uploads");
+    assert!(body.contains("name=\"file\"") && body.contains("name=\"api\""), "multipart upload");
+    assert_eq!(body.matches("<EOR>").count(), 8);
+    assert_eq!(api.get("/qsl").await["pending"]["clublog"], 0);
 }
 
 #[tokio::test]

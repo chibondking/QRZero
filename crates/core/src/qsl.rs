@@ -18,6 +18,8 @@ use crate::adif::{is_standard_field, write_record, Fields};
 pub const QRZ_LOGBOOK_ENDPOINT: &str = "https://logbook.qrz.com/api";
 /// Production Club Log realtime upload endpoint.
 pub const CLUBLOG_ENDPOINT: &str = "https://clublog.org/realtime.php";
+/// Production Club Log batch (ADIF file) upload endpoint.
+pub const CLUBLOG_BATCH_ENDPOINT: &str = "https://clublog.org/putlogs.php";
 /// User-Agent sent to QSL services.
 pub const USER_AGENT: &str = concat!("QRZero/", env!("CARGO_PKG_VERSION"));
 
@@ -205,10 +207,11 @@ fn failure(r: &[(String, String)]) -> QslError {
     }
 }
 
-/// Client for the Club Log realtime upload API.
+/// Client for the Club Log realtime (one QSO) and batch (ADIF file) upload APIs.
 pub struct ClubLog {
     http: reqwest::Client,
     endpoint: String,
+    batch_endpoint: String,
     email: String,
     password: String,
     callsign: String,
@@ -218,10 +221,11 @@ pub struct ClubLog {
 impl ClubLog {
     /// A client for `endpoint` (normally [`CLUBLOG_ENDPOINT`]). `callsign` is the
     /// log's callsign on Club Log; `app_key` is the application API key.
-    pub fn new(endpoint: &str, email: &str, password: &str, callsign: &str, app_key: &str) -> Self {
+    pub fn new(endpoint: &str, batch_endpoint: &str, email: &str, password: &str, callsign: &str, app_key: &str) -> Self {
         ClubLog {
             http: http_client(),
             endpoint: endpoint.to_string(),
+            batch_endpoint: batch_endpoint.to_string(),
             email: email.trim().to_string(),
             password: password.to_string(),
             callsign: callsign.trim().to_string(),
@@ -256,6 +260,49 @@ impl ClubLog {
                 Ok(Upload::Duplicate)
             }
             400 => Ok(Upload::Rejected(if text.is_empty() { "rejected by Club Log".into() } else { text })),
+            403 => Err(QslError::Auth(if text.is_empty() { "Club Log refused the login".into() } else { text })),
+            _ => Err(QslError::Service(format!("Club Log HTTP {status}: {text}"))),
+        }
+    }
+}
+
+impl ClubLog {
+    /// Uploads many QSOs as one ADIF file. Club Log does not report per-QSO results for
+    /// a file (it skips the ones it already has), so the whole batch succeeds or fails.
+    pub async fn upload_batch(&self, qsos: &[&Fields]) -> Result<(), QslError> {
+        let mut adif = String::from("QRZero upload\n<EOH>\n");
+        for q in qsos {
+            adif.push_str(&upload_record(q));
+        }
+        let boundary = "----QRZeroBoundary7f3a9c2e";
+        let mut body = String::new();
+        let mut part = |name: &str, filename: Option<&str>, value: &str| {
+            body.push_str(&format!("--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\""));
+            if let Some(f) = filename {
+                body.push_str(&format!("; filename=\"{f}\"\r\nContent-Type: application/octet-stream"));
+            }
+            body.push_str(&format!("\r\n\r\n{value}\r\n"));
+        };
+        part("email", None, &self.email);
+        part("password", None, &self.password);
+        part("callsign", None, &self.callsign);
+        part("api", None, &self.app_key);
+        part("file", Some("upload.adi"), &adif);
+        body.push_str(&format!("--{boundary}--\r\n"));
+        let resp = self
+            .http
+            .post(&self.batch_endpoint)
+            .header(reqwest::header::CONTENT_TYPE, format!("multipart/form-data; boundary={boundary}"))
+            .timeout(Duration::from_secs(120))
+            .body(body)
+            .send()
+            .await
+            .map_err(|e| QslError::Network(format!("Club Log: {e}")))?;
+        let status = resp.status().as_u16();
+        let text = resp.text().await.map_err(|e| QslError::Network(format!("Club Log: {e}")))?;
+        let text = text.trim().to_string();
+        match status {
+            200..=299 => Ok(()),
             403 => Err(QslError::Auth(if text.is_empty() { "Club Log refused the login".into() } else { text })),
             _ => Err(QslError::Service(format!("Club Log HTTP {status}: {text}"))),
         }
@@ -500,13 +547,13 @@ mod tests {
     #[tokio::test]
     async fn clublog_responses() {
         let (url, seen) = mock(clublog_reply).await;
-        let c = ClubLog::new(&url, "me@x.org", "pw", "K1ABC", "APPKEY");
+        let c = ClubLog::new(&url, &url, "me@x.org", "pw", "K1ABC", "APPKEY");
         assert_eq!(c.upload(&qso("W1AW")).await, Ok(Upload::Added));
         assert_eq!(c.upload(&qso("DUPE")).await, Ok(Upload::Duplicate));
         assert_eq!(c.upload(&qso("BAD")).await, Ok(Upload::Rejected("Rejected: invalid QSO date".into())));
         assert!(matches!(c.upload(&qso("BOOM")).await, Err(QslError::Service(_))));
         assert_eq!(seen.lock().unwrap()[0]["adif"], upload_record(&qso("W1AW")));
-        let bad = ClubLog::new(&url, "me@x.org", "nope", "K1ABC", "APPKEY");
+        let bad = ClubLog::new(&url, &url, "me@x.org", "nope", "K1ABC", "APPKEY");
         assert!(matches!(bad.upload(&qso("W1AW")).await, Err(QslError::Auth(_))));
     }
 
