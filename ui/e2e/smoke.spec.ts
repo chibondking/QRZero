@@ -74,6 +74,13 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.locator(".grid > .grid-tools")).toContainText("3 QSOs");
 
+  // Clicking a QSO in the log shows that station in Worked before, without touching the entry.
+  await page.locator(".grid-row", { hasText: "W1AW" }).click();
+  const workedBefore = page.locator(".panel", { hasText: "Worked before" }).first();
+  await expect(workedBefore).toContainText("W1AW");
+  await expect(call).toHaveValue("");
+  await page.getByRole("button", { name: "Clear selection" }).click();
+
   // Show the rig column; the QSO logged from the keyboard recorded the K3 and its power.
   await page.getByRole("button", { name: "Columns" }).click();
   await page.locator(".column-picker label.chip", { hasText: /^Rig$/ }).locator("input").check();

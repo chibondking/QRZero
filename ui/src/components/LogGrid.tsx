@@ -23,6 +23,7 @@ interface Props {
   onFilter: (f: QsoFilter) => void;
   selection: Set<number>;
   onSelection: (s: Set<number>) => void;
+  onBrowse?: (call: string) => void;  // a single QSO was picked: show its station in the side panes
   onEdit: (q: Qso) => void;
   onDeleted: () => void;
   onExportSelected: () => void;
@@ -40,7 +41,7 @@ interface Props {
 
 const QSL_NAMES: Record<QslService, string> = { qrz: "QRZ Logbook", clublog: "Club Log", eqsl: "eQSL", lotw: "LoTW (TQSL)" };
 
-export default function LogGrid({ logId, refreshKey, filter, onFilter, selection, onSelection, onEdit, onDeleted, onExportSelected, columns, onColumns, widths, onWidths, locations, stepper, editingId }: Props) {
+export default function LogGrid({ logId, refreshKey, filter, onFilter, selection, onSelection, onBrowse, onEdit, onDeleted, onExportSelected, columns, onColumns, widths, onWidths, locations, stepper, editingId }: Props) {
   useDisplay(); // redraw when the date or frequency format changes
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
@@ -156,6 +157,7 @@ export default function LogGrid({ logId, refreshKey, filter, onFilter, selection
     if (!q) return null;
     lastClicked.current = i + dir;
     onSelection(new Set([q.id]));
+    onBrowse?.(q.fields.CALL ?? "");
     virtualizer.scrollToIndex(i + dir, { align: "auto" });
     return q;
   };
@@ -174,7 +176,10 @@ export default function LogGrid({ logId, refreshKey, filter, onFilter, selection
       const q = rowAt(next);
       lastClicked.current = next;
       virtualizer.scrollToIndex(next, { align: "auto" });
-      if (q) onSelection(new Set([q.id]));
+      if (q) {
+        onSelection(new Set([q.id]));
+        onBrowse?.(q.fields.CALL ?? "");
+      }
     }
   };
 
@@ -193,6 +198,7 @@ export default function LogGrid({ logId, refreshKey, filter, onFilter, selection
     }
     lastClicked.current = i;
     onSelection(next);
+    if (next.size === 1 && next.has(q.id)) onBrowse?.(q.fields.CALL ?? "");
   };
 
   const toggle = (q: Qso) => {

@@ -29,6 +29,10 @@ Right-click a row for a menu. It acts on the selected rows when you right-click 
 
 When you click a row in the **Awards** tab, the log shows only those QSOs and a button such as **DXCC 291 ×** appears above the grid. Click it to show all QSOs again.
 
+## Looking at a station from the log
+
+Click a row (or move with the arrow keys) and the **Station**, **Worked before** and **Map** panes switch to that call, so you can see your earlier QSOs with it and its details without opening the editor. The New QSO fields are not touched. The panes go back to following New QSO as soon as you type or pick another call there.
+
 ## Editing a QSO
 
 Double-click a row, or select it and press <kbd>Enter</kbd>, to open the QSO editor in its own window. Put the window wherever you like; QRZero remembers where it was. There is only ever one editor window: double-click another QSO, in the log or in Worked before, and the editor switches to it (asking first if you have unsaved changes).

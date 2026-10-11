@@ -83,6 +83,8 @@ export default function App() {
   const [copy, setCopy] = useState<{ nonce: number; fields: Fields } | null>(null);
   const [lookup, setLookup] = useState<LookupResult | null>(null);
   const [entry, setEntry] = useState<EntryContext>({ band: "", mode: "", fields: {} });
+  // A station picked in the Log: the Station and Worked Before panes show it until the entry's call changes.
+  const [browse, setBrowse] = useState<{ call: string; entryCall: string; lookup: LookupResult | null } | null>(null);
   const [filter, setFilter] = useState<QsoFilter>({});
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
@@ -160,6 +162,23 @@ export default function App() {
   }, [logId, loadStation]);
 
   // Tell the server where QSOs from WSJT-X and N1MM go, and which rigs to connect.
+  // Look up a station picked in the Log (debounced so stepping through rows with the arrow keys stays cheap).
+  const browseCall = browse && !browse.lookup ? browse.call : null;
+  useEffect(() => {
+    if (logId === null || !browseCall) return;
+    let live = true;
+    const t = window.setTimeout(() => {
+      api.lookup(logId, browseCall).then(
+        (r) => live && setBrowse((b) => (b && b.call === browseCall ? { ...b, lookup: r } : b)),
+        () => {},
+      );
+    }, 200);
+    return () => {
+      live = false;
+      window.clearTimeout(t);
+    };
+  }, [logId, browseCall]);
+
   useEffect(() => {
     if (logId !== null && callsigns !== null) api.setActive(logId, locationId, stationCall).catch(() => {});
   }, [logId, locationId, stationCall, callsigns]);
@@ -261,12 +280,16 @@ export default function App() {
   const location = locations.find((l) => l.id === locationId) ?? null;
   const currentLog = logs.find((l) => l.id === logId);
   const home = location ? positionOf(location.fields, "MY_") : null;
-  const dxStation = lookup?.station ?? null;
-  const dxEntity = lookup?.entity;
+  const entryCall = entry.fields.CALL ?? "";
+  const browsing = browse && browse.entryCall === entryCall && browse.lookup ? browse : null;
+  const paneLookup = browsing ? browsing.lookup : lookup;
+  const paneEntry: EntryContext = browsing ? { ...entry, fields: { CALL: browsing.call } } : entry;
+  const dxStation = paneLookup?.station ?? null;
+  const dxEntity = paneLookup?.entity;
   const dx =
     (dxStation && positionOf(dxStation)) ||
-    gridToLatLon(entry.fields.GRIDSQUARE ?? "") ||
-    (dxEntity && entry.fields.CALL ? { lat: dxEntity.lat, lon: dxEntity.lon } : null) ||
+    gridToLatLon(paneEntry.fields.GRIDSQUARE ?? "") ||
+    (dxEntity && paneEntry.fields.CALL ? { lat: dxEntity.lat, lon: dxEntity.lon } : null) ||
     null;
 
   const actions: PaneActions = {
@@ -287,11 +310,11 @@ export default function App() {
           logId,
           stationCall,
           callsigns: callsigns ?? [],
-          lookup,
-          entry,
+          lookup: paneLookup,
+          entry: paneEntry,
           home,
           dx,
-          dxLabel: entry.fields.CALL || dxStation?.CALL || "",
+          dxLabel: paneEntry.fields.CALL || dxStation?.CALL || "",
           units: general.units,
           refreshKey,
           editingId: editing?.id ?? null,
@@ -462,6 +485,7 @@ export default function App() {
                 onFilter={setFilter}
                 selection={selection}
                 onSelection={setSelection}
+                onBrowse={(call) => setBrowse(call ? { call, entryCall, lookup: null } : null)}
                 onEdit={openEditor}
                 onDeleted={refreshGrid}
                 onExportSelected={() => setDialog("export")}
