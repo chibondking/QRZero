@@ -44,6 +44,16 @@ fn main() {
                 let _ = w.set_focus();
             }
         }))
+        // Closing the main window closes every popped-out window and quits the app.
+        .on_window_event(|window, event| {
+            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                let app = window.app_handle();
+                for (_, w) in app.webview_windows() {
+                    let _ = w.destroy();
+                }
+                app.exit(0);
+            }
+        })
         .setup(|app| {
             let config = qrzero_server::Config::local(qrzero_server::default_data_dir());
             let running = tauri::async_runtime::block_on(qrzero_server::start(config))?;

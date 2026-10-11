@@ -270,10 +270,13 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     await expect.poll(() => sentKind(15).length).toBe(1);
     expect(sentKind(15)[0].includes(Buffer.from("DL1ABC"))).toBe(true);
 
-    // WSJT-X stops and waits with Enable Tx still on.
+    // WSJT-X stops and waits with Enable Tx still on. Stopping adds no TX line. (The
+    // count isn't fixed: a TX line is listed once per 15 s period, and this test can
+    // run across a period boundary.)
+    const txRowsBefore = await txRow.count();
     await fromRadio(fullStatus({ transmitting: false, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
     await expect(strip.getByTestId("ftx-state")).toHaveText("Tx on");
-    await expect(txRow).toHaveCount(1);
+    await expect(txRow).toHaveCount(txRowsBefore);
   } finally {
     radio.close();
   }
