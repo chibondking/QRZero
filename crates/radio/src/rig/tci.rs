@@ -13,6 +13,8 @@ use super::{CmdRx, ModeInfo, ModeReq, RigCommand, RigState, StateTx};
 const MAX_TRX: usize = 16;
 const KEEPALIVE: Duration = Duration::from_secs(5);
 const SILENCE_LIMIT: Duration = Duration::from_secs(15);
+/// AetherSDR sends no message when a slice closes; its `rx_smeter` just stops. A receiver silent this long while another still reports is closed.
+const SMETER_STALE: Duration = Duration::from_secs(3);
 
 pub(super) async fn run(host: &str, port: u16, state: &StateTx, cmds: &mut CmdRx) -> Result<()> {
     let url = format!("ws://{host}:{port}");
@@ -27,6 +29,9 @@ pub(super) async fn run(host: &str, port: u16, state: &StateTx, cmds: &mut CmdRx
     let mut keepalive = interval(KEEPALIVE);
     keepalive.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut heard = Instant::now();
+    let mut smeter: Vec<Option<Instant>> = Vec::new();
+    let mut sweep = interval(Duration::from_secs(1));
+    sweep.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
         tokio::select! {
             msg = stream.next() => {
@@ -36,6 +41,7 @@ pub(super) async fn run(host: &str, port: u16, state: &StateTx, cmds: &mut CmdRx
                     Message::Text(text) => {
                         let before = chans.clone();
                         for m in parse(&text) {
+                            note_smeter(&mut chans, &mut smeter, &m, heard);
                             apply(&mut chans, &m);
                         }
                         if chans != before {
@@ -51,6 +57,11 @@ pub(super) async fn run(host: &str, port: u16, state: &StateTx, cmds: &mut CmdRx
                 let freq = chans.get(ch).map_or(0, |c| c.freq_hz);
                 if let Some(text) = encode_command(ch, &cmd, freq) {
                     sink.send(Message::text(text)).await.context("TCI")?;
+                }
+            }
+            _ = sweep.tick() => {
+                if close_silent(&mut chans, &smeter, Instant::now()) {
+                    state.send_replace(chans.clone());
                 }
             }
             _ = keepalive.tick() => {
@@ -130,6 +141,38 @@ fn apply(chans: &mut Vec<RigState>, msg: &TciMsg) {
         }
         _ => {}
     }
+}
+
+/// Records when each receiver last reported its signal level, and reopens one that reports again.
+fn note_smeter(chans: &mut [RigState], seen: &mut Vec<Option<Instant>>, msg: &TciMsg, now: Instant) {
+    if msg.name != "rx_smeter" {
+        return;
+    }
+    let Some(t) = msg.args.first().and_then(|a| a.parse::<usize>().ok()).filter(|&t| t < MAX_TRX) else { return };
+    if seen.len() <= t {
+        seen.resize(t + 1, None);
+    }
+    seen[t] = Some(now);
+    if let Some(c) = chans.get_mut(t) {
+        c.closed = false;
+    }
+}
+
+/// Marks receivers closed that reported a signal level before but have gone quiet while another keeps reporting.
+/// Receiver 0 is never closed. Returns whether anything changed.
+fn close_silent(chans: &mut [RigState], seen: &[Option<Instant>], now: Instant) -> bool {
+    let fresh = |t: Option<&Option<Instant>>| matches!(t, Some(Some(at)) if now.duration_since(*at) <= SMETER_STALE);
+    if !(0..seen.len()).any(|i| fresh(seen.get(i))) {
+        return false;
+    }
+    let mut changed = false;
+    for (t, c) in chans.iter_mut().enumerate().skip(1) {
+        if seen.get(t).is_some_and(Option::is_some) && !fresh(seen.get(t)) && !c.closed {
+            c.closed = true;
+            changed = true;
+        }
+    }
+    changed
 }
 
 /// The state of `trx`, growing the list when the server mentions a trx before `trx_count`.
@@ -222,6 +265,31 @@ mod tests {
         assert!(chans[1].closed && !chans[0].closed);
         apply(&mut chans, &parse("rx_enable:1,true;")[0]);
         assert!(!chans[1].closed);
+    }
+
+    #[test]
+    fn silent_smeter_closes_a_slice() {
+        let t0 = Instant::now();
+        let mut chans = vec![connected(), connected()];
+        let mut seen = Vec::new();
+        for m in parse("rx_smeter:0,-109;rx_smeter:1,-60;") {
+            note_smeter(&mut chans, &mut seen, &m, t0);
+        }
+        // Slice B stops reporting, A keeps going.
+        for m in parse("rx_smeter:0,-108;") {
+            note_smeter(&mut chans, &mut seen, &m, t0 + Duration::from_secs(5));
+        }
+        assert!(!close_silent(&mut chans, &seen, t0 + Duration::from_secs(1)));
+        assert!(close_silent(&mut chans, &seen, t0 + Duration::from_secs(5)));
+        assert!(chans[1].closed && !chans[0].closed);
+        // It comes back when it reports again.
+        for m in parse("rx_smeter:1,-70;") {
+            note_smeter(&mut chans, &mut seen, &m, t0 + Duration::from_secs(6));
+        }
+        assert!(!chans[1].closed);
+        // Nobody reporting at all closes nothing.
+        let mut quiet = vec![connected(), connected()];
+        assert!(!close_silent(&mut quiet, &seen, t0 + Duration::from_secs(60)));
     }
 
     #[test]
