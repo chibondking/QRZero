@@ -420,6 +420,7 @@ function RadiosTab({ onClose }: { onClose: () => void }) {
           </label>
         </div>
         {check("wsjtx_auto_log", "Log QSOs that WSJT-X / JTDX log")}
+        {check("wsjtx_highlight", "Colour needed and watched stations in WSJT-X's Band Activity window")}
         <p className="small muted">
           In WSJT-X: File, Settings, Reporting. Set UDP Server to the address above (127.0.0.1, port 2237) and tick
           "Accept UDP requests" so double-clicking a decode here can call the station. Run several copies with

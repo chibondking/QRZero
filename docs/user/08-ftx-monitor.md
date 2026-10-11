@@ -52,6 +52,10 @@ Above the decodes there is one short line for each WSJT-X or JTDX, in its colour
 
 With the source box set to one program, only its line shows.
 
+#### Colouring stations in WSJT-X
+
+In **Settings → Radios and programs**, tick **Colour needed and watched stations in WSJT-X's Band Activity window** and QRZero asks WSJT-X to colour each new decode's sender there: **orange** for a new DXCC, **yellow** for a new band for that DXCC, **blue** for a station on your watch list. It is off by default, needs **Accept UDP requests** like the controls, and WSJT-X keeps a colour for the rest of its session, even after you have worked the station.
+
 #### Where the QSO is
 
 QRZero works this out from the message being sent, compared with your call:

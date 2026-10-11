@@ -240,6 +240,24 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     await expect(ftx.locator(".ftx-msg")).toContainText("Enable Tx is off in WSJT-X");
     await page.screenshot({ path: "e2e-results/ftx-call-cq-tx-off.png" });
     await fromRadio(fullStatus({ transmitting: true, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
+    // Colouring needed stations in WSJT-X is off until ticked, then asks for a highlight (type 13).
+    const api = (method: string, path: string, body?: unknown) =>
+      page.evaluate(async ([m, p, b]) => {
+        const r = await fetch(`/api${p}`, { method: m as string, headers: { "x-qrzero-token": "e2e", "content-type": "application/json" }, body: b ? JSON.stringify(b) : undefined });
+        return r.json();
+      }, [method, path, body] as const);
+    const cty = (await api("GET", "/cty")) as { entities: number };
+    await fromRadio(decode(75000, -5, "CQ ZL1ABC RF73"));
+    await page.waitForTimeout(500);
+    expect(sentKind(13).length).toBe(0);
+    if (cty.entities > 0) {
+      const cur = (await api("GET", "/integrations")) as { config: Record<string, unknown> };
+      await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: true });
+      await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
+      await expect.poll(() => sentKind(13).length).toBeGreaterThan(0);
+      expect(sentKind(13)[0].includes(Buffer.from("ZL2ABC"))).toBe(true);
+      await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: false });
+    }
     await strip.getByRole("button", { name: "More controls" }).click();
     await strip.getByLabel("DX call").fill("dl1abc");
     await strip.getByRole("button", { name: "Set DX" }).click();
@@ -270,6 +288,9 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.locator(".setting-hit")).toContainText("Control a rotator");
   await page.getByRole("button", { name: "Radios and programs" }).click();
   await expect(page.getByLabel("Listen to WSJT-X / JTDX")).toBeChecked();
+  await expect(page.getByLabel(/Colour needed and watched stations in WSJT-X/)).not.toBeChecked();
+  await page.getByLabel(/Colour needed and watched stations in WSJT-X/).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "e2e-results/settings-ftx-highlight.png" });
 
   // A UDP connection from a preset is saved and can send a test message.
   await page.getByRole("button", { name: "UDP connections" }).click();
