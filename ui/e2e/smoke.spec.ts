@@ -543,12 +543,16 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
 
   // A pane pops out into its own window and docks back when that window closes.
   await page.getByRole("tab", { name: "FTx monitor" }).click();
+  const ftxGroup = () => page.locator(".ws-group", { has: page.getByRole("tab", { name: "FTx monitor" }) }).getByRole("tab");
+  const ftxTabs = await ftxGroup().allTextContents();
   const [popup] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "Pop out FTx monitor" }).click()]);
   // The WSJT-X fed in above may still be listed, so look for the monitor itself.
   await expect(popup.getByLabel("Period breaks")).toBeVisible();
   await expect(page.getByRole("tab", { name: "FTx monitor" })).toHaveCount(0);
   await closeWindow(popup.getByRole("button", { name: "Dock back" }));
   await expect(page.getByRole("tab", { name: "FTx monitor" })).toBeVisible();
+  // It returns to the tab group it left, not to a default spot.
+  await expect(ftxGroup()).toHaveCount(ftxTabs.length);
 
   // The New QSO form pops out too: logging from it lands in the main window's log, and spots still fill it.
   const [entryWin] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "Pop out New QSO" }).click()]);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "../workspace.css";
-import { listen, post, saveGeometry, type EditPayload } from "../bus";
+import { closeWindow, listen, post, saveGeometry, type EditPayload } from "../bus";
 import QsoEditor from "./QsoEditor";
 
 /** The QSO editor in its own window. The main window sends it the QSO to edit. */
@@ -14,7 +14,7 @@ export default function EditorWindow() {
     closing.current = true;
     saveGeometry("editor");
     post({ t: "edit-closed" });
-    window.close();
+    closeWindow();
   };
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function EditorWindow() {
       }
       if (m.t === "close-all") {
         closing.current = true;
-        window.close();
+        closeWindow();
       }
     });
     post({ t: "hello", pane: "editor" });
