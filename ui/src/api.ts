@@ -68,7 +68,7 @@ export const api = {
   labelPrinters: () => json<string[]>("GET", "/label/printers"),
   labelPrint: async (printer: string, tape: number, width: number, rows: number, bits: Uint8Array) =>
     (await request("POST", `/label/print?${new URLSearchParams({ printer, tape: String(tape), width: String(width), rows: String(rows) })}`, undefined, bits as BodyInit)).json() as Promise<number>,
-  /** Looks the QSOs up on QRZ and fills in their blank fields. */
+  /** Looks the QSOs up on the lookup services and fills in their blank fields. */
   lookupQsos: (ids: number[]) => json<{ updated: number; errors: string[] }>("POST", "/qsos/lookup", { ids }),
   /** Sends the QSOs out through the "QSO logged" UDP connections. */
   sendQsos: (ids: number[]) => json<number>("POST", "/qsos/send", { ids }),
@@ -93,7 +93,12 @@ export const api = {
   paperQueue: (logId: number) => json<Qso[]>("GET", `/logs/${logId}/paper-queue`),
   search: (logId: number, filter: QsoFilter, offset: number, limit: number, sort = "newest") =>
     json<{ total: number; rows: Qso[] }>("POST", `/logs/${logId}/qsos/search`, { filter, offset, limit, sort }),
-  lookup: (logId: number, call: string) => json<LookupResult>("GET", `/logs/${logId}/lookup/${encodeURIComponent(call)}`),
+  /**
+   * Looks a call up. `fill` is for the Fill button and the editor: it also asks the next
+   * service for anything the first one left blank, which costs a second request.
+   */
+  lookup: (logId: number, call: string, fill = false) =>
+    json<LookupResult>("GET", `/logs/${logId}/lookup/${encodeURIComponent(call)}${fill ? "?fill=1" : ""}`),
   notes: (logId: number, q: string, offset: number, limit: number) =>
     json<{ total: number; rows: Note[] }>("GET", `/logs/${logId}/notes?${new URLSearchParams({ q, offset: String(offset), limit: String(limit) })}`),
   note: (logId: number, call: string) => json<Note | null>("GET", `/logs/${logId}/notes/${encodeURIComponent(call)}`),

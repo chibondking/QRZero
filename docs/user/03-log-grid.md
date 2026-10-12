@@ -21,7 +21,7 @@ Right-click a row for a menu. It acts on the selected rows when you right-click 
 
 - **Edit** opens the QSO editor.
 - **Mark OQRS requested**, **Card sent via bureau**, **Card sent direct**, **Queue a card to send** and **Card received, queue a reply** set the QSL fields on the QSOs the menu acts on, the same as **Paper QSL…**.
-- **Fill from QRZ** looks each call up on QRZ and fills in name, QTH, state, grid and the rest wherever the QSO has nothing. Nothing you already have is changed. It needs your QRZ login (Settings, **Callsign lookup**).
+- **Fill from lookup** looks each call up and fills in name, QTH, state, grid and the rest wherever the QSO has nothing. Nothing you already have is changed. It needs a QRZ or HamQTH login (Settings, **Callsign lookup**), asks them in the order set there, and goes on to the next service for anything the first one left blank.
 - **View CALL on QRZ.com** (one row only) opens that station's page on QRZ.com in your web browser. It needs no login.
 - **Send through UDP connections** sends the QSOs again to every **QSO logged** connection under Settings, **UDP connections**, just as if they had been logged now. Use it to push older contacts into another program. See [UDP connections](16-udp-and-startup.md).
 - **Upload to QRZ Logbook / Club Log / eQSL / LoTW (TQSL)** appears for each service that is set up under QSL. It uploads the chosen QSOs right away, even ones already sent, and updates their sent status. QSOs only go to a service for the station callsigns ticked there (and, for LoTW, the locations with a TQSL station location). See [QSL](10-qsl.md).
@@ -55,7 +55,7 @@ Keys while the editor is open:
 - <kbd>Esc</kbd> closes the editor window. If you have unsaved changes it asks before throwing them away.
 - <kbd>Alt</kbd>+<kbd>Up</kbd> and <kbd>Alt</kbd>+<kbd>Down</kbd> step to the QSO above or below in the log grid, as do the arrow buttons in the title bar.
 
-**Fill from QRZ** in the editor's bottom bar looks the call up and fills in only the fields that are blank, then lists what it filled. Nothing is saved until you press **Save**. **View on QRZ.com** next to it opens the station's page on QRZ.com in your web browser.
+**Fill from lookup** in the editor's bottom bar looks the call up and fills in only the fields that are blank, then lists what it filled and which service each came from. Nothing is saved until you press **Save**. **View on QRZ.com** next to it opens the station's page on QRZ.com in your web browser.
 
 **Revert** puts back what was saved, and **Delete QSO** removes the contact after asking. Editing a QSO that was already uploaded to QRZ or Club Log marks it for upload again.
 

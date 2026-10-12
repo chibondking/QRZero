@@ -25,6 +25,8 @@ async fn mock_qrz(logins: Arc<AtomicUsize>) -> String {
                 match q.get("callsign").map(String::as_str) {
                     Some("W1AW") => "<QRZDatabase><Callsign><call>W1AW</call><fname>Hiram</fname><name>Maxim</name><addr2>Newington</addr2><dxcc>291</dxcc></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
                     Some("K5BOTH") => "<QRZDatabase><Callsign><call>K5BOTH</call><fname>From</fname><name>QRZ</name></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
+                    // The same call with the grid HamQTH is missing.
+                    Some("K7GAP") => "<QRZDatabase><Callsign><call>K7GAP</call><fname>Patricia</fname><name>Ray</name><grid>DN13</grid><state>ID</state></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
                     Some(c) => format!("<QRZDatabase><Session><Key>abc</Key><Error>Not found: {c}</Error></Session></QRZDatabase>"),
                     None => String::new(),
                 }
@@ -56,6 +58,8 @@ async fn mock_hamqth(lookups: Arc<AtomicUsize>) -> String {
                     Some("G0ABC") => "<HamQTH><search><callsign>G0ABC</callsign><nick>Jo</nick><qth>Bath</qth><adif>223</adif><grid>IO81</grid></search></HamQTH>".to_string(),
                     Some("W1AW") => "<HamQTH><search><callsign>W1AW</callsign><nick>HamQTH Hiram</nick></search></HamQTH>".to_string(),
                     Some("K5BOTH") => "<HamQTH><search><callsign>K5BOTH</callsign><nick>From HamQTH</nick></search></HamQTH>".to_string(),
+                    // Known to HamQTH with no grid, so QRZ can top it up.
+                    Some("K7GAP") => "<HamQTH><search><callsign>K7GAP</callsign><nick>Pat</nick><qth>Boise</qth></search></HamQTH>".to_string(),
                     _ => "<HamQTH><session><error>Callsign not found</error></session></HamQTH>".to_string(),
                 }
             }
@@ -322,6 +326,85 @@ async fn lookup_on_entry_defaults_on_and_saves() {
     assert_eq!(s["lookup_on_entry"], false);
     let s = api.get("/settings").await;
     assert_eq!(s["lookup_on_entry"], false);
+}
+
+#[tokio::test]
+async fn an_explicit_fill_tops_up_from_the_next_service() {
+    let api = Api::with_services(
+        mock_qrz(Arc::new(AtomicUsize::new(0))).await,
+        Some(mock_hamqth(Arc::new(AtomicUsize::new(0))).await),
+    )
+    .await;
+    let log = api.get("/logs").await[0]["id"].as_i64().unwrap();
+    api.call(
+        reqwest::Method::PUT,
+        "/settings",
+        Some(json!({
+            "qrz_enabled": true, "qrz_username": "me", "qrz_password": "good",
+            "hamqth_enabled": true, "hamqth_username": "me", "hamqth_password": "good",
+            "lookup_order": ["hamqth", "qrz"]
+        })),
+    )
+    .await;
+
+    // Typing a call uses the first service that knows it, and stops there.
+    let r = api.get(&format!("/logs/{log}/lookup/K7GAP")).await;
+    assert_eq!(r["source"], "HamQTH");
+    assert_eq!(r["station"]["NAME"], "Pat");
+    assert!(r["station"]["GRIDSQUARE"].is_null(), "the automatic lookup must not ask the second service: {r}");
+
+    // Asking for a fill goes on to QRZ for the grid HamQTH didn't have, and keeps
+    // HamQTH's answer for everything it did have.
+    let r = api.get(&format!("/logs/{log}/lookup/K7GAP?fill=1")).await;
+    assert_eq!(r["station"]["GRIDSQUARE"], "DN13");
+    assert_eq!(r["station"]["STATE"], "ID");
+    assert_eq!(r["station"]["NAME"], "Pat", "the first service's answer wins where it had one");
+    assert_eq!(r["source"], "HamQTH + QRZ");
+
+    // A complete first answer still costs one service.
+    let r = api.get(&format!("/logs/{log}/lookup/G0ABC?fill=1")).await;
+    assert_eq!(r["source"], "HamQTH");
+}
+
+#[tokio::test]
+async fn hamqth_alone_fills_the_editor_and_right_click_paths() {
+    let api = Api::with_services(
+        mock_qrz(Arc::new(AtomicUsize::new(0))).await,
+        Some(mock_hamqth(Arc::new(AtomicUsize::new(0))).await),
+    )
+    .await;
+    let log = api.get("/logs").await[0]["id"].as_i64().unwrap();
+    // HamQTH only: QRZ is left off entirely.
+    api.call(
+        reqwest::Method::PUT,
+        "/settings",
+        Some(json!({"hamqth_enabled": true, "hamqth_username": "me", "hamqth_password": "good"})),
+    )
+    .await;
+
+    // The editor's Fill button: GET the call, which must answer from HamQTH.
+    let r = api.get(&format!("/logs/{log}/lookup/G0ABC?fill=1")).await;
+    assert_eq!(r["source"], "HamQTH");
+    assert_eq!(r["station"]["NAME"], "Jo");
+
+    // The log's right-click Fill: POST /qsos/lookup, which writes the QSO.
+    let qso = json!({"fields": {"CALL": "G0ABC", "QSO_DATE": "20240101", "TIME_ON": "1200", "BAND": "20m", "MODE": "CW"}});
+    let id = api.post(&format!("/logs/{log}/qsos"), qso).await["id"].as_i64().unwrap();
+    let r = api.post("/qsos/lookup", json!({"ids": [id]})).await;
+    assert_eq!(r["updated"], 1, "{r}");
+    let rows = api.post(&format!("/logs/{log}/qsos/search"), json!({"filter": {"call": "G0ABC"}})).await;
+    let f = &rows["rows"][0]["fields"];
+    assert_eq!(f["NAME"], "Jo");
+    assert_eq!(f["GRIDSQUARE"], "IO81");
+
+    // A call nobody knows reads as unknown, not as a service being broken.
+    let qso = json!({"fields": {"CALL": "ZZ9ZZ", "QSO_DATE": "20240101", "TIME_ON": "1300", "BAND": "20m", "MODE": "CW"}});
+    let id = api.post(&format!("/logs/{log}/qsos"), qso).await["id"].as_i64().unwrap();
+    let r = api.post("/qsos/lookup", json!({"ids": [id]})).await;
+    assert_eq!(r["updated"], 0);
+    let err = r["errors"][0].as_str().unwrap();
+    assert!(err.contains("knows this call"), "{err}");
+    assert!(!err.contains("couldn't ask"), "an unknown call must not read as an unreachable service: {err}");
 }
 
 #[tokio::test]

@@ -180,7 +180,7 @@ export interface Integrations {
   n1mm_enabled: boolean;
   n1mm_listen: string;
   n1mm_auto_log: boolean;
-  /** Look up auto-logged QSOs on QRZ and fill in what they left blank. */
+  /** Look up auto-logged QSOs and fill in what they left blank. */
   auto_log_lookup: boolean;
   rotator_enabled: boolean;
   /** "pst" (PstRotatorAz), "rotctld" (Hamlib) or "gs232" (Yaesu GS-232). */

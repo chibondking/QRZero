@@ -213,7 +213,7 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
     }
   };
 
-  // Fills only the blank fields from QRZ; nothing is saved until Save.
+  // Fills only the blank fields from the lookup services; nothing is saved until Save.
   const lookup = async () => {
     const call = get("CALL").trim();
     if (!call) return;
@@ -221,9 +221,9 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
     setError("");
     setNotice("");
     try {
-      const r = await api.lookup(base.log_id, call);
+      const r = await api.lookup(base.log_id, call, true);
       if (!r.station) {
-        setError(r.error ?? "QRZ has nothing for " + call.toUpperCase() + ". Add your QRZ login in Settings if lookups are off.");
+        setError(r.error ?? `No lookup service knows ${call.toUpperCase()}, or lookups are off: add a QRZ or HamQTH login in Settings.`);
         return;
       }
       const patch: Fields = {};
@@ -233,7 +233,7 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
       }
       const keys = Object.keys(patch);
       if (keys.length) setMany(patch);
-      setNotice(keys.length ? `Filled in from ${r.source ?? "QRZ"}: ${keys.map((k) => LABELS[k] ?? k).join(", ")}. Save to keep them.` : "Nothing to fill in: those fields already have values.");
+      setNotice(keys.length ? `Filled in from ${r.source ?? "the lookup"}: ${keys.map((k) => LABELS[k] ?? k).join(", ")}. Save to keep them.` : "Nothing to fill in: those fields already have values.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -572,7 +572,7 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
       <footer className="qe-foot">
         <button className="danger" onClick={remove}>Delete QSO</button>
         <span className="spacer" />
-        <button onClick={() => void lookup()} disabled={busy || !get("CALL").trim()} title="Look the call up on QRZ and fill in the fields that are blank">Fill from QRZ</button>
+        <button onClick={() => void lookup()} disabled={busy || !get("CALL").trim()} title="Look the call up and fill in the fields that are blank">Fill from lookup</button>
         <QrzPageLink call={get("CALL")} />
         <button onClick={revert} disabled={!dirty}>Revert</button>
         <button className="primary" onClick={() => void save()} disabled={!dirty || busy} title={`Save (${show(useBinding("editsave"))})`}>Save</button>

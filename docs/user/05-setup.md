@@ -53,7 +53,7 @@ The **Entry fields** tab chooses what you type for each QSO. Call, reports, freq
 - Give a field your own **label**, a **width**, and a **default** that fills every new QSO.
 - Tick **keep** to hold the value from one QSO to the next (handy for a park reference, or your power).
 - The arrows move a field left or right, or up and down a line.
-- **Buttons on the New QSO panel** at the bottom gives **Fill from QRZ** and **View on QRZ.com** a tick box each. Untick one to leave it off the panel's bottom bar, for the shortest possible panel on a crowded screen. Log and Clear always stay. Hiding **Fill from QRZ** doesn't stop the lookup, which still runs when you leave the call field, and the QSO editor keeps both buttons.
+- **Buttons on the New QSO panel** at the bottom gives each button on the bottom bar a tick box: **Fill from lookup**, **View on QRZ.com**, and **View on HamQTH** once a HamQTH login is set up. Untick one to leave it off the bar, for the shortest possible panel on a crowded screen. Log and Clear always stay. Hiding **Fill from lookup** doesn't stop the lookup, which still runs when you leave the call field, and the QSO editor keeps its own buttons.
 - **Fields for** at the top picks which modes the layout applies to. **All modes** is the main layout. For **CW**, **Phone** or **Digital**, click **Set up fields for…** to give that group a layout of its own (it starts as a copy of the main one). Whenever the entry panel's mode belongs to the group, those fields replace the main ones, so CW can show club numbers while SSB shows something else. A group marked * has its own layout. **Use the main layout** takes it back. Values in fields that the new mode doesn't show are dropped, so nothing is logged unseen.
 
 ## General
@@ -88,23 +88,28 @@ Settings pages with a **Save** button (and the QSL window's **Online services** 
 
 ### Which service is asked first
 
-With both services on, they are numbered **1.** and **2.** and asked in that order. **Move up** and **Move down** change it. The second is only asked when the first doesn't know the call, is down, times out or refuses the login, so the usual case costs one request. The station panel says which service the details came from.
+With both services on, they are numbered **1.** and **2.** and asked in that order. **Move up** and **Move down** change it. The station panel says which service the details came from, and names both when both contributed.
+
+As you type a QSO, only the first service that knows the call is used, so logging costs one request. When you *ask* for a fill — the **Fill from lookup** button, the editor's button, or **Fill from lookup** on selected rows in the log — QRZero goes on down the order and takes anything the earlier answer left blank, because a complete record is worth a second request there. Nothing already filled in is changed either way.
+
+A service is also skipped past when it is down, times out or refuses the login, so one broken service never stops the other answering.
 
 This is worth setting up both ways round: the two have different gaps. A call that QRZ has never heard of is often on HamQTH, and the other way about.
 
 ### When callsigns are looked up
 
-**Look the call up as you enter a QSO by hand** covers the New QSO panel only: leaving the call box, or picking a station from a spot or the FTx monitor. Turn it off if you'd rather not query anything until you ask, and the panel then looks nothing up until you press **Fill from QRZ**. Those buttons always work, whatever this is set to.
+**Look the call up as you enter a QSO by hand** covers the New QSO panel only: leaving the call box, or picking a station from a spot or the FTx monitor. Turn it off if you'd rather not query anything until you ask, and the panel then looks nothing up until you press **Fill from lookup**. That button always works, whatever this is set to.
 
 Two other kinds of QSO are not covered by it:
 
 - QSOs logged by WSJT-X, JTDX or N1MM have their own setting on the **Radios and programs** tab, off unless you turn it on.
-- Imported and uploaded QSOs are never looked up. To fill those in, select them in the log and use **Fill from QRZ** there.
+- Imported and uploaded QSOs are never looked up. To fill those in, select them in the log and use **Fill from lookup** there.
 
 ### Both services
 
 - On Windows the passwords are stored in Windows Credential Manager, never in the log file. On a Mac they go to the Keychain. On Linux they go to the desktop keyring (GNOME Keyring or KWallet); only when no keyring is running, as on a headless server, are they kept in the log file's settings.
-- Nothing is kept between lookups: every lookup asks the service, so what you see is what the service has now rather than what it had weeks ago. The QSO panel still doesn't ask twice for a call you have just looked up.
+- Nothing is kept between lookups: every lookup, including every **Fill from lookup**, makes a live request, so what you see is what the service has now rather than what it had weeks ago. The QSO panel still doesn't ask twice for a call you have just looked up.
+- The first-run setup wizard only offers QRZ.com, because it uses your own QRZ record to fill in your home location. Add HamQTH here afterwards; nothing in the wizard has to be undone.
 - Portable calls such as `W1AW/P` or `EA8/G4ABC` fall back to the home call if the service doesn't know the full call.
 
 ## Backups

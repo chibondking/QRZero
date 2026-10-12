@@ -839,14 +839,16 @@ const LOOKUPS_OFF: &str = "Callsign lookups are off: add a QRZ or HamQTH login i
 
 /// Looks up a logged QSO's call and fills in its blank fields. Returns the fields filled.
 async fn lookup_into_qso(s: &Shared, id: i64, call: &str) -> Result<Vec<String>, String> {
-    let Some((station, _)) = qrz_lookup(s, call).await? else {
+    let Some((station, _)) = qrz_lookup(s, call, Reach::TopUp).await? else {
         let settings = db(s, |st| load_settings(st)).await.map_err(|e| e.1)?;
         let qrz_on = settings.qrz_enabled && !settings.qrz_username.is_empty();
         let hamqth_on = settings.hamqth_enabled && !settings.hamqth_username.is_empty();
         if !qrz_on && !hamqth_on {
             return Err(LOOKUPS_OFF.into());
         }
-        return Err("not found".into());
+        // Every service answered and none knew the call. One that couldn't be asked comes
+        // back as an Err above, worded "couldn't ask …", so the two never read alike.
+        return Err("no lookup service knows this call".into());
     };
     let filled = db(s, move |st| {
         let qso = st.get_qso(id)?;
@@ -959,11 +961,19 @@ struct LookupResult {
     note: Option<String>,
 }
 
-async fn lookup(State(s): State<Shared>, Path((log_id, call)): Path<(i64, String)>) -> ApiResult<LookupResult> {
+#[derive(Deserialize)]
+struct LookupQuery {
+    /// The operator pressed Fill, so it's worth asking the next service for what the first
+    /// one left blank. Left out by the lookups QRZero starts by itself.
+    #[serde(default)]
+    fill: bool,
+}
+
+async fn lookup(State(s): State<Shared>, Path((log_id, call)): Path<(i64, String)>, Query(q): Query<LookupQuery>) -> ApiResult<LookupResult> {
     let call = call.trim().to_ascii_uppercase();
     let call_for_udp = call.clone();
     let mut result = LookupResult { call: call.clone(), worked: WorkedBefore::default(), entity: s.hub.entity(&call), station: None, source: None, error: None, note: None };
-    match qrz_lookup(&s, &call).await {
+    match qrz_lookup(&s, &call, if q.fill { Reach::TopUp } else { Reach::First }).await {
         Ok(Some((fields, source))) => {
             result.station = Some(fields);
             result.source = Some(source);
@@ -1090,16 +1100,16 @@ fn service_name(id: &str) -> &'static str {
 /// Asks one service, falling back to the home call for a portable or prefixed call
 /// (EA8/G4ABC, W1AW/P). Ok(None) when the service isn't set up or doesn't know the call.
 async fn ask_service(s: &Shared, id: &str, call: &str) -> Result<Option<Fields>, String> {
+    // The home call inside a portable or prefixed call, tried when the full call is unknown.
+    let base = call.contains('/').then(|| call.split('/').max_by_key(|p| p.len()).unwrap_or(call).to_string());
     if id == "hamqth" {
         let Some(mut guard) = hamqth_client(s).await? else {
             return Ok(None);
         };
         let client = guard.as_mut().expect("client present");
         let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?;
-        if found.is_none() && call.contains('/') {
-            if let Some(base) = call.split('/').max_by_key(|p| p.len()) {
-                found = client.lookup(base).await.map_err(|e| login_hint(e.to_string()))?;
-            }
+        if let (None, Some(b)) = (&found, &base) {
+            found = client.lookup(b).await.map_err(|e| login_hint(e.to_string()))?;
         }
         return Ok(found);
     }
@@ -1108,49 +1118,84 @@ async fn ask_service(s: &Shared, id: &str, call: &str) -> Result<Option<Fields>,
     };
     let client = guard.as_mut().expect("client present");
     let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?;
-    if found.is_none() && call.contains('/') {
-        if let Some(base) = call.split('/').max_by_key(|p| p.len()) {
-            found = client.lookup(base).await.map_err(|e| login_hint(e.to_string()))?;
-        }
+    if let (None, Some(b)) = (&found, &base) {
+        found = client.lookup(b).await.map_err(|e| login_hint(e.to_string()))?;
     }
     Ok(found)
 }
 
+/// How much of the chain to use.
+#[derive(Clone, Copy, PartialEq)]
+enum Reach {
+    /// Stop at the first service that knows the call. Used for the lookups QRZero starts
+    /// by itself, so typing a call costs one request.
+    First,
+    /// Carry on down the order, taking only fields the earlier answer left blank. Used when
+    /// the operator asks to fill a QSO in, where a complete answer is worth a second request.
+    TopUp,
+}
+
 /// Callsign lookup: asks each service the user has turned on, in their order, until one
-/// knows the call. A service that errors doesn't stop the next being asked; the error is
-/// only reported when nobody had an answer.
+/// knows the call. With `Reach::TopUp` the services after it are asked too, and anything
+/// they know that the first left blank is added.
+///
+/// A service that errors doesn't stop the next being asked. When nobody could answer, the
+/// error is reported, worded so an unreachable service doesn't read as an unknown call.
 ///
 /// Nothing is kept between lookups. One operator at one radio works the same station
 /// rarely, and the QSO panel already skips a call it has just looked up.
 ///
 /// Ok(None) when every service is off, or none of them knows the call.
-async fn qrz_lookup(s: &Shared, call: &str) -> Result<Option<(Fields, String)>, String> {
+async fn qrz_lookup(s: &Shared, call: &str, reach: Reach) -> Result<Option<(Fields, String)>, String> {
     let settings = db(s, |st| load_settings(st)).await.map_err(|e| e.1)?;
-    let mut first_error: Option<String> = None;
+    let mut answer: Option<(Fields, Vec<&'static str>)> = None;
+    let mut failed: Vec<String> = Vec::new();
     for id in &settings.lookup_order {
         let on = match id.as_str() {
             "hamqth" => settings.hamqth_enabled && !settings.hamqth_username.is_empty(),
             _ => settings.qrz_enabled && !settings.qrz_username.is_empty(),
         };
-        if !on {
+        if !on || (answer.is_some() && reach == Reach::First) {
             continue;
         }
         match ask_service(s, id, call).await {
-            Ok(Some(f)) => return Ok(Some((f, service_name(id).to_string()))),
+            Ok(Some(f)) => match &mut answer {
+                // The first service to know the call sets the record.
+                None => answer = Some((f, vec![service_name(id)])),
+                // A later one only adds what is still missing.
+                Some((have, from)) => {
+                    let mut added = false;
+                    for (k, v) in f {
+                        if v.trim().is_empty() {
+                            continue;
+                        }
+                        if have.get(&k).is_none_or(|old| old.trim().is_empty()) {
+                            have.insert(k, v);
+                            added = true;
+                        }
+                    }
+                    if added {
+                        from.push(service_name(id));
+                    }
+                }
+            },
             // This one doesn't know the call: try the next service.
             Ok(None) => {}
             // Down, refusing the login or timing out: remember why, but still try the next.
             Err(e) => {
                 tracing::info!("{} lookup for {call}: {e}", service_name(id));
-                if first_error.is_none() {
-                    first_error = Some(format!("{}: {e}", service_name(id)));
-                }
+                failed.push(format!("{}: {e}", service_name(id)));
             }
         }
     }
-    match first_error {
-        Some(e) => Err(e),
-        None => Ok(None),
+    if let Some((fields, from)) = answer {
+        return Ok(Some((fields, from.join(" + "))));
+    }
+    match failed.is_empty() {
+        // Every service that was asked answered, and none of them knew the call.
+        true => Ok(None),
+        // Nobody could answer, and at least one couldn't be asked properly: say which.
+        false => Err(format!("couldn't ask {}", failed.join("; "))),
     }
 }
 

@@ -239,13 +239,13 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
     if (lookupCfg.onEntry) void runLookup(typed, force);
   };
 
-  const runLookup = async (typed = call, force = false): Promise<Found | null> => {
+  const runLookup = async (typed = call, force = false, topUp = false): Promise<Found | null> => {
     const c = typed.trim().toUpperCase();
     if (c.length < 3 || (c === lookedUp.current && !force)) return null;
     lookedUp.current = c;
     const seq = ++lookupSeq.current;
     try {
-      const r = await api.lookup(logId, c);
+      const r = await api.lookup(logId, c, topUp);
       if (seq !== lookupSeq.current) return null;
       onLookup(r);
       // Station record first, then the last QSO with this call.
@@ -543,10 +543,10 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
             <button onClick={() => clear()}>Clear <kbd>Esc</kbd></button>
             {showButton(display, "qrz.fill") && (
               <button
-                onClick={() => void runLookup(call, true)}
+                onClick={() => void runLookup(call, true, true)}
                 disabled={call.trim().length < 3}
-                title="Look the call up on QRZ and fill in the boxes that are still blank"
-              >Fill from QRZ</button>
+                title="Look the call up and fill in the boxes that are still blank"
+              >Fill from lookup</button>
             )}
             {showButton(display, "qrz.page") && <QrzPageLink call={call} />}
             {lookupCfg.hamqth && showButton(display, "hamqth.page") && <QrzPageLink call={call} site="hamqth" />}

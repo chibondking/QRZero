@@ -20,14 +20,14 @@ The fields below the first line can be changed: see **Entry fields**.
 | <kbd>Tab</kbd> | Next field |
 | <kbd>F1</kbd> | This guide (can be changed, see **Keyboard shortcuts** below) |
 
-Two buttons next to **Clear** deal with QRZ.com:
+Two buttons next to **Clear** deal with callsign lookups:
 
-- **Fill from QRZ** looks the call up now and fills in the boxes that are still blank. It does the same as leaving the call field, so use it after you add your login or when the first lookup failed. It needs a QRZ or HamQTH login (Settings, **Callsign lookup**), and asks them in the order set there.
+- **Fill from lookup** looks the call up now and fills in the boxes that are still blank. Use it after you add your login or when the first lookup failed. It needs a QRZ or HamQTH login (Settings, **Callsign lookup**), and asks them in the order set there. Unlike the lookup that runs when you leave the call field, it goes on to the next service for anything the first one left blank, so it can cost a second request.
 - **View on QRZ.com** opens that station's page on the QRZ.com website in your web browser, to read their bio or QSL instructions. It needs no login and doesn't change the form.
 
 With a HamQTH login set up, a **View on HamQTH** button appears beside them and opens that station's page on HamQTH.
 
-Any of these buttons can be left off the bottom bar, to make the panel as small as possible on a crowded screen: Settings, **Entry fields**, **Buttons on the New QSO panel**. Each has its own tick box, so you can keep the ones you use and hide the rest. Hiding **Fill from QRZ** doesn't stop the lookup, which still runs when you leave the call field unless you turn that off too (Settings, **Callsign lookup**), and the QSO editor keeps its own buttons either way.
+Any of these buttons can be left off the bottom bar, to make the panel as small as possible on a crowded screen: Settings, **Entry fields**, **Buttons on the New QSO panel**. Each has its own tick box, so you can keep the ones you use and hide the rest. Hiding **Fill from lookup** doesn't stop the lookup, which still runs when you leave the call field unless you turn that off too (Settings, **Callsign lookup**), and the QSO editor keeps its own buttons either way.
 
 If you press <kbd>Enter</kbd> straight from the call field, QRZero waits up to two seconds for the lookup so its details are still saved with the QSO.
 
@@ -49,13 +49,13 @@ SKCC, NAQCC, FISTS and CWops numbers can be entered in the entry panel. Choose t
 
 After a lookup the panel shows:
 
-- **Station details** from QRZ.com (when lookups are on), or from your last QSO with that call. Notes and club numbers (see below) carry over from that QSO; the Comment, serial numbers and reports do not, because they belong to one contact.
+- **Station details** from the lookup service (when lookups are on), or from your last QSO with that call. Notes and club numbers (see below) carry over from that QSO; the Comment, serial numbers and reports do not, because they belong to one contact.
 - **Note**: your station note for the call, if you have written one (see **Station notes**).
 - **Flags**: *First QSO with this call*, or *Already worked on …* when this would be a duplicate on the same band and mode.
 - **DXCC slots**: a small grid for the entity of the call, with the bands across and CW, Phone and Digital down. **W** means worked, **C** means confirmed (by the sources set in the Awards pane), and a blank cell is a slot you still need. The band and mode set in the entry panel are marked with a box and bold labels, so you can see at once whether this QSO fills a blank. It follows the DXCC number in the entry form, or the entity from the country file.
 - **Awards on (band) (mode)**: one line for each award this QSO would move, for the band and mode set in the entry panel. For example *DXCC* **new country** *Japan*, *WAS OH Ohio:* **new band** *20m*, *WAZ zone 5:* **new mode** *CW*, or *WPX* **new prefix** *K1*. Slots you have worked but not had confirmed are listed after *not confirmed:*. When the QSO adds nothing, the block says so in one grey line. It follows the band and mode as you change them.
 
-The entity and CQ zone come from the QRZ lookup, or from the country file when lookups are off. The state comes from the lookup or the **State** box, so WAS lines only appear when a state is known. What counts as confirmed is set in the Awards pane (see **Awards**). Your full history with the call is in the Worked before pane.
+The entity and CQ zone come from the lookup, or from the country file when lookups are off. The state comes from the lookup or the **State** box, so WAS lines only appear when a state is known. What counts as confirmed is set in the Awards pane (see **Awards**). Your full history with the call is in the Worked before pane.
 
 ## Worked before
 

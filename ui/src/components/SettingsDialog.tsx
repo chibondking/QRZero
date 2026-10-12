@@ -417,7 +417,7 @@ function LookupTab({ onClose }: { onClose: () => void }) {
           <input type="checkbox" checked={s.lookup_on_entry} onChange={(e) => setS({ ...s, lookup_on_entry: e.target.checked })} /> Look the call up as you enter a QSO by hand
         </label>
         <p className="small muted">
-          Off means nothing is looked up until you press <b>Fill from QRZ</b> or <b>View on QRZ.com</b>. This covers QSOs
+          Off means nothing is looked up until you press <b>Fill from lookup</b>. This covers QSOs
           you type into the New QSO panel only. QSOs from WSJT-X, JTDX or N1MM have their own setting (Radios and
           programs), and imported or uploaded QSOs are never looked up.
         </p>
@@ -505,8 +505,8 @@ function RadiosTab({ onClose }: { onClose: () => void }) {
 
       <fieldset>
         <legend>QSOs logged by other programs</legend>
-        {check("auto_log_lookup", "Look them up on QRZ and fill in name, QTH, state, grid and the rest when left blank")}
-        <p className="small muted">Needs your QRZ login (Callsign lookup tab). What WSJT-X, JTDX or N1MM sent is never overwritten.</p>
+        {check("auto_log_lookup", "Look them up and fill in name, QTH, state, grid and the rest when left blank")}
+        <p className="small muted">Needs a QRZ or HamQTH login (Callsign lookup tab). What WSJT-X, JTDX or N1MM sent is never overwritten.</p>
       </fieldset>
 
       <fieldset>
