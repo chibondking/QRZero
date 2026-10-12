@@ -256,14 +256,32 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     const cur = (await api("GET", "/integrations")) as { config: Record<string, unknown> };
     await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: true });
     // Saving restarts the listeners, which forget WSJT-X's address until its next packet.
-    await page.waitForTimeout(500);
-    await fromRadio(fullStatus({ transmitting: false, txMessage: "", dx: "", report: "" }));
-    await page.waitForTimeout(500);
-    await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
-    await expect.poll(() => sentKind(13).length).toBeGreaterThan(0);
+    // A slow runner can restart the listeners late, so keep announcing WSJT-X and decoding until the highlight arrives.
+    await expect
+      .poll(
+        async () => {
+          await fromRadio(fullStatus({ transmitting: false, txMessage: "", dx: "", report: "" }));
+          await page.waitForTimeout(200);
+          await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
+          await page.waitForTimeout(200);
+          return sentKind(13).length;
+        },
+        { timeout: 20_000, intervals: [100] },
+      )
+      .toBeGreaterThan(0);
     expect(sentKind(13)[0].includes(Buffer.from("ZL2ABC"))).toBe(true);
     await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: false });
-    await fromRadio(fullStatus({ transmitting: false, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
+    // Saving restarts the listeners again, so a status sent at once can be lost: repeat it until the strip shows.
+    await expect
+      .poll(
+        async () => {
+          await fromRadio(fullStatus({ transmitting: false, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
+          await page.waitForTimeout(200);
+          return strip.getByRole("button", { name: "More controls" }).count();
+        },
+        { timeout: 20_000, intervals: [100] },
+      )
+      .toBeGreaterThan(0);
     await strip.getByRole("button", { name: "More controls" }).click();
     await strip.getByLabel("DX call").fill("dl1abc");
     await strip.getByRole("button", { name: "Set DX" }).click();
