@@ -89,6 +89,8 @@ A call that would be new for you says so plainly:
 
 ![New DXCC](docs/screenshots/station-new-dxcc.png)
 
+**Club memberships** (CWops, SKCC, NAQCC, FISTS, 10-10 and any you add) sit in the **Clubs** pane with your own numbers, one click to copy.
+
 **Station notes** are free text kept per callsign in the **Notes** pane ("QSL via bureau only", "promised a sked on 40m"). They come back every time you type that call and are listed and searchable when the call box is empty.
 
 ![Notes pane](docs/screenshots/notes.png)
@@ -286,7 +288,7 @@ For everything QRZero does not know by name (an antenna switch, a band decoder, 
 
 ## Arranging the window
 
-Everything is a pane: New QSO, Station, Worked before, Map, Log, FTx monitor, Cluster, Needed now, Awards, Band map, Watch list, DXpeditions, Contests, Propagation, Rotator and Notes. Some start as tabs behind others (Needed now beside Cluster, Contests beside DXpeditions); open or hide any of them from the **Layout** menu. Drag a tab to dock a pane beside another or stack it as a tab, drag the bars to resize, hide panes you don't use, and pop any pane except New QSO and the Log out to its own window for a second screen. Save arrangements by name (a laptop layout, a two-screen shack layout, an FT8 evening) and switch between them; **Lock panes** stops accidents. Layouts live in the log database, so they survive restarts and come back with a restored backup.
+Everything is a pane: New QSO, Station, Worked before, Map, Log, FTx monitor, Cluster, Needed now, Awards, Band map, Watch list, DXpeditions, Contests, Propagation, Rotator, Notes and Clubs. Some start as tabs behind others (Needed now beside Cluster, Contests beside DXpeditions); open or hide any of them from the **Layout** menu. Drag a tab to dock a pane beside another or stack it as a tab, drag the bars to resize, hide panes you don't use, and pop any pane except New QSO and the Log out to its own window for a second screen. Save arrangements by name (a laptop layout, a two-screen shack layout, an FT8 evening) and switch between them; **Lock panes** stops accidents. Layouts live in the log database, so they survive restarts and come back with a restored backup.
 
 | | |
 | --- | --- |

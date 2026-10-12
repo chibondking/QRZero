@@ -256,14 +256,32 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     const cur = (await api("GET", "/integrations")) as { config: Record<string, unknown> };
     await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: true });
     // Saving restarts the listeners, which forget WSJT-X's address until its next packet.
-    await page.waitForTimeout(500);
-    await fromRadio(fullStatus({ transmitting: false, txMessage: "", dx: "", report: "" }));
-    await page.waitForTimeout(500);
-    await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
-    await expect.poll(() => sentKind(13).length).toBeGreaterThan(0);
+    // A slow runner can restart the listeners late, so keep announcing WSJT-X and decoding until the highlight arrives.
+    await expect
+      .poll(
+        async () => {
+          await fromRadio(fullStatus({ transmitting: false, txMessage: "", dx: "", report: "" }));
+          await page.waitForTimeout(200);
+          await fromRadio(decode(90000, -6, "CQ ZL2ABC RF80"));
+          await page.waitForTimeout(200);
+          return sentKind(13).length;
+        },
+        { timeout: 20_000, intervals: [100] },
+      )
+      .toBeGreaterThan(0);
     expect(sentKind(13)[0].includes(Buffer.from("ZL2ABC"))).toBe(true);
     await api("PUT", "/integrations", { ...cur.config, wsjtx_highlight: false });
-    await fromRadio(fullStatus({ transmitting: false, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
+    // Saving restarts the listeners again, so a status sent at once can be lost: repeat it until the strip shows.
+    await expect
+      .poll(
+        async () => {
+          await fromRadio(fullStatus({ transmitting: false, txMessage: "EA8AB N0CALL R-14", dx: "EA8AB", report: "-14" }));
+          await page.waitForTimeout(200);
+          return strip.getByRole("button", { name: "More controls" }).count();
+        },
+        { timeout: 20_000, intervals: [100] },
+      )
+      .toBeGreaterThan(0);
     await strip.getByRole("button", { name: "More controls" }).click();
     await strip.getByLabel("DX call").fill("dl1abc");
     await strip.getByRole("button", { name: "Set DX" }).click();
@@ -480,6 +498,17 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   const [editWin2] = await Promise.all([page.waitForEvent("popup"), worked.locator("tbody tr").first().dblclick()]);
   await expect(editWin2.getByLabel("Call", { exact: true })).toHaveValue("K1XYZ");
   await Promise.all([editWin2.waitForEvent("close"), closeWindow(editWin2.getByRole("button", { name: "Close editor" }))]);
+
+  // The Clubs pane keeps my own membership numbers and copies one on click.
+  await page.getByRole("tab", { name: "Clubs" }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("SKCC number").fill("12345S");
+  await page.getByRole("button", { name: "Add club" }).click();
+  await page.getByLabel("Club name").last().fill("QRP-ARCI");
+  await page.getByLabel("QRP-ARCI number").fill("9876");
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("button", { name: "12345S" })).toBeVisible();
+  await expect(page.locator(".cl-table")).toContainText("QRP-ARCI");
 
   // A note on a station shows again next time the call is typed.
   await page.getByRole("tab", { name: "Notes" }).click();
