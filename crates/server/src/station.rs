@@ -1482,6 +1482,21 @@ async fn follow_rig(hub: std::sync::Weak<Hub>, id: i64, name: String, mut rx: to
     }
 }
 
+/// Binds like `bind_udp`, but waits a moment if the port is still held. Saving settings aborts the old
+/// listener and starts a new one at once, and the old socket can outlive the abort by a few milliseconds.
+async fn bind_udp_retry(listen: &str, multicast: &str) -> anyhow::Result<UdpSocket> {
+    let mut tries = 0;
+    loop {
+        match bind_udp(listen, multicast) {
+            Err(e) if tries < 40 && e.downcast_ref::<std::io::Error>().is_some_and(|io| io.kind() == std::io::ErrorKind::AddrInUse) => {
+                tries += 1;
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+            r => return r,
+        }
+    }
+}
+
 fn bind_udp(listen: &str, multicast: &str) -> anyhow::Result<UdpSocket> {
     use socket2::{Domain, Protocol, Socket, Type};
     let addr: SocketAddr = listen.parse().map_err(|_| anyhow::anyhow!("{listen} isn't an address like 127.0.0.1:2237"))?;
@@ -1518,7 +1533,7 @@ fn bind_udp(listen: &str, multicast: &str) -> anyhow::Result<UdpSocket> {
 }
 
 async fn wsjtx_listener(hub: std::sync::Weak<Hub>, cfg: Integrations, listen: String) {
-    let socket = match bind_udp(&listen, &cfg.wsjtx_multicast) {
+    let socket = match bind_udp_retry(&listen, &cfg.wsjtx_multicast).await {
         Ok(s) => Arc::new(s),
         Err(e) => {
             if let Some(h) = hub.upgrade() {
@@ -1570,7 +1585,7 @@ async fn relay(h: &Hub, socket: &UdpSocket, stream: UdpEvent, packet: &[u8]) {
 }
 
 async fn n1mm_listener(hub: std::sync::Weak<Hub>, listen: String) {
-    let socket = match bind_udp(&listen, "") {
+    let socket = match bind_udp_retry(&listen, "").await {
         Ok(s) => s,
         Err(e) => {
             if let Some(h) = hub.upgrade() {
@@ -1599,7 +1614,7 @@ async fn n1mm_listener(hub: std::sync::Weak<Hub>, listen: String) {
 
 /// Takes rotator commands from N1MM and the like (PstRotatorAz-style UDP) and passes them on.
 async fn rotator_server(hub: std::sync::Weak<Hub>, listen: String) {
-    let socket = match bind_udp(&listen, "") {
+    let socket = match bind_udp_retry(&listen, "").await {
         Ok(s) => s,
         Err(e) => {
             if let Some(h) = hub.upgrade() {
