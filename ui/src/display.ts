@@ -10,6 +10,8 @@ export interface Display {
   freqUnit: "mhz" | "khz";
   confirmDelete: boolean;
   soundOnLog: boolean;
+  /** Buttons hidden on the New QSO panel, by `panelButtons` id. A button not named here is shown. */
+  panelButtons: Record<string, boolean>;
   /** RST to fill in per mode label, when not the usual one. */
   rst: Record<string, string>;
 }
@@ -22,6 +24,7 @@ export const DISPLAY_DEFAULTS: Display = {
   freqUnit: "mhz",
   confirmDelete: true,
   soundOnLog: false,
+  panelButtons: {},
   rst: {},
 };
 
@@ -63,6 +66,11 @@ export function useDisplay(): Display {
     },
     getDisplay,
   );
+}
+
+/** Is a New QSO panel button shown? Everything is shown until it's turned off. */
+export function showButton(d: Display, id: string): boolean {
+  return d.panelButtons[id] !== false;
 }
 
 /** Ask before deleting, unless that's switched off. */

@@ -579,6 +579,33 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await page.locator("label.f", { has: page.locator("span", { hasText: "Mode" }) }).locator("select").selectOption("CW");
   await expect(page.getByLabel("SKCC")).toBeVisible();
 
+  // Each QRZ button has its own tick box, to make the New QSO panel as short as it needs to be.
+  const entryPanel = page.locator("section.panel.entry");
+  const fillButton = entryPanel.getByRole("button", { name: "Fill from QRZ" });
+  const qrzLink = entryPanel.getByText("View on QRZ.com");
+  await expect(fillButton).toBeVisible();
+  await expect(qrzLink).toBeVisible();
+  // Hiding one leaves the other alone.
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Entry fields", exact: true }).click();
+  await page.getByRole("checkbox", { name: /Fill from QRZ/ }).uncheck();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(fillButton).toHaveCount(0);
+  await expect(qrzLink).toBeVisible();
+  // Hide the second too, then bring both back.
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Entry fields", exact: true }).click();
+  await page.getByRole("checkbox", { name: /View on QRZ\.com/ }).uncheck();
+  await page.getByRole("checkbox", { name: /Fill from QRZ/ }).check();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(fillButton).toBeVisible();
+  await expect(qrzLink).toHaveCount(0);
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Entry fields", exact: true }).click();
+  await page.getByRole("checkbox", { name: /View on QRZ\.com/ }).check();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(qrzLink).toBeVisible();
+
   // Backups: back up now, download it, then stage a restore and cancel it.
   await fromMenu(page, "Settings…");
   await page.getByRole("button", { name: "Backups", exact: true }).click();

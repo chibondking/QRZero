@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
-import { beep, getDisplay } from "../display";
+import { beep, getDisplay, showButton, useDisplay } from "../display";
 import { BANDS, MODES, bandForFreq, choiceFor, modeGroup } from "../modes";
 import { antennaForBand, hasBands } from "../antennas";
 import { fieldDef, freshValues, type EntryLayout, type ModeLayouts } from "../fields";
@@ -93,6 +93,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
   const [call, setCall] = useState("");
   const [spotReq, setSpotReq] = useState<SpotRequest | null>(null);
   const spotStatus = useSpotStatus();
+  const display = useDisplay();
   const [form, setForm] = useState<Fields>(() => freshValues(layout, prefs.last));
   const [lookupFill, setLookupFill] = useState<Fields>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -525,12 +526,14 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
           <div className="actions">
             <button className="primary" onClick={() => void log()} disabled={busy || !call}>Log <kbd>Enter</kbd></button>
             <button onClick={() => clear()}>Clear <kbd>Esc</kbd></button>
-            <button
-              onClick={() => void runLookup(call, true)}
-              disabled={call.trim().length < 3}
-              title="Look the call up on QRZ and fill in the boxes that are still blank"
-            >Fill from QRZ</button>
-            <QrzPageLink call={call} />
+            {showButton(display, "qrz.fill") && (
+              <button
+                onClick={() => void runLookup(call, true)}
+                disabled={call.trim().length < 3}
+                title="Look the call up on QRZ and fill in the boxes that are still blank"
+              >Fill from QRZ</button>
+            )}
+            {showButton(display, "qrz.page") && <QrzPageLink call={call} />}
             {(() => {
               // The DX transmits where we listen: the receive box in split, else the frequency box.
               const khz = Number(freqRx || freq) * 1000;

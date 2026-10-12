@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { CUSTOM_PREFIX, ENTRY_FIELDS, PRESETS, customKey, fieldDef, type EntryItem, type EntryLayout, type ModeLayouts, type Width } from "../fields";
 import { MODE_GROUP_NAME, type ModeGroup } from "../modes";
+import { setDisplay, showButton, useDisplay } from "../display";
+import { PANEL_BUTTONS } from "../panelButtons";
 
 const WIDTHS: [Width, string][] = [["s", "Narrow"], ["m", "Medium"], ["l", "Wide"], ["xl", "Widest"]];
 
@@ -46,7 +48,25 @@ export default function EntryFieldsEditor({ layout, onChange, modeLayouts, onMod
         </p>
       )}
       {target === "main" && <LayoutEditor layout={layout} onChange={onChange} />}
+      <PanelButtons />
     </div>
+  );
+}
+
+/** Buttons on the New QSO panel's bottom bar that can be hidden to save room. */
+function PanelButtons() {
+  const d = useDisplay();
+  const show = (id: string, on: boolean) => setDisplay({ panelButtons: { ...d.panelButtons, [id]: on } });
+  return (
+    <fieldset>
+      <legend>Buttons on the New QSO panel</legend>
+      <p className="muted">Untick a button to leave it off the bottom bar, for a shorter panel on a crowded screen. Log and Clear always stay.</p>
+      {PANEL_BUTTONS.map((b) => (
+        <label key={b.id} className="check">
+          <input type="checkbox" checked={showButton(d, b.id)} onChange={(e) => show(b.id, e.target.checked)} /> <b>{b.name}</b> <span className="muted">— {b.note}</span>
+        </label>
+      ))}
+    </fieldset>
   );
 }
 
