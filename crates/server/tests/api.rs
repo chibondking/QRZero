@@ -216,11 +216,12 @@ async fn qrz_lookup_and_cache() {
     assert_eq!(r["source"], "QRZ");
     assert_eq!(r["worked"]["dxcc"], 291);
 
-    // Portable call falls back to the home call; the second lookup is cached.
+    // Portable call falls back to the home call.
     let r = api.get(&format!("/logs/{log}/lookup/W1AW%2FP")).await;
     assert_eq!(r["station"]["QTH"], "Newington");
+    // Nothing is cached: the same call is asked again, and answered again.
     let r = api.get(&format!("/logs/{log}/lookup/W1AW")).await;
-    assert_eq!(r["source"], "QRZ (cached)");
+    assert_eq!(r["source"], "QRZ");
 
     let r = api.get(&format!("/logs/{log}/lookup/ZZ9ZZ")).await;
     assert!(r["station"].is_null() && r["error"].is_null());
@@ -253,8 +254,6 @@ async fn hamqth_lookup_and_order() {
     assert_eq!(r["station"]["NAME"], "Jo");
     assert_eq!(r["station"]["GRIDSQUARE"], "IO81");
     assert_eq!(r["source"], "HamQTH");
-    let r = api.get(&format!("/logs/{log}/lookup/G0ABC")).await;
-    assert_eq!(r["source"], "HamQTH (cached)");
 
     // Both on, QRZ first: QRZ answers for W1AW and HamQTH is never asked.
     api.call(

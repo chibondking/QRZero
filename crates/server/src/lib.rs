@@ -44,7 +44,6 @@ use qsl::{Qsl, QslConfig, SecretsUpdate};
 use station::{cty_facts, Active, Hub, Integrations};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-const LOOKUP_CACHE_SECS: i64 = 30 * 24 * 3600;
 
 #[derive(rust_embed::Embed)]
 #[folder = "../../ui/dist"]
@@ -1117,17 +1116,15 @@ async fn ask_service(s: &Shared, id: &str, call: &str) -> Result<Option<Fields>,
     Ok(found)
 }
 
-/// Callsign lookup with a 30-day cache, asking each service the user has turned on in
-/// their order until one knows the call. A service that errors doesn't stop the next
-/// being asked; the error is only reported when nobody had an answer.
+/// Callsign lookup: asks each service the user has turned on, in their order, until one
+/// knows the call. A service that errors doesn't stop the next being asked; the error is
+/// only reported when nobody had an answer.
+///
+/// Nothing is kept between lookups. One operator at one radio works the same station
+/// rarely, and the QSO panel already skips a call it has just looked up.
 ///
 /// Ok(None) when every service is off, or none of them knows the call.
 async fn qrz_lookup(s: &Shared, call: &str) -> Result<Option<(Fields, String)>, String> {
-    let c = call.to_string();
-    let cached = db(s, move |st| st.cached_lookup_with_source(&c, LOOKUP_CACHE_SECS)).await.map_err(|e| e.1)?;
-    if let Some((f, source)) = cached {
-        return Ok(Some((f, format!("{} (cached)", service_name(&source)))));
-    }
     let settings = db(s, |st| load_settings(st)).await.map_err(|e| e.1)?;
     let mut first_error: Option<String> = None;
     for id in &settings.lookup_order {
@@ -1139,11 +1136,7 @@ async fn qrz_lookup(s: &Shared, call: &str) -> Result<Option<(Fields, String)>, 
             continue;
         }
         match ask_service(s, id, call).await {
-            Ok(Some(f)) => {
-                let (c, f2, src) = (call.to_string(), f.clone(), id.clone());
-                db(s, move |st| st.cache_lookup(&c, &src, &f2)).await.map_err(|e| e.1)?;
-                return Ok(Some((f, service_name(id).to_string())));
-            }
+            Ok(Some(f)) => return Ok(Some((f, service_name(id).to_string()))),
             // This one doesn't know the call: try the next service.
             Ok(None) => {}
             // Down, refusing the login or timing out: remember why, but still try the next.

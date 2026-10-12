@@ -104,7 +104,7 @@ Two other kinds of QSO are not covered by it:
 ### Both services
 
 - On Windows the passwords are stored in Windows Credential Manager, never in the log file. On a Mac they go to the Keychain. On Linux they go to the desktop keyring (GNOME Keyring or KWallet); only when no keyring is running, as on a headless server, are they kept in the log file's settings.
-- Results are cached for 30 days whichever service they came from, so working the same station again is instant and doesn't use your allowance. The cache keeps one record per call: the service that answered first keeps it until it is 30 days old.
+- Nothing is kept between lookups: every lookup asks the service, so what you see is what the service has now rather than what it had weeks ago. The QSO panel still doesn't ask twice for a call you have just looked up.
 - Portable calls such as `W1AW/P` or `EA8/G4ABC` fall back to the home call if the service doesn't know the full call.
 
 ## Backups

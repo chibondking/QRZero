@@ -375,7 +375,7 @@ function LookupTab({ onClose }: { onClose: () => void }) {
     <div>
       <p className="muted">
         A callsign lookup fills in name, QTH, grid and more. QRZ.com needs an XML subscription; HamQTH is free with an
-        account. Results are cached for 30 days, whichever service they came from.
+        account. Every lookup asks the service, so what you see is what it has now.
       </p>
 
       {ordered.map((svc, n) => (
