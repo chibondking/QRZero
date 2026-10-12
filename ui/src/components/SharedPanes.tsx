@@ -18,6 +18,7 @@ import NeededPane from "./NeededPane";
 import PropagationPane from "./PropagationPane";
 import RotatorPane from "./RotatorPane";
 import NotesPane from "./NotesPane";
+import ClubsPane from "./ClubsPane";
 import EntryHost from "./EntryHost";
 
 export interface PaneActions {
@@ -97,6 +98,8 @@ export default function SharedPane({ id, ctx, act }: { id: PaneId; ctx: PopConte
       return <RotatorPane ctx={ctx} act={act} />;
     case "notes":
       return <NotesPane ctx={ctx} act={act} />;
+    case "clubs":
+      return <ClubsPane />;
     default:
       return null;
   }

@@ -92,6 +92,12 @@ When the call box is empty, the Notes pane lists all your notes, the most recent
 
 To remove a note, click **Delete** and confirm, or simply clear all of its text.
 
+## Your club memberships
+
+The **Clubs** pane keeps your own membership numbers where you can read them quickly on the air: CWops, SKCC, NAQCC, FISTS and 10-10 to start with. Click a number to copy it.
+
+Press **Edit** to type your numbers, rename a club, put them in the order you like with **Up** and **Down**, **Remove** the ones you don't belong to, or **Add club** for any other with a number to give out. **Add common clubs** brings back any of the five you removed. The list is kept with your other window settings on this computer, and the pane can be hidden or popped out like any other from **Layout**. It is only a reminder: it does not change your QSOs.
+
 ## The map
 
 The map shows your location (from its grid, or latitude/longitude) and the station you are working (from the lookup, or the grid you typed). The solid line is the **short path**, the dashed line the **long path**. Below the map:

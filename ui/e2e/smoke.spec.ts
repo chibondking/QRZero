@@ -481,6 +481,17 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(editWin2.getByLabel("Call", { exact: true })).toHaveValue("K1XYZ");
   await Promise.all([editWin2.waitForEvent("close"), closeWindow(editWin2.getByRole("button", { name: "Close editor" }))]);
 
+  // The Clubs pane keeps my own membership numbers and copies one on click.
+  await page.getByRole("tab", { name: "Clubs" }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("SKCC number").fill("12345S");
+  await page.getByRole("button", { name: "Add club" }).click();
+  await page.getByLabel("Club name").last().fill("QRP-ARCI");
+  await page.getByLabel("QRP-ARCI number").fill("9876");
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("button", { name: "12345S" })).toBeVisible();
+  await expect(page.locator(".cl-table")).toContainText("QRP-ARCI");
+
   // A note on a station shows again next time the call is typed.
   await page.getByRole("tab", { name: "Notes" }).click();
   await page.getByLabel("Note for K1XYZ").fill("Runs 5 W\nQSL direct only");
