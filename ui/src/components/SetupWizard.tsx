@@ -178,6 +178,7 @@ export default function SetupWizard({ logId, callsigns, locations, equipment, on
             <>
               <h3>Callsign lookup</h3>
               <p>With a QRZ.com XML subscription, QRZero fills in name, QTH, grid, country and zones as you log. It also uses your own QRZ record to set up your home location in the next step.</p>
+              <p className="small muted">HamQTH is supported too, and is free with an account. Add it later under Settings, Callsign lookup, where you can also choose which service is asked first.</p>
               <label className="check"><input type="checkbox" checked={qrzOn} onChange={(e) => setQrzOn(e.target.checked)} /> Look up callsigns on QRZ.com</label>
               {qrzOn && (
                 <div className="row">

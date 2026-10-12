@@ -10,7 +10,7 @@ The **Awards** pane, a tab next to the log to start with, shows how far you are 
 - **ITU**: the 90 ITU zones.
 - **VUCC**: 4-character grid squares (like FN31) worked on 6 m and up. HF contacts don't count. Each band column shows that band's grid count, as the award is issued per band.
 - **IOTA**: Islands on the Air references (like EU-005), from the QSO's IOTA field.
-- **Counties**: US counties (USA-CA, 3077 of them), from the County field (like `OH,Franklin`). Downloading LoTW confirmations or a QRZ lookup can fill it in.
+- **Counties**: US counties (USA-CA, 3077 of them), from the County field (like `OH,Franklin`). Downloading LoTW confirmations or a callsign lookup can fill it in.
 
 - **SKCC** and **CWops**: the CW club awards, described under **CW club awards** below. They have their own buttons next to the others.
 

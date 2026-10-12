@@ -52,7 +52,24 @@ export interface ImportReport {
   messages: string[];
 }
 
-export interface Settings { qrz_enabled: boolean; qrz_username: string; qrz_password_set: boolean }
+export interface Settings {
+  qrz_enabled: boolean;
+  qrz_username: string;
+  qrz_password_set: boolean;
+  hamqth_enabled: boolean;
+  hamqth_username: string;
+  hamqth_password_set: boolean;
+  /** Services to try, best first: "qrz", "hamqth". */
+  lookup_order: string[];
+  /** Look a call up by itself when it's typed into the QSO panel. */
+  lookup_on_entry: boolean;
+}
+
+/** What a lookup service is called, and the settings that belong to it. */
+export const LOOKUP_SERVICES = [
+  { id: "qrz", name: "QRZ.com", enabled: "qrz_enabled", username: "qrz_username", passwordSet: "qrz_password_set" },
+  { id: "hamqth", name: "HamQTH", enabled: "hamqth_enabled", username: "hamqth_username", passwordSet: "hamqth_password_set" },
+] as const;
 
 export type EquipmentKind = "rig" | "antenna" | "amplifier" | "rotator" | "other";
 export interface Equipment { id: number; location_id: number; kind: EquipmentKind; name: string; fields: Fields; sort: number }
@@ -163,7 +180,7 @@ export interface Integrations {
   n1mm_enabled: boolean;
   n1mm_listen: string;
   n1mm_auto_log: boolean;
-  /** Look up auto-logged QSOs on QRZ and fill in what they left blank. */
+  /** Look up auto-logged QSOs and fill in what they left blank. */
   auto_log_lookup: boolean;
   rotator_enabled: boolean;
   /** "pst" (PstRotatorAz), "rotctld" (Hamlib) or "gs232" (Yaesu GS-232). */

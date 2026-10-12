@@ -20,7 +20,7 @@ use crate::cwclubs::ClubQso;
 use crate::worked::WorkedIndex;
 
 /// Migrations in order; migration N brings the schema to user_version N.
-const MIGRATIONS: &[&str] = &[SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6];
+const MIGRATIONS: &[&str] = &[SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7];
 /// The newest schema this build knows (`PRAGMA user_version`).
 pub const SCHEMA_VERSION: i32 = MIGRATIONS.len() as i32;
 
@@ -71,6 +71,12 @@ CREATE TABLE reply_list (
     created_at INTEGER NOT NULL,
     PRIMARY KEY (log_id, call)
 ) WITHOUT ROWID;
+"#;
+
+/// The lookup cache is gone: one operator at one radio re-works a station rarely enough
+/// that asking the service again beats holding a month of stale names and QTHs.
+const SCHEMA_V7: &str = r#"
+DROP TABLE IF EXISTS lookup_cache;
 "#;
 
 const SCHEMA_V1: &str = r#"
@@ -1134,32 +1140,6 @@ impl Store {
 
     pub fn delete_setting(&self, key: &str) -> Result<()> {
         self.conn.execute("DELETE FROM settings WHERE key = ?1", [key])?;
-        Ok(())
-    }
-
-    /// Returns cached lookup data no older than `max_age` seconds.
-    pub fn cached_lookup(&self, call: &str, max_age: i64) -> Result<Option<Fields>> {
-        let row: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT data FROM lookup_cache WHERE call = ?1 AND fetched_at >= ?2",
-                params![call.to_ascii_uppercase(), now() - max_age],
-                |r| r.get(0),
-            )
-            .optional()?;
-        Ok(match row {
-            Some(json) => Some(serde_json::from_str(&json)?),
-            None => None,
-        })
-    }
-
-    pub fn cache_lookup(&self, call: &str, source: &str, data: &Fields) -> Result<()> {
-        self.conn.execute(
-            "INSERT INTO lookup_cache (call, source, fetched_at, data) VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT (call) DO UPDATE SET source = excluded.source,
-             fetched_at = excluded.fetched_at, data = excluded.data",
-            params![call.to_ascii_uppercase(), source, now(), serde_json::to_string(data)?],
-        )?;
         Ok(())
     }
 

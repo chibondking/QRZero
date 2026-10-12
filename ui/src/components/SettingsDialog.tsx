@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { expandSpotComment, SPOT_COMMENT_MAX, SPOT_PLACEHOLDERS } from "../spotCheck";
 import type { ClusterConfig, ClusterNode, CtyStatus, Equipment, Fields, IntegrationStatus, Integrations, Location, Log, Settings, StationCallsign } from "../types";
+import { LOOKUP_SERVICES } from "../types";
+import { LOOKUP_SETTINGS_CHANGED } from "../lookupSettings";
 import type { EntryLayout, ModeLayouts } from "../fields";
 import Modal from "./Modal";
 import SaveBar from "./SaveBar";
@@ -312,7 +314,7 @@ function LogsTab({ logs, logId, onSwitchLog, guard }: Props & { guard: Guard }) 
 
 function LookupTab({ onClose }: { onClose: () => void }) {
   const [s, setS] = useState<Settings | null>(null);
-  const [password, setPassword] = useState("");
+  const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   useEffect(() => {
@@ -320,12 +322,22 @@ function LookupTab({ onClose }: { onClose: () => void }) {
   }, []);
   if (!s) return <p className="muted">Loading…</p>;
 
+  const body = () => ({
+    qrz_enabled: s.qrz_enabled,
+    qrz_username: s.qrz_username,
+    ...(passwords.qrz ? { qrz_password: passwords.qrz } : {}),
+    hamqth_enabled: s.hamqth_enabled,
+    hamqth_username: s.hamqth_username,
+    ...(passwords.hamqth ? { hamqth_password: passwords.hamqth } : {}),
+    lookup_order: s.lookup_order,
+    lookup_on_entry: s.lookup_on_entry,
+  });
+
   const save = async () => {
     try {
-      const body: { qrz_enabled: boolean; qrz_username: string; qrz_password?: string } = { qrz_enabled: s.qrz_enabled, qrz_username: s.qrz_username };
-      if (password) body.qrz_password = password;
-      setS(await api.saveSettings(body));
-      setPassword("");
+      setS(await api.saveSettings(body()));
+      setPasswords({});
+      window.dispatchEvent(new Event(LOOKUP_SETTINGS_CHANGED));
       setMsg({ text: "Saved.", ok: true });
       return true;
     } catch (e) {
@@ -333,32 +345,85 @@ function LookupTab({ onClose }: { onClose: () => void }) {
       return false;
     }
   };
-  const test = async () => {
+  const test = async (id: string, name: string) => {
     setMsg({ text: "Checking…", ok: true });
     try {
       await save();
-      await api.testQrz();
-      setMsg({ text: "QRZ login works.", ok: true });
+      await (id === "hamqth" ? api.testHamqth() : api.testQrz());
+      setMsg({ text: `${name} login works.`, ok: true });
     } catch (e) {
       setMsg({ text: (e as Error).message, ok: false });
     }
   };
 
+  // The order the services are tried in. Moving one swaps it with its neighbour.
+  const move = (id: string, by: number) => {
+    const order = [...s.lookup_order];
+    const i = order.indexOf(id);
+    const j = i + by;
+    if (i < 0 || j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    setS({ ...s, lookup_order: order });
+  };
+
+  const ordered = s.lookup_order
+    .map((id) => LOOKUP_SERVICES.find((x) => x.id === id))
+    .filter((x): x is (typeof LOOKUP_SERVICES)[number] => Boolean(x));
+  const onCount = ordered.filter((svc) => s[svc.enabled]).length;
+
   return (
     <div>
-      <p className="muted">QRZ.com XML lookups fill in name, QTH, grid and more when you leave the call field. They need a QRZ XML subscription. Results are cached for 30 days.</p>
-      <label className="check"><input type="checkbox" checked={s.qrz_enabled} onChange={(e) => setS({ ...s, qrz_enabled: e.target.checked })} /> Look up callsigns on QRZ.com</label>
-      <div className="row">
-        <label className="f"><span>QRZ username</span><input value={s.qrz_username} onChange={(e) => setS({ ...s, qrz_username: e.target.value })} /></label>
-        <label className="f">
-          <span>QRZ password {s.qrz_password_set && "(saved)"}</span>
-          <input type="password" value={password} placeholder={s.qrz_password_set ? "unchanged" : ""} onChange={(e) => setPassword(e.target.value)} />
+      <p className="muted">
+        A callsign lookup fills in name, QTH, grid and more. QRZ.com needs an XML subscription; HamQTH is free with an
+        account. Every lookup asks the service, so what you see is what it has now.
+      </p>
+
+      {ordered.map((svc, n) => (
+        <fieldset key={svc.id}>
+          <legend>{onCount > 1 ? `${n + 1}. ${svc.name}` : svc.name}</legend>
+          <label className="check">
+            <input type="checkbox" checked={s[svc.enabled]} onChange={(e) => setS({ ...s, [svc.enabled]: e.target.checked })} /> Look up callsigns on {svc.name}
+          </label>
+          <div className="row">
+            <label className="f"><span>{svc.name} username</span><input value={s[svc.username]} onChange={(e) => setS({ ...s, [svc.username]: e.target.value })} /></label>
+            <label className="f">
+              <span>{svc.name} password {s[svc.passwordSet] && "(saved)"}</span>
+              <input
+                type="password"
+                value={passwords[svc.id] ?? ""}
+                placeholder={s[svc.passwordSet] ? "unchanged" : ""}
+                onChange={(e) => setPasswords({ ...passwords, [svc.id]: e.target.value })}
+              />
+            </label>
+            <button onClick={() => void test(svc.id, svc.name)} disabled={!s[svc.username]}>Save and test login</button>
+          </div>
+          <div className="row">
+            <button onClick={() => move(svc.id, -1)} disabled={n === 0} title={`Ask ${svc.name} earlier`}>Move up</button>
+            <button onClick={() => move(svc.id, 1)} disabled={n === ordered.length - 1} title={`Ask ${svc.name} later`}>Move down</button>
+          </div>
+        </fieldset>
+      ))}
+
+      <p className="small muted">
+        {onCount > 1
+          ? "Both are on, so they are asked in the order above: the second only when the first doesn't know the call, is down or refuses the login."
+          : "Turn both on to use one as a fallback for the other."}{" "}
+        On Windows the passwords are kept in Windows Credential Manager, not in the log file.
+      </p>
+
+      <fieldset>
+        <legend>When to look up</legend>
+        <label className="check">
+          <input type="checkbox" checked={s.lookup_on_entry} onChange={(e) => setS({ ...s, lookup_on_entry: e.target.checked })} /> Look the call up as you enter a QSO by hand
         </label>
-      </div>
-      <p className="small muted">On Windows the password is kept in Windows Credential Manager, not in the log file.</p>
-      <SaveBar msg={msg} onSave={save} onClose={onClose}>
-        <button onClick={test} disabled={!s.qrz_username}>Save and test login</button>
-      </SaveBar>
+        <p className="small muted">
+          Off means nothing is looked up until you press <b>Fill from lookup</b>. This covers QSOs
+          you type into the New QSO panel only. QSOs from WSJT-X, JTDX or N1MM have their own setting (Radios and
+          programs), and imported or uploaded QSOs are never looked up.
+        </p>
+      </fieldset>
+
+      <SaveBar msg={msg} onSave={save} onClose={onClose} />
     </div>
   );
 }
@@ -440,8 +505,8 @@ function RadiosTab({ onClose }: { onClose: () => void }) {
 
       <fieldset>
         <legend>QSOs logged by other programs</legend>
-        {check("auto_log_lookup", "Look them up on QRZ and fill in name, QTH, state, grid and the rest when left blank")}
-        <p className="small muted">Needs your QRZ login (Callsign lookup tab). What WSJT-X, JTDX or N1MM sent is never overwritten.</p>
+        {check("auto_log_lookup", "Look them up and fill in name, QTH, state, grid and the rest when left blank")}
+        <p className="small muted">Needs a QRZ or HamQTH login (Callsign lookup tab). What WSJT-X, JTDX or N1MM sent is never overwritten.</p>
       </fieldset>
 
       <fieldset>

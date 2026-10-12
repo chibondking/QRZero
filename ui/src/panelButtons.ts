@@ -8,6 +8,8 @@
  */
 export interface PanelButton {
   id: string;
+  /** Only offered, and only shown, when this lookup service is set up. */
+  needs?: "hamqth";
   /** The button's own wording, as the bottom bar shows it. */
   name: string;
   /** What hiding it costs, for the tick box's note. */
@@ -15,6 +17,7 @@ export interface PanelButton {
 }
 
 export const PANEL_BUTTONS: PanelButton[] = [
-  { id: "qrz.fill", name: "Fill from QRZ", note: "Leaving the call box still looks the call up." },
+  { id: "qrz.fill", name: "Fill from lookup", note: "Leaving the call box still looks the call up." },
   { id: "qrz.page", name: "View on QRZ.com", note: "The QSO editor keeps this button." },
+  { id: "hamqth.page", name: "View on HamQTH", note: "Shown once a HamQTH login is set up.", needs: "hamqth" },
 ];

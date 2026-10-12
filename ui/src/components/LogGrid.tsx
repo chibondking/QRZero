@@ -226,10 +226,10 @@ export default function LogGrid({ logId, refreshKey, filter, onFilter, selection
 
   const lookupQsos = async (ids: number[]) => {
     setError("");
-    setNotice(`Looking up ${plural(ids.length)} on QRZ…`);
+    setNotice(`Looking up ${plural(ids.length)}…`);
     try {
       const r = await api.lookupQsos(ids);
-      setNotice(r.updated ? `Filled in ${plural(r.updated)} from QRZ.` : "Nothing to fill in from QRZ.");
+      setNotice(r.updated ? `Filled in ${plural(r.updated)}.` : "Nothing to fill in.");
       if (r.errors.length) setError(r.errors.slice(0, 3).join("; ") + (r.errors.length > 3 ? ` and ${r.errors.length - 3} more` : ""));
       if (r.updated) onDeleted();
     } catch (e) {
@@ -481,7 +481,7 @@ export default function LogGrid({ logId, refreshKey, filter, onFilter, selection
           return (
             <div className="wb-menu" role="menu" style={{ left: menu.x, top: Math.min(menu.y, Math.max(4, window.innerHeight - 380)), maxHeight: window.innerHeight - 8, overflowY: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
               <button role="menuitem" onClick={act(() => onEdit(menu.q))}>Edit {menu.q.fields.CALL ?? "QSO"}</button>
-              <button role="menuitem" onClick={act(() => void lookupQsos(ids))}>Fill {what} from QRZ</button>
+              <button role="menuitem" onClick={act(() => void lookupQsos(ids))}>Fill {what} from lookup</button>
               {ids.length === 1 && menu.q.fields.CALL && <a role="menuitem" className="menu-link" href={qrzPageUrl(menu.q.fields.CALL)} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(null)}>View {menu.q.fields.CALL} on QRZ.com</a>}
               {ids.length === 1 && menu.q.fields.CALL && (() => {
                 const f = menu.q.fields;
