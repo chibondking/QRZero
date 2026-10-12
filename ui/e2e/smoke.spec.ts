@@ -500,7 +500,7 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await Promise.all([editWin2.waitForEvent("close"), closeWindow(editWin2.getByRole("button", { name: "Close editor" }))]);
 
   // The Clubs pane keeps my own membership numbers and copies one on click.
-  await page.getByRole("tab", { name: "Clubs" }).click();
+  await page.getByRole("tab", { name: "MyClubs" }).click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByLabel("SKCC number").fill("12345S");
   await page.getByRole("button", { name: "Add club" }).click();

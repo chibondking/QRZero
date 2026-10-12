@@ -35,7 +35,7 @@ export default function ClubsPane() {
     <section className="panel clubs-pane">
       <div className="panel-title">
         {/* A div, not a span: the workspace hides a title bar's leading span. */}
-        <div>Club memberships</div>
+        <div>MyClubs</div>
         <span className="spacer" />
         <button className="tiny" onClick={() => setEditing(!editing)} aria-pressed={editing}>
           {editing ? "Done" : "Edit"}

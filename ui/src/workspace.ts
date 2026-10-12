@@ -19,7 +19,7 @@ export const PANES: { id: PaneId; title: string; popout: boolean }[] = [
   { id: "propagation", title: "Propagation", popout: true },
   { id: "rotator", title: "Rotator", popout: true },
   { id: "notes", title: "Notes", popout: true },
-  { id: "clubs", title: "Clubs", popout: true },
+  { id: "clubs", title: "MyClubs", popout: true },
 ];
 
 export const paneTitle = (id: PaneId) => PANES.find((p) => p.id === id)?.title ?? id;
