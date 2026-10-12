@@ -53,7 +53,7 @@ The **Entry fields** tab chooses what you type for each QSO. Call, reports, freq
 - Give a field your own **label**, a **width**, and a **default** that fills every new QSO.
 - Tick **keep** to hold the value from one QSO to the next (handy for a park reference, or your power).
 - The arrows move a field left or right, or up and down a line.
-- **Buttons on the New QSO panel** at the bottom shows or hides **Fill from QRZ** and **View on QRZ.com** in the panel's bottom bar. Turn them off for the shortest possible panel on a crowded screen; leaving the call field still looks the call up, and the QSO editor keeps both buttons.
+- **Buttons on the New QSO panel** at the bottom gives **Fill from QRZ** and **View on QRZ.com** a tick box each. Untick one to leave it off the panel's bottom bar, for the shortest possible panel on a crowded screen. Log and Clear always stay. Hiding **Fill from QRZ** doesn't stop the lookup, which still runs when you leave the call field, and the QSO editor keeps both buttons.
 - **Fields for** at the top picks which modes the layout applies to. **All modes** is the main layout. For **CW**, **Phone** or **Digital**, click **Set up fields for…** to give that group a layout of its own (it starts as a copy of the main one). Whenever the entry panel's mode belongs to the group, those fields replace the main ones, so CW can show club numbers while SSB shows something else. A group marked * has its own layout. **Use the main layout** takes it back. Values in fields that the new mode doesn't show are dropped, so nothing is logged unseen.
 
 ## General
