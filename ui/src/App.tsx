@@ -23,7 +23,7 @@ import SharedPane, { type PaneActions } from "./components/SharedPanes";
 import Workspace from "./components/Workspace";
 import LayoutMenu from "./components/LayoutMenu";
 import { listen, openPopout, post, type BusMsg, type PopContext, type WindowId } from "./bus";
-import { DEFAULT_WORKSPACE, canPopOut, findPane, removePane, sanitize, showPane, type PaneId, type Workspace as WS, type Zone } from "./workspace";
+import { DEFAULT_WORKSPACE, PANES, allPanes, canPopOut, findPane, nodeAt, removePane, sanitize, showPane, type PaneId, type Split, type Tabs, type Workspace as WS, type Zone } from "./workspace";
 import { newConfirmLines } from "./newConfirms";
 import NeededAlerts from "./components/NeededAlerts";
 import SetupWizard from "./components/SetupWizard";
@@ -49,7 +49,31 @@ const HOME: Partial<Record<PaneId, [PaneId, Zone]>> = {
   notes: ["worked", "center"],
 };
 
-function dockBack(root: WS["root"], id: PaneId): WS["root"] {
+/** Where a pane sat before it was popped out: beside `near`, on side `zone`. */
+interface Origin { near: PaneId; zone: Zone; share: number }
+const ORIGINS_KEY = "qrzero.popOrigins";
+const loadOrigins = () => localGet<Record<string, Origin>>(ORIGINS_KEY, {});
+
+/** Works out the spot a pane is leaving, so it can go back there. */
+function originOf(root: WS["root"], id: PaneId): Origin | null {
+  const path = root && findPane(root, id);
+  if (!root || !path) return null;
+  const group = nodeAt(root, path) as Tabs;
+  const mate = group.panes.find((p) => p !== id);
+  if (mate) return { near: mate, zone: "center", share: 0.5 };
+  if (!path.length) return null;
+  const parent = nodeAt(root, path.slice(0, -1)) as Split;
+  const i = path[path.length - 1];
+  const sib = parent.children[i === 0 ? 1 : i - 1];
+  const near = allPanes(sib)[0];
+  if (!near) return null;
+  const first = i === 0;
+  const zone: Zone = parent.dir === "row" ? (first ? "left" : "right") : first ? "top" : "bottom";
+  return { near, zone, share: parent.sizes[i] || 0.3 };
+}
+
+function dockBack(root: WS["root"], id: PaneId, origin?: Origin): WS["root"] {
+  if (origin && findPane(root, origin.near)) return showPane(root, id, origin.near, origin.zone, origin.share);
   const [near, zone] = HOME[id] ?? ["log", "center"];
   return showPane(root, id, findPane(root, near) ? near : "log", zone, zone === "center" ? 0.5 : 0.3);
 }
@@ -222,6 +246,8 @@ export default function App() {
   const popOut = (id: PaneId) => {
     const cur = wsRef.current;
     if (!canPopOut(id)) return;
+    const origin = originOf(cur.root, id);
+    if (origin) localSet(ORIGINS_KEY, { ...loadOrigins(), [id]: origin });
     setWs({ ...cur, root: removePane(cur.root, id), popped: [...cur.popped.filter((p) => p !== id), id] });
   };
 
@@ -235,7 +261,8 @@ export default function App() {
       setPrefill(null);
       setCopy(null);
     }
-    setWs({ ...cur, popped: cur.popped.filter((p) => p !== id), root: dockBack(cur.root, id) });
+    const origin = loadOrigins()[id];
+    setWs({ ...cur, popped: cur.popped.filter((p) => p !== id), root: dockBack(cur.root, id, origin) });
   };
 
   const focusWindow = (id: PaneId) => {
@@ -366,6 +393,16 @@ export default function App() {
     if (m.t === "setup") setDialog("wizard");
   };
   useEffect(() => listen((m) => onBus.current(m)), []);
+  // The desktop shell reports a pop-out window that was closed with its own close button.
+  useEffect(() => {
+    const closed = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (id === "editor") onBus.current({ t: "edit-closed" });
+      else if (PANES.some((p) => p.id === id)) onBus.current({ t: "bye", pane: id as PaneId });
+    };
+    window.addEventListener("qrzero-popout-closed", closed);
+    return () => window.removeEventListener("qrzero-popout-closed", closed);
+  }, []);
 
   // Keep popped-out panes up to date.
   const ctxKey = JSON.stringify(popCtx);

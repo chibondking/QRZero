@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "../workspace.css";
-import { listen, post, saveGeometry, type PopContext } from "../bus";
+import { closeWindow, listen, post, saveGeometry, type PopContext } from "../bus";
 import { paneTitle, type PaneId } from "../workspace";
 import SharedPane, { type PaneActions } from "./SharedPanes";
 
@@ -15,7 +15,7 @@ export default function Popout({ pane }: { pane: PaneId }) {
       if (m.t === "ctx") setCtx(m.ctx);
       if (m.t === "close-all") {
         closing.current = true;
-        window.close();
+        closeWindow();
       }
     });
     post({ t: "hello", pane });
@@ -60,7 +60,7 @@ export default function Popout({ pane }: { pane: PaneId }) {
             saveGeometry(pane);
             post({ t: "bye", pane });
             closing.current = true;
-            window.close();
+            closeWindow();
           }}
           title="Put this pane back in the main window"
         >

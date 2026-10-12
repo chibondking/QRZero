@@ -109,3 +109,9 @@ export function openPopout(id: WindowId): Window | null {
 export function saveGeometry(id: WindowId) {
   localSet(geoKey(id), { w: window.innerWidth, h: window.innerHeight, x: window.screenX, y: window.screenY });
 }
+
+/** Closes this window. The desktop shell can ignore window.close(), so it also watches for this title and closes the window itself. */
+export function closeWindow() {
+  document.title = "qrzero:close";
+  window.close();
+}

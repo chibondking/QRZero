@@ -17,13 +17,24 @@ fn popout_handler(app: AppHandle, home: String) -> impl Fn(tauri::Url, tauri::we
             }
             return NewWindowResponse::Deny;
         }
-        let label = format!("pane-{}", NEXT.fetch_add(1, Ordering::Relaxed));
+        // The label carries the pane id, so the main window can be told which one closed.
+        let pane: String = url
+            .query_pairs()
+            .find(|(k, _)| k == "popout")
+            .map(|(_, v)| v.chars().filter(char::is_ascii_alphanumeric).collect())
+            .unwrap_or_default();
+        let label = format!("pane-{}-{pane}", NEXT.fetch_add(1, Ordering::Relaxed));
         let mut builder = WebviewWindowBuilder::new(&app, label, WebviewUrl::External("about:blank".parse().unwrap()))
             .window_features(features)
             .title("QRZero")
             .min_inner_size(320.0, 200.0)
             .disable_drag_drop_handler()
             .on_document_title_changed(|w, title| {
+                // window.close() is not reliable in these windows; the page asks for a close by title.
+                if title == "qrzero:close" {
+                    let _ = w.destroy();
+                    return;
+                }
                 let _ = w.set_title(&title);
             })
             .on_new_window(popout_handler(app.clone(), home.clone()));
@@ -46,6 +57,12 @@ fn main() {
         }))
         // Closing the main window closes every popped-out window and quits the app.
         .on_window_event(|window, event| {
+            // A pop-out closed with its own close button goes back into the main window.
+            if let (Some(pane), tauri::WindowEvent::Destroyed) = (window.label().strip_prefix("pane-").and_then(|l| l.split_once('-')).map(|(_, p)| p), event) {
+                if let Some(main) = window.app_handle().get_webview_window("main") {
+                    let _ = main.eval(format!("window.dispatchEvent(new CustomEvent('qrzero-popout-closed',{{detail:'{pane}'}}))"));
+                }
+            }
             if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
                 let app = window.app_handle();
                 for (_, w) in app.webview_windows() {
