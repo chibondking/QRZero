@@ -337,10 +337,10 @@ async fn logged_qsos_are_filled_in_from_qrz() {
     let a = api.post(&format!("/logs/{log}/qsos"), qso("W1AW", json!({"QTH": "Hartford"}))).await["id"].as_i64().unwrap();
     let b = api.post(&format!("/logs/{log}/qsos"), qso("ZZ9ZZ", json!({}))).await["id"].as_i64().unwrap();
 
-    // With lookups off it says so rather than doing nothing.
+    // With every service off it says so rather than doing nothing.
     let r = api.post("/qsos/lookup", json!({"ids": [a]})).await;
     assert_eq!(r["updated"], 0);
-    assert!(r["errors"][0].as_str().unwrap().contains("QRZ login"), "{r}");
+    assert!(r["errors"][0].as_str().unwrap().contains("QRZ or HamQTH"), "{r}");
 
     api.call(reqwest::Method::PUT, "/settings", Some(json!({"qrz_enabled": true, "qrz_username": "me", "qrz_password": "good"}))).await;
     let r = api.post("/qsos/lookup", json!({"ids": [a, b]})).await;
