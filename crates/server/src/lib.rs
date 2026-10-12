@@ -18,6 +18,7 @@ use axum::{Json, Router};
 use qrzero_core::adif::Fields;
 use qrzero_core::awards::{Award, AwardHint, AwardQso, AwardTable, Counts, CtyFacts, Tally};
 use qrzero_core::model::*;
+use qrzero_core::hamqth::{HamqthClient, DEFAULT_ENDPOINT as HAMQTH_ENDPOINT};
 use qrzero_core::qrz::{QrzClient, DEFAULT_ENDPOINT};
 use qrzero_core::store::Sort;
 use qrzero_core::{secrets, Error, Store};
@@ -56,6 +57,8 @@ pub struct Config {
     pub token: Option<String>,
     /// QRZ XML endpoint (overridable for tests).
     pub qrz_endpoint: String,
+    /// HamQTH XML endpoint (overridable for tests).
+    pub hamqth_endpoint: String,
     /// Credential store namespace for saved passwords.
     pub secret_service: String,
     /// Download the country file when it's missing or old.
@@ -82,6 +85,7 @@ impl Config {
             addr: SocketAddr::from(([127, 0, 0, 1], 0)),
             token: None,
             qrz_endpoint: DEFAULT_ENDPOINT.to_string(),
+            hamqth_endpoint: HAMQTH_ENDPOINT.to_string(),
             secret_service: "QRZero".to_string(),
             update_cty: true,
             qsl_endpoints: QslEndpoints::default(),
@@ -111,6 +115,8 @@ struct AppState {
     store: Arc<Mutex<Store>>,
     qrz: tokio::sync::Mutex<Option<QrzClient>>,
     qrz_endpoint: String,
+    hamqth: tokio::sync::Mutex<Option<HamqthClient>>,
+    hamqth_endpoint: String,
     secret_service: String,
     token: String,
     data_dir: PathBuf,
@@ -180,6 +186,8 @@ pub async fn start(cfg: Config) -> anyhow::Result<Running> {
         propagation: propagation::Propagation::new(cfg.propagation_url),
         qrz: tokio::sync::Mutex::new(None),
         qrz_endpoint: cfg.qrz_endpoint,
+        hamqth: tokio::sync::Mutex::new(None),
+        hamqth_endpoint: cfg.hamqth_endpoint,
         secret_service: cfg.secret_service,
         token: token.clone(),
         data_dir: cfg.data_dir,
@@ -263,6 +271,7 @@ fn router(state: Shared) -> Router {
         .route("/prefs/{key}", get(get_pref).put(put_pref))
         .route("/settings", get(get_settings).put(put_settings))
         .route("/settings/qrz/test", post(test_qrz))
+        .route("/settings/hamqth/test", post(test_hamqth))
         .route("/events", get(events))
         .route("/station/active", post(set_active))
         .route("/radios/tune", post(tune))
@@ -826,14 +835,19 @@ fn fill_blanks(fields: &mut Fields, station: &Fields) -> Vec<String> {
     filled
 }
 
-/// Looks up a logged QSO's call on QRZ and fills in its blank fields. Returns the fields filled.
+/// Said when no lookup service is set up; `lookup_qsos` stops the whole run on it.
+const LOOKUPS_OFF: &str = "Callsign lookups are off: add a QRZ or HamQTH login in Settings";
+
+/// Looks up a logged QSO's call and fills in its blank fields. Returns the fields filled.
 async fn lookup_into_qso(s: &Shared, id: i64, call: &str) -> Result<Vec<String>, String> {
     let Some((station, _)) = qrz_lookup(s, call).await? else {
         let settings = db(s, |st| load_settings(st)).await.map_err(|e| e.1)?;
-        if !settings.qrz_enabled || settings.qrz_username.is_empty() {
-            return Err("QRZ lookups are off: add your QRZ login in Settings".into());
+        let qrz_on = settings.qrz_enabled && !settings.qrz_username.is_empty();
+        let hamqth_on = settings.hamqth_enabled && !settings.hamqth_username.is_empty();
+        if !qrz_on && !hamqth_on {
+            return Err(LOOKUPS_OFF.into());
         }
-        return Err("not found on QRZ".into());
+        return Err("not found".into());
     };
     let filled = db(s, move |st| {
         let qso = st.get_qso(id)?;
@@ -860,7 +874,7 @@ struct LookupQsosResult {
     errors: Vec<String>,
 }
 
-/// Looks up the chosen QSOs on QRZ and fills in what they're missing.
+/// Looks up the chosen QSOs and fills in what they're missing.
 async fn lookup_qsos(State(s): State<Shared>, Json(b): Json<IdsBody>) -> ApiResult<LookupQsosResult> {
     let mut out = LookupQsosResult { updated: 0, errors: Vec::new() };
     for id in b.ids {
@@ -870,7 +884,7 @@ async fn lookup_qsos(State(s): State<Shared>, Json(b): Json<IdsBody>) -> ApiResu
             Ok(f) if !f.is_empty() => out.updated += 1,
             Ok(_) => {}
             Err(e) => {
-                let off = e.starts_with("QRZ lookups are off");
+                let off = e == LOOKUPS_OFF;
                 out.errors.push(if off { e } else { format!("{call}: {e}") });
                 if off {
                     break;
@@ -940,7 +954,7 @@ struct LookupResult {
     entity: Option<qrzero_core::cty::Entity>,
     /// Station details from the lookup service, as ADIF fields.
     station: Option<Fields>,
-    source: Option<&'static str>,
+    source: Option<String>,
     error: Option<String>,
     /// The operator's station note for the (base) call.
     note: Option<String>,
@@ -1066,30 +1080,85 @@ async fn delete_note(State(s): State<Shared>, Path((log_id, call)): Path<(i64, S
     db(&s, move |st| st.delete_note(log_id, &call)).await.map(Json)
 }
 
-/// QRZ lookup with a 30-day cache. Ok(None) when lookups are off or the call is unknown.
-async fn qrz_lookup(s: &Shared, call: &str) -> Result<Option<(Fields, &'static str)>, String> {
-    let c = call.to_string();
-    let cached = db(s, move |st| st.cached_lookup(&c, LOOKUP_CACHE_SECS)).await.map_err(|e| e.1)?;
-    if let Some(f) = cached {
-        return Ok(Some((f, "QRZ (cached)")));
+/// A lookup service's display name, for the "where this came from" line.
+fn service_name(id: &str) -> &'static str {
+    match id {
+        "hamqth" => "HamQTH",
+        _ => "QRZ",
+    }
+}
+
+/// Asks one service, falling back to the home call for a portable or prefixed call
+/// (EA8/G4ABC, W1AW/P). Ok(None) when the service isn't set up or doesn't know the call.
+async fn ask_service(s: &Shared, id: &str, call: &str) -> Result<Option<Fields>, String> {
+    if id == "hamqth" {
+        let Some(mut guard) = hamqth_client(s).await? else {
+            return Ok(None);
+        };
+        let client = guard.as_mut().expect("client present");
+        let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?;
+        if found.is_none() && call.contains('/') {
+            if let Some(base) = call.split('/').max_by_key(|p| p.len()) {
+                found = client.lookup(base).await.map_err(|e| login_hint(e.to_string()))?;
+            }
+        }
+        return Ok(found);
     }
     let Some(mut guard) = qrz_client(s).await? else {
         return Ok(None);
     };
     let client = guard.as_mut().expect("client present");
     let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?;
-    // Portable or prefixed calls (EA8/G4ABC, W1AW/P): fall back to the home call.
     if found.is_none() && call.contains('/') {
         if let Some(base) = call.split('/').max_by_key(|p| p.len()) {
             found = client.lookup(base).await.map_err(|e| login_hint(e.to_string()))?;
         }
     }
-    drop(guard);
-    if let Some(f) = &found {
-        let (c, f2) = (call.to_string(), f.clone());
-        db(s, move |st| st.cache_lookup(&c, "qrz", &f2)).await.map_err(|e| e.1)?;
+    Ok(found)
+}
+
+/// Callsign lookup with a 30-day cache, asking each service the user has turned on in
+/// their order until one knows the call. A service that errors doesn't stop the next
+/// being asked; the error is only reported when nobody had an answer.
+///
+/// Ok(None) when every service is off, or none of them knows the call.
+async fn qrz_lookup(s: &Shared, call: &str) -> Result<Option<(Fields, String)>, String> {
+    let c = call.to_string();
+    let cached = db(s, move |st| st.cached_lookup_with_source(&c, LOOKUP_CACHE_SECS)).await.map_err(|e| e.1)?;
+    if let Some((f, source)) = cached {
+        return Ok(Some((f, format!("{} (cached)", service_name(&source)))));
     }
-    Ok(found.map(|f| (f, "QRZ")))
+    let settings = db(s, |st| load_settings(st)).await.map_err(|e| e.1)?;
+    let mut first_error: Option<String> = None;
+    for id in &settings.lookup_order {
+        let on = match id.as_str() {
+            "hamqth" => settings.hamqth_enabled && !settings.hamqth_username.is_empty(),
+            _ => settings.qrz_enabled && !settings.qrz_username.is_empty(),
+        };
+        if !on {
+            continue;
+        }
+        match ask_service(s, id, call).await {
+            Ok(Some(f)) => {
+                let (c, f2, src) = (call.to_string(), f.clone(), id.clone());
+                db(s, move |st| st.cache_lookup(&c, &src, &f2)).await.map_err(|e| e.1)?;
+                return Ok(Some((f, service_name(id).to_string())));
+            }
+            // This one doesn't know the call: try the next service.
+            Ok(None) => {}
+            // Down, refusing the login or timing out: remember why, but still try the next.
+            Err(e) => {
+                tracing::info!("{} lookup for {call}: {e}", service_name(id));
+                if first_error.is_none() {
+                    first_error = Some(format!("{}: {e}", service_name(id)));
+                }
+            }
+        }
+    }
+    match first_error {
+        Some(e) => Err(e),
+        None => Ok(None),
+    }
 }
 
 /// Points the user at the settings page when QRZ refused the login.
@@ -1118,6 +1187,27 @@ async fn qrz_client(s: &Shared) -> Result<Option<tokio::sync::MutexGuard<'_, Opt
         .is_none_or(|c| !c.same_credentials(&settings.qrz_username, &password));
     if stale {
         *guard = Some(QrzClient::new(&s.qrz_endpoint, &settings.qrz_username, &password));
+    }
+    Ok(Some(guard))
+}
+
+/// Returns the HamQTH client, creating it from settings, or None when it isn't set up.
+async fn hamqth_client(s: &Shared) -> Result<Option<tokio::sync::MutexGuard<'_, Option<HamqthClient>>>, String> {
+    let settings = db(s, |st| load_settings(st)).await.map_err(|e| e.1)?;
+    if !settings.hamqth_enabled || settings.hamqth_username.is_empty() {
+        return Ok(None);
+    }
+    let svc = s.secret_service.clone();
+    let password = db(s, move |st| secrets::get(st, &svc, "hamqth")).await.map_err(|e| e.1)?.unwrap_or_default();
+    if password.is_empty() {
+        return Err("HamQTH password is not set".into());
+    }
+    let mut guard = s.hamqth.lock().await;
+    let stale = guard
+        .as_ref()
+        .is_none_or(|c| !c.same_credentials(&settings.hamqth_username, &password));
+    if stale {
+        *guard = Some(HamqthClient::new(&s.hamqth_endpoint, &settings.hamqth_username, &password));
     }
     Ok(Some(guard))
 }
@@ -1167,6 +1257,39 @@ struct Settings {
     qrz_username: String,
     #[serde(default)]
     qrz_password_set: bool,
+    #[serde(default)]
+    hamqth_enabled: bool,
+    #[serde(default)]
+    hamqth_username: String,
+    #[serde(default)]
+    hamqth_password_set: bool,
+    /// Services to try, best first. Unknown or repeated names are ignored.
+    #[serde(default)]
+    lookup_order: Vec<String>,
+    /// Look a call up by itself when it's typed into the QSO panel.
+    #[serde(default)]
+    lookup_on_entry: bool,
+}
+
+/// The lookup services, in the order they are tried when the setting says nothing.
+const DEFAULT_ORDER: [&str; 2] = ["qrz", "hamqth"];
+
+/// Reads the saved order, keeping only names we know and adding any that are missing,
+/// so the list always names every service exactly once.
+fn parse_order(saved: Option<String>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for name in saved.unwrap_or_default().split(',') {
+        let name = name.trim().to_ascii_lowercase();
+        if DEFAULT_ORDER.contains(&name.as_str()) && !out.contains(&name) {
+            out.push(name);
+        }
+    }
+    for name in DEFAULT_ORDER {
+        if !out.iter().any(|n| n == name) {
+            out.push(name.to_string());
+        }
+    }
+    out
 }
 
 fn load_settings(st: &Store) -> qrzero_core::Result<Settings> {
@@ -1174,6 +1297,12 @@ fn load_settings(st: &Store) -> qrzero_core::Result<Settings> {
         qrz_enabled: st.get_setting("qrz.enabled")?.as_deref() == Some("1"),
         qrz_username: st.get_setting("qrz.username")?.unwrap_or_default(),
         qrz_password_set: false,
+        hamqth_enabled: st.get_setting("hamqth.enabled")?.as_deref() == Some("1"),
+        hamqth_username: st.get_setting("hamqth.username")?.unwrap_or_default(),
+        hamqth_password_set: false,
+        lookup_order: parse_order(st.get_setting("lookup.order")?),
+        // On unless it has been turned off, which is how QRZero behaved before the setting existed.
+        lookup_on_entry: st.get_setting("lookup.on_entry")?.as_deref() != Some("0"),
     })
 }
 
@@ -1182,6 +1311,7 @@ async fn get_settings(State(s): State<Shared>) -> ApiResult<Settings> {
     db(&s, move |st| {
         let mut out = load_settings(st)?;
         out.qrz_password_set = secrets::get(st, &svc, "qrz")?.is_some_and(|p| !p.is_empty());
+        out.hamqth_password_set = secrets::get(st, &svc, "hamqth")?.is_some_and(|p| !p.is_empty());
         Ok(out)
     })
     .await
@@ -1194,6 +1324,12 @@ struct SettingsUpdate {
     qrz_username: Option<String>,
     /// Omit to keep the stored password; empty string clears it.
     qrz_password: Option<String>,
+    hamqth_enabled: Option<bool>,
+    hamqth_username: Option<String>,
+    /// Omit to keep the stored password; empty string clears it.
+    hamqth_password: Option<String>,
+    lookup_order: Option<Vec<String>>,
+    lookup_on_entry: Option<bool>,
 }
 
 async fn put_settings(State(s): State<Shared>, Json(b): Json<SettingsUpdate>) -> ApiResult<Settings> {
@@ -1208,10 +1344,26 @@ async fn put_settings(State(s): State<Shared>, Json(b): Json<SettingsUpdate>) ->
         if let Some(p) = b.qrz_password {
             secrets::set(st, &svc, "qrz", if p.is_empty() { None } else { Some(&p) })?;
         }
+        if let Some(e) = b.hamqth_enabled {
+            st.set_setting("hamqth.enabled", if e { "1" } else { "0" })?;
+        }
+        if let Some(u) = b.hamqth_username {
+            st.set_setting("hamqth.username", u.trim())?;
+        }
+        if let Some(p) = b.hamqth_password {
+            secrets::set(st, &svc, "hamqth", if p.is_empty() { None } else { Some(&p) })?;
+        }
+        if let Some(o) = b.lookup_order {
+            st.set_setting("lookup.order", &parse_order(Some(o.join(","))).join(","))?;
+        }
+        if let Some(e) = b.lookup_on_entry {
+            st.set_setting("lookup.on_entry", if e { "1" } else { "0" })?;
+        }
         Ok(())
     })
     .await?;
     *s.qrz.lock().await = None;
+    *s.hamqth.lock().await = None;
     get_settings(State(s)).await
 }
 
@@ -1220,6 +1372,15 @@ async fn test_qrz(State(s): State<Shared>) -> ApiResult<serde_json::Value> {
     let svc = s.secret_service.clone();
     let password = db(&s, move |st| secrets::get(st, &svc, "qrz")).await?.unwrap_or_default();
     let mut client = QrzClient::new(&s.qrz_endpoint, &settings.qrz_username, &password);
+    client.test_login().await.map_err(ApiError::from)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn test_hamqth(State(s): State<Shared>) -> ApiResult<serde_json::Value> {
+    let settings = db(&s, |st| load_settings(st)).await?;
+    let svc = s.secret_service.clone();
+    let password = db(&s, move |st| secrets::get(st, &svc, "hamqth")).await?.unwrap_or_default();
+    let mut client = HamqthClient::new(&s.hamqth_endpoint, &settings.hamqth_username, &password);
     client.test_login().await.map_err(ApiError::from)?;
     Ok(Json(json!({ "ok": true })))
 }

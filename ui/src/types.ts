@@ -52,7 +52,24 @@ export interface ImportReport {
   messages: string[];
 }
 
-export interface Settings { qrz_enabled: boolean; qrz_username: string; qrz_password_set: boolean }
+export interface Settings {
+  qrz_enabled: boolean;
+  qrz_username: string;
+  qrz_password_set: boolean;
+  hamqth_enabled: boolean;
+  hamqth_username: string;
+  hamqth_password_set: boolean;
+  /** Services to try, best first: "qrz", "hamqth". */
+  lookup_order: string[];
+  /** Look a call up by itself when it's typed into the QSO panel. */
+  lookup_on_entry: boolean;
+}
+
+/** What a lookup service is called, and the settings that belong to it. */
+export const LOOKUP_SERVICES = [
+  { id: "qrz", name: "QRZ.com", enabled: "qrz_enabled", username: "qrz_username", passwordSet: "qrz_password_set" },
+  { id: "hamqth", name: "HamQTH", enabled: "hamqth_enabled", username: "hamqth_username", passwordSet: "hamqth_password_set" },
+] as const;
 
 export type EquipmentKind = "rig" | "antenna" | "amplifier" | "rotator" | "other";
 export interface Equipment { id: number; location_id: number; kind: EquipmentKind; name: string; fields: Fields; sort: number }

@@ -22,10 +22,12 @@ The fields below the first line can be changed: see **Entry fields**.
 
 Two buttons next to **Clear** deal with QRZ.com:
 
-- **Fill from QRZ** looks the call up now and fills in the boxes that are still blank. It does the same as leaving the call field, so use it after you add your QRZ login or when the first lookup failed. It needs your QRZ XML login (Settings, **Callsign lookup**).
+- **Fill from QRZ** looks the call up now and fills in the boxes that are still blank. It does the same as leaving the call field, so use it after you add your login or when the first lookup failed. It needs a QRZ or HamQTH login (Settings, **Callsign lookup**), and asks them in the order set there.
 - **View on QRZ.com** opens that station's page on the QRZ.com website in your web browser, to read their bio or QSL instructions. It needs no login and doesn't change the form.
 
-Either button can be left off the bottom bar, to make the panel as small as possible on a crowded screen: Settings, **Entry fields**, **Buttons on the New QSO panel**. Each has its own tick box, so you can keep the one you use and hide the other. Hiding **Fill from QRZ** doesn't stop the lookup, which still runs when you leave the call field, and the QSO editor keeps both buttons either way.
+With a HamQTH login set up, a **View on HamQTH** button appears beside them and opens that station's page on HamQTH.
+
+Any of these buttons can be left off the bottom bar, to make the panel as small as possible on a crowded screen: Settings, **Entry fields**, **Buttons on the New QSO panel**. Each has its own tick box, so you can keep the ones you use and hide the rest. Hiding **Fill from QRZ** doesn't stop the lookup, which still runs when you leave the call field unless you turn that off too (Settings, **Callsign lookup**), and the QSO editor keeps its own buttons either way.
 
 If you press <kbd>Enter</kbd> straight from the call field, QRZero waits up to two seconds for the lookup so its details are still saved with the QSO.
 

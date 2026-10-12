@@ -77,13 +77,35 @@ Logs are completely separate, for example one per operator sharing the computer.
 
 ## Callsign lookup
 
-On the **Callsign lookup** tab, turn on QRZ.com lookups and enter your QRZ username and password. Lookups need a QRZ XML subscription. **Save and test login** checks the details straight away. If QRZ refuses the login, the entry panel says so and points you here. QRZero doesn't ask QRZ again with the same wrong login for a minute; saving a new username or password clears that at once, and leaving the call box again looks the call up with the new login.
+The **Callsign lookup** tab sets up the services that fill in a station's name, QTH, grid and the rest. There are two:
+
+- **QRZ.com** needs a QRZ XML subscription.
+- **HamQTH** is free; it needs a HamQTH account (the same login you use on their website).
+
+Turn on the ones you have, enter the username and password for each, and press **Save and test login** on that service to check it straight away. If a service refuses the login, the entry panel says so and points you here. QRZero doesn't ask it again with the same wrong login for a minute; saving a new username or password clears that at once, and leaving the call box again looks the call up with the new login.
 
 Settings pages with a **Save** button (and the QSL window's **Online services** page) also have **Save and close**, which saves and then closes the window. The *Saved.* note fades out after a couple of seconds, so if you save again it shows again.
 
-- On Windows the password is stored in Windows Credential Manager, never in the log file. On a Mac it goes to the Keychain. On Linux it goes to the desktop keyring (GNOME Keyring or KWallet); only when no keyring is running, as on a headless server, is it kept in the log file's settings.
-- Results are cached for 30 days, so working the same station again is instant and doesn't use your QRZ allowance.
-- Portable calls such as `W1AW/P` or `EA8/G4ABC` fall back to the home call if QRZ doesn't know the full call.
+### Which service is asked first
+
+With both services on, they are numbered **1.** and **2.** and asked in that order. **Move up** and **Move down** change it. The second is only asked when the first doesn't know the call, is down, times out or refuses the login, so the usual case costs one request. The station panel says which service the details came from.
+
+This is worth setting up both ways round: the two have different gaps. A call that QRZ has never heard of is often on HamQTH, and the other way about.
+
+### When callsigns are looked up
+
+**Look the call up as you enter a QSO by hand** covers the New QSO panel only: leaving the call box, or picking a station from a spot or the FTx monitor. Turn it off if you'd rather not query anything until you ask, and the panel then looks nothing up until you press **Fill from QRZ**. Those buttons always work, whatever this is set to.
+
+Two other kinds of QSO are not covered by it:
+
+- QSOs logged by WSJT-X, JTDX or N1MM have their own setting on the **Radios and programs** tab, off unless you turn it on.
+- Imported and uploaded QSOs are never looked up. To fill those in, select them in the log and use **Fill from QRZ** there.
+
+### Both services
+
+- On Windows the passwords are stored in Windows Credential Manager, never in the log file. On a Mac they go to the Keychain. On Linux they go to the desktop keyring (GNOME Keyring or KWallet); only when no keyring is running, as on a headless server, are they kept in the log file's settings.
+- Results are cached for 30 days whichever service they came from, so working the same station again is instant and doesn't use your allowance. The cache keeps one record per call: the service that answered first keeps it until it is 30 days old.
+- Portable calls such as `W1AW/P` or `EA8/G4ABC` fall back to the home call if the service doesn't know the full call.
 
 ## Backups
 

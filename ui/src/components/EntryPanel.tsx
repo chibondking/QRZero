@@ -8,6 +8,7 @@ import { localGet, localSet } from "../prefs";
 import QrzPageLink from "./QrzPageLink";
 import SpotDialog, { type SpotRequest } from "./SpotDialog";
 import { useSpotStatus } from "../spot";
+import { useLookupSettings } from "../lookupSettings";
 import { adifToUnix, spotBlocked } from "../spotCheck";
 import type { Equipment, Fields, Location, LookupResult, Radio } from "../types";
 import { adifDateTime } from "../util";
@@ -94,6 +95,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
   const [spotReq, setSpotReq] = useState<SpotRequest | null>(null);
   const spotStatus = useSpotStatus();
   const display = useDisplay();
+  const lookupCfg = useLookupSettings();
   const [form, setForm] = useState<Fields>(() => freshValues(layout, prefs.last));
   const [lookupFill, setLookupFill] = useState<Fields>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -127,7 +129,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
       return next;
     });
     setTouched((t) => new Set([...t].filter((k) => to.has(k))));
-    if (call.trim().length >= 3) void runLookup(call, true);
+    if (call.trim().length >= 3) autoLookup(call, true);
   }, [layout]);
 
   const visibleKeys = useMemo(() => new Set(layout.rows.flat().map((i) => i.key)), [layout]);
@@ -228,6 +230,15 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
   };
 
   type Found = { fill: Fields };
+  /**
+   * The lookups QRZero starts by itself: leaving the call box, a spot or FTx call being
+   * filled in, the layout changing. They are all off together when "Look the call up as you
+   * enter a QSO by hand" is off; the Fill button calls `runLookup` directly and always works.
+   */
+  const autoLookup = (typed = call, force = false) => {
+    if (lookupCfg.onEntry) void runLookup(typed, force);
+  };
+
   const runLookup = async (typed = call, force = false): Promise<Found | null> => {
     const c = typed.trim().toUpperCase();
     if (c.length < 3 || (c === lookedUp.current && !force)) return null;
@@ -294,7 +305,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
       }
     } else if (radio?.can_tune) {
       // Single click: the call is filled in and the radio is left alone. Double-click tunes it.
-      if (!prefill.qsy || !prefill.freq_hz) { void runLookup(prefill.call); return; }
+      if (!prefill.qsy || !prefill.freq_hz) { autoLookup(prefill.call); return; }
       // A spot that says where it listens sets split; any other spot turns a split left over from the last one off.
       const split = prefill.tx_freq_hz ? { tx_freq_hz: prefill.tx_freq_hz } : radio.split ? { split: false } : undefined;
       api.tune(radio.key, prefill.freq_hz, m ?? undefined, split).catch((e) => setStatus({ text: `Couldn't tune: ${(e as Error).message}`, kind: "err" }));
@@ -303,7 +314,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
       if (prefill.band) setBand(prefill.band);
     }
     if (m) changeMode(m);
-    void runLookup(prefill.call);
+    autoLookup(prefill.call);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill?.nonce]);
 
@@ -386,7 +397,11 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
       e.preventDefault();
       if (busy || !call) return;
       // A call typed and logged in one go still gets its lookup data,
-      // unless the lookup service is slow.
+      // unless the lookup service is slow. With automatic lookups off, log it as typed.
+      if (!lookupCfg.onEntry) {
+        void log();
+        return;
+      }
       const timeout = new Promise<null>((r) => setTimeout(() => r(null), 2000));
       void Promise.race([runLookup(), timeout]).then((found) => log(found));
     } else if (e.key === "Escape") {
@@ -451,7 +466,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
               autoComplete="off"
               spellCheck={false}
               onChange={(e) => changeCall(e.target.value.toUpperCase().replace(/\s/g, ""))}
-              onBlur={() => void runLookup()}
+              onBlur={() => autoLookup()}
               onKeyDown={(e) => {
                 if (e.key === " ") {
                   // Space jumps to the next field, like most contest loggers.
@@ -534,6 +549,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
               >Fill from QRZ</button>
             )}
             {showButton(display, "qrz.page") && <QrzPageLink call={call} />}
+            {lookupCfg.hamqth && showButton(display, "hamqth.page") && <QrzPageLink call={call} site="hamqth" />}
             {(() => {
               // The DX transmits where we listen: the receive box in split, else the frequency box.
               const khz = Number(freqRx || freq) * 1000;

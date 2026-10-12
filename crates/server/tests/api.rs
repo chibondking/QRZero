@@ -24,6 +24,7 @@ async fn mock_qrz(logins: Arc<AtomicUsize>) -> String {
                 }
                 match q.get("callsign").map(String::as_str) {
                     Some("W1AW") => "<QRZDatabase><Callsign><call>W1AW</call><fname>Hiram</fname><name>Maxim</name><addr2>Newington</addr2><dxcc>291</dxcc></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
+                    Some("K5BOTH") => "<QRZDatabase><Callsign><call>K5BOTH</call><fname>From</fname><name>QRZ</name></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
                     Some(c) => format!("<QRZDatabase><Session><Key>abc</Key><Error>Not found: {c}</Error></Session></QRZDatabase>"),
                     None => String::new(),
                 }
@@ -36,6 +37,36 @@ async fn mock_qrz(logins: Arc<AtomicUsize>) -> String {
     format!("http://{addr}/xml/")
 }
 
+/// A stand-in for hamqth.com's xml.php. It knows G0ABC, which the QRZ stand-in doesn't,
+/// so a lookup that falls through from QRZ can be told apart.
+async fn mock_hamqth(lookups: Arc<AtomicUsize>) -> String {
+    let app = Router::new().route(
+        "/xml.php",
+        get(move |Query(q): Query<HashMap<String, String>>| {
+            let lookups = lookups.clone();
+            async move {
+                if q.contains_key("u") {
+                    if q["p"] == "good" {
+                        return "<HamQTH><session><session_id>sid</session_id></session></HamQTH>".to_string();
+                    }
+                    return "<HamQTH><session><error>Wrong user name or password</error></session></HamQTH>".to_string();
+                }
+                lookups.fetch_add(1, Ordering::SeqCst);
+                match q.get("callsign").map(String::as_str) {
+                    Some("G0ABC") => "<HamQTH><search><callsign>G0ABC</callsign><nick>Jo</nick><qth>Bath</qth><adif>223</adif><grid>IO81</grid></search></HamQTH>".to_string(),
+                    Some("W1AW") => "<HamQTH><search><callsign>W1AW</callsign><nick>HamQTH Hiram</nick></search></HamQTH>".to_string(),
+                    Some("K5BOTH") => "<HamQTH><search><callsign>K5BOTH</callsign><nick>From HamQTH</nick></search></HamQTH>".to_string(),
+                    _ => "<HamQTH><session><error>Callsign not found</error></session></HamQTH>".to_string(),
+                }
+            }
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{addr}/xml.php")
+}
+
 struct Api {
     base: String,
     token: String,
@@ -45,9 +76,16 @@ struct Api {
 
 impl Api {
     async fn new(qrz_endpoint: String) -> Self {
+        Api::with_services(qrz_endpoint, None).await
+    }
+
+    async fn with_services(qrz_endpoint: String, hamqth_endpoint: Option<String>) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let mut cfg = Config::local(dir.path().to_path_buf());
         cfg.qrz_endpoint = qrz_endpoint;
+        if let Some(h) = hamqth_endpoint {
+            cfg.hamqth_endpoint = h;
+        }
         // Keep test passwords away from the real credential store entries.
         // Tests run in parallel and the Windows credential store is shared, so each server gets its own entries.
         static NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -190,6 +228,101 @@ async fn qrz_lookup_and_cache() {
     // Clearing the password removes it from the credential store.
     let (_, s) = api.call(reqwest::Method::PUT, "/settings", Some(json!({"qrz_password": ""}))).await;
     assert_eq!(s["qrz_password_set"], false);
+}
+
+#[tokio::test]
+async fn hamqth_lookup_and_order() {
+    let hamqth_lookups = Arc::new(AtomicUsize::new(0));
+    let api = Api::with_services(
+        mock_qrz(Arc::new(AtomicUsize::new(0))).await,
+        Some(mock_hamqth(hamqth_lookups.clone()).await),
+    )
+    .await;
+    let log = api.get("/logs").await[0]["id"].as_i64().unwrap();
+
+    // HamQTH alone answers, and says so.
+    api.call(
+        reqwest::Method::PUT,
+        "/settings",
+        Some(json!({"hamqth_enabled": true, "hamqth_username": "me", "hamqth_password": "good"})),
+    )
+    .await;
+    let (status, _) = api.call(reqwest::Method::POST, "/settings/hamqth/test", None).await;
+    assert_eq!(status, 200);
+    let r = api.get(&format!("/logs/{log}/lookup/G0ABC")).await;
+    assert_eq!(r["station"]["NAME"], "Jo");
+    assert_eq!(r["station"]["GRIDSQUARE"], "IO81");
+    assert_eq!(r["source"], "HamQTH");
+    let r = api.get(&format!("/logs/{log}/lookup/G0ABC")).await;
+    assert_eq!(r["source"], "HamQTH (cached)");
+
+    // Both on, QRZ first: QRZ answers for W1AW and HamQTH is never asked.
+    api.call(
+        reqwest::Method::PUT,
+        "/settings",
+        Some(json!({"qrz_enabled": true, "qrz_username": "me", "qrz_password": "good", "lookup_order": ["qrz", "hamqth"]})),
+    )
+    .await;
+    let before = hamqth_lookups.load(Ordering::SeqCst);
+    let r = api.get(&format!("/logs/{log}/lookup/W1AW")).await;
+    assert_eq!(r["source"], "QRZ");
+    assert_eq!(r["station"]["NAME"], "Hiram Maxim");
+    assert_eq!(hamqth_lookups.load(Ordering::SeqCst), before);
+
+    // A call QRZ doesn't know falls through to HamQTH.
+    let r = api.get(&format!("/logs/{log}/lookup/G4XYZ")).await;
+    assert!(r["station"].is_null() && r["error"].is_null());
+    assert!(hamqth_lookups.load(Ordering::SeqCst) > before);
+
+    // Turning the order round makes HamQTH answer for a call both know.
+    let (_, s) = api.call(reqwest::Method::PUT, "/settings", Some(json!({"lookup_order": ["hamqth", "qrz"]}))).await;
+    assert_eq!(s["lookup_order"][0], "hamqth");
+    assert_eq!(s["lookup_order"][1], "qrz");
+    let r = api.get(&format!("/logs/{log}/lookup/K5BOTH")).await;
+    assert_eq!(r["source"], "HamQTH");
+    assert_eq!(r["station"]["NAME"], "From HamQTH");
+}
+
+#[tokio::test]
+async fn a_broken_service_doesnt_stop_the_next_one() {
+    let api = Api::with_services(
+        mock_qrz(Arc::new(AtomicUsize::new(0))).await,
+        Some(mock_hamqth(Arc::new(AtomicUsize::new(0))).await),
+    )
+    .await;
+    let log = api.get("/logs").await[0]["id"].as_i64().unwrap();
+    // QRZ first but with a password it will refuse; HamQTH second and working.
+    api.call(
+        reqwest::Method::PUT,
+        "/settings",
+        Some(json!({
+            "qrz_enabled": true, "qrz_username": "me", "qrz_password": "bad",
+            "hamqth_enabled": true, "hamqth_username": "me", "hamqth_password": "good",
+            "lookup_order": ["qrz", "hamqth"]
+        })),
+    )
+    .await;
+    let r = api.get(&format!("/logs/{log}/lookup/G0ABC")).await;
+    assert_eq!(r["source"], "HamQTH", "QRZ refusing the login must not stop HamQTH answering");
+    assert_eq!(r["station"]["NAME"], "Jo");
+    assert!(r["error"].is_null());
+
+    // When nobody can answer, the reason from the first service is reported.
+    let r = api.get(&format!("/logs/{log}/lookup/ZZ9ZZ")).await;
+    assert!(r["station"].is_null());
+    assert!(r["error"].as_str().unwrap().contains("QRZ"));
+}
+
+#[tokio::test]
+async fn lookup_on_entry_defaults_on_and_saves() {
+    let api = Api::new(mock_qrz(Arc::new(AtomicUsize::new(0))).await).await;
+    let s = api.get("/settings").await;
+    assert_eq!(s["lookup_on_entry"], true);
+    assert_eq!(s["lookup_order"][0], "qrz");
+    let (_, s) = api.call(reqwest::Method::PUT, "/settings", Some(json!({"lookup_on_entry": false}))).await;
+    assert_eq!(s["lookup_on_entry"], false);
+    let s = api.get("/settings").await;
+    assert_eq!(s["lookup_on_entry"], false);
 }
 
 #[tokio::test]

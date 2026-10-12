@@ -1153,6 +1153,22 @@ impl Store {
         })
     }
 
+    /// As `cached_lookup`, with the service the record came from ("qrz", "hamqth").
+    pub fn cached_lookup_with_source(&self, call: &str, max_age: i64) -> Result<Option<(Fields, String)>> {
+        let row: Option<(String, String)> = self
+            .conn
+            .query_row(
+                "SELECT data, source FROM lookup_cache WHERE call = ?1 AND fetched_at >= ?2",
+                params![call.to_ascii_uppercase(), now() - max_age],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        Ok(match row {
+            Some((json, source)) => Some((serde_json::from_str(&json)?, source)),
+            None => None,
+        })
+    }
+
     pub fn cache_lookup(&self, call: &str, source: &str, data: &Fields) -> Result<()> {
         self.conn.execute(
             "INSERT INTO lookup_cache (call, source, fetched_at, data) VALUES (?1, ?2, ?3, ?4)

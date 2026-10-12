@@ -3,6 +3,7 @@ import { CUSTOM_PREFIX, ENTRY_FIELDS, PRESETS, customKey, fieldDef, type EntryIt
 import { MODE_GROUP_NAME, type ModeGroup } from "../modes";
 import { setDisplay, showButton, useDisplay } from "../display";
 import { PANEL_BUTTONS } from "../panelButtons";
+import { useLookupSettings } from "../lookupSettings";
 
 const WIDTHS: [Width, string][] = [["s", "Narrow"], ["m", "Medium"], ["l", "Wide"], ["xl", "Widest"]];
 
@@ -56,12 +57,15 @@ export default function EntryFieldsEditor({ layout, onChange, modeLayouts, onMod
 /** Buttons on the New QSO panel's bottom bar that can be hidden to save room. */
 function PanelButtons() {
   const d = useDisplay();
+  const lookup = useLookupSettings();
   const show = (id: string, on: boolean) => setDisplay({ panelButtons: { ...d.panelButtons, [id]: on } });
+  // A button for a service that isn't set up never reaches the panel, so don't offer it here.
+  const offered = PANEL_BUTTONS.filter((b) => !b.needs || lookup[b.needs]);
   return (
     <fieldset>
       <legend>Buttons on the New QSO panel</legend>
       <p className="muted">Untick a button to leave it off the bottom bar, for a shorter panel on a crowded screen. Log and Clear always stay.</p>
-      {PANEL_BUTTONS.map((b) => (
+      {offered.map((b) => (
         <label key={b.id} className="check">
           <input type="checkbox" checked={showButton(d, b.id)} onChange={(e) => show(b.id, e.target.checked)} /> <b>{b.name}</b> <span className="muted">— {b.note}</span>
         </label>

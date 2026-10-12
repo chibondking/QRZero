@@ -125,8 +125,13 @@ export const api = {
       : json<null>("PUT", `/prefs/${key}`, value),
 
   settings: () => json<Settings>("GET", "/settings"),
-  saveSettings: (s: { qrz_enabled?: boolean; qrz_username?: string; qrz_password?: string }) => json<Settings>("PUT", "/settings", s),
+  saveSettings: (s: {
+    qrz_enabled?: boolean; qrz_username?: string; qrz_password?: string;
+    hamqth_enabled?: boolean; hamqth_username?: string; hamqth_password?: string;
+    lookup_order?: string[]; lookup_on_entry?: boolean;
+  }) => json<Settings>("PUT", "/settings", s),
   testQrz: () => json<{ ok: boolean }>("POST", "/settings/qrz/test"),
+  testHamqth: () => json<{ ok: boolean }>("POST", "/settings/hamqth/test"),
 
   setActive: (logId: number, locationId: number | null, stationCallsign: string) =>
     json<null>("POST", "/station/active", { log_id: logId, location_id: locationId, station_callsign: stationCallsign }),
