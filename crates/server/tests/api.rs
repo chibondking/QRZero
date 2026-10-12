@@ -355,14 +355,14 @@ async fn an_explicit_fill_tops_up_from_the_next_service() {
 
     // Asking for a fill goes on to QRZ for the grid HamQTH didn't have, and keeps
     // HamQTH's answer for everything it did have.
-    let r = api.get(&format!("/logs/{log}/lookup/K7GAP?fill=1")).await;
+    let r = api.get(&format!("/logs/{log}/lookup/K7GAP?fill=true")).await;
     assert_eq!(r["station"]["GRIDSQUARE"], "DN13");
     assert_eq!(r["station"]["STATE"], "ID");
     assert_eq!(r["station"]["NAME"], "Pat", "the first service's answer wins where it had one");
     assert_eq!(r["source"], "HamQTH + QRZ");
 
     // A complete first answer still costs one service.
-    let r = api.get(&format!("/logs/{log}/lookup/G0ABC?fill=1")).await;
+    let r = api.get(&format!("/logs/{log}/lookup/G0ABC?fill=true")).await;
     assert_eq!(r["source"], "HamQTH");
 }
 
@@ -383,7 +383,7 @@ async fn hamqth_alone_fills_the_editor_and_right_click_paths() {
     .await;
 
     // The editor's Fill button: GET the call, which must answer from HamQTH.
-    let r = api.get(&format!("/logs/{log}/lookup/G0ABC?fill=1")).await;
+    let r = api.get(&format!("/logs/{log}/lookup/G0ABC?fill=true")).await;
     assert_eq!(r["source"], "HamQTH");
     assert_eq!(r["station"]["NAME"], "Jo");
 

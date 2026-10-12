@@ -98,7 +98,7 @@ export const api = {
    * service for anything the first one left blank, which costs a second request.
    */
   lookup: (logId: number, call: string, fill = false) =>
-    json<LookupResult>("GET", `/logs/${logId}/lookup/${encodeURIComponent(call)}${fill ? "?fill=1" : ""}`),
+    json<LookupResult>("GET", `/logs/${logId}/lookup/${encodeURIComponent(call)}${fill ? "?fill=true" : ""}`),
   notes: (logId: number, q: string, offset: number, limit: number) =>
     json<{ total: number; rows: Note[] }>("GET", `/logs/${logId}/notes?${new URLSearchParams({ q, offset: String(offset), limit: String(limit) })}`),
   note: (logId: number, call: string) => json<Note | null>("GET", `/logs/${logId}/notes/${encodeURIComponent(call)}`),
