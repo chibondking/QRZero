@@ -165,5 +165,11 @@ jobs:
       - name: Build the disk image
         # Unsigned (ad-hoc signed): there is no Apple Developer account behind this.
         run: npx --yes @tauri-apps/cli@2.12.1 build --bundles dmg
+      - name: Check the app is ad-hoc signed
+        # Without a signature that covers the whole bundle, macOS says the downloaded app is "damaged".
+        run: |
+          app=$(ls -d target/release/bundle/macos/*.app | head -1)
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | grep -E "Signature|Identifier"
       - name: Attach to release
         run: gh release upload "$TAG" --clobber target/release/bundle/dmg/*.dmg
