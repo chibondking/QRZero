@@ -22,7 +22,7 @@ The fields below the first line can be changed: see **Entry fields**.
 
 Two buttons next to **Clear** deal with callsign lookups:
 
-- **Fill from lookup** looks the call up now and fills in the boxes that are still blank. Use it after you add your login or when the first lookup failed. It needs a QRZ or HamQTH login (Settings, **Callsign lookup**), and asks them in the order set there. Unlike the lookup that runs when you leave the call field, it goes on to the next service for anything the first one left blank, so it can cost a second request.
+- **Fill from lookup** looks the call up now and fills in the boxes that are still blank. Use it after you add your login or when the first lookup failed. It needs a QRZ or HamQTH login (Settings, **Callsign lookup**), and asks them in the order set there. Unlike the lookup that runs when you leave the call field, it goes on to the next service for anything the first one left blank, so it can cost a second request. If a service can't be reached, the message says so in a few words ("QRZ lookup failed: service unreachable (timeout)"); it never shows your password or the web address that was requested.
 - **View on QRZ.com** opens that station's page on the QRZ.com website in your web browser, to read their bio or QSL instructions. It needs no login and doesn't change the form.
 
 With a HamQTH login set up, a **View on HamQTH** button appears beside them and opens that station's page on HamQTH.
