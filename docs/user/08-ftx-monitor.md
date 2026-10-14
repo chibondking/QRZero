@@ -30,6 +30,8 @@ Click the **FTx monitor** tab (next to the Log tab to start with). Drag the tab 
 | **New on band** | You've worked the station, but not on this band |
 | **Worked** | Already worked on this band |
 
+Decodes addressed to your callsign (any of your configured calls) are collected in a **Calling you** group pinned at the top of the list, newest first. They are not repeated further down; the rest of the list works as before. The group applies to the line view; in **Call boxes** your callers already come first in each period.
+
 Rows calling you are highlighted, and needed stations are shaded. Stations on your watch list (see **Watch list**) are marked **Watched**, with their call in colour in the message.
 
 - **Click** a decode to put the call, grid, band and mode into the QSO panel and look it up. Clicking never retunes a radio: the QSO panel switches to the radio (slice) that program is tied to, or to one already on that band, and just fills in the form.

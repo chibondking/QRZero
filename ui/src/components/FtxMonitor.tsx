@@ -166,6 +166,9 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
   };
 
   const cycles = useMemo(() => cyclesOf(shown), [shown]);
+  // Decodes addressed to us sit in a group above the rest, newest first, and are not repeated below.
+  const calling = useMemo(() => shown.filter((d) => d.to_me && !d.tx), [shown]);
+  const below = (list: FtxDecode[]) => list.filter((d) => !(d.to_me && !d.tx));
 
   const row = (d: FtxDecode) => {
     if (d.tx) {
@@ -268,14 +271,23 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
             <span>UTC</span><span title="Source: slice or instance">Src</span><span>dB</span><span>DT</span><span>Freq</span><span>Message</span><span>Country</span><span>Band</span><span>Flags</span>
           </div>
           {shown.length === 0 && <div className="empty muted">No decodes{decodes.length ? " match the filters" : " yet"}.</div>}
+          {calling.length > 0 && (
+            <div className="ftx-calling" role="rowgroup" aria-label="Calling you">
+              <div className="ftx-group">Calling you ({calling.length})</div>
+              {calling.map(row)}
+            </div>
+          )}
           {filters.cycles
-            ? cycles.map((c) => (
-                <Fragment key={c.time + c.decodes[0].seq}>
-                  <CycleBreak cycle={c} />
-                  {c.decodes.map(row)}
-                </Fragment>
-              ))
-            : shown.map(row)}
+            ? cycles.map((c) => {
+                const rows = below(c.decodes);
+                return rows.length === 0 ? null : (
+                  <Fragment key={c.time + c.decodes[0].seq}>
+                    <CycleBreak cycle={c} />
+                    {rows.map(row)}
+                  </Fragment>
+                );
+              })
+            : below(shown).map(row)}
         </div>
       )}
     </div>
