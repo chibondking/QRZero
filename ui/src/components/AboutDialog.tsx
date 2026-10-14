@@ -26,6 +26,7 @@ export default function AboutDialog({ onClose }: { onClose: () => void }) {
         and sends and checks confirmations on LoTW, QRZ, Club Log and eQSL.
       </p>
       <ul className="about-links">
+        <li>Website: {link("https://qrzero.app", "qrzero.app")}</li>
         <li>{link(REPO, "Project page on GitHub")}</li>
         <li>{link(`${REPO}/releases`, "Releases and downloads")}</li>
         <li>{link(`${REPO}/issues`, "Report a problem or suggest a change")}</li>
