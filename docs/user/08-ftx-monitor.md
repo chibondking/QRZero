@@ -37,7 +37,8 @@ Rows calling you are highlighted, and needed stations are shaded. Stations on yo
 - **Click** a decode to put the call, grid, band and mode into the QSO panel and look it up. Clicking never retunes a radio: the QSO panel switches to the radio (slice) that program is tied to, or to one already on that band, and just fills in the form.
 - **Double-click** to have that WSJT-X call the station, as if you'd double-clicked it in WSJT-X.
 - **CQ only** and **Needed only** narrow the list; the source box (**All sources**) shows one WSJT-X or JTDX at a time.
-- **Period breaks** draws a line between decode periods (every 15 seconds for FT8), with the period's time and how many decodes and calls it had.
+- **Sort** orders the line view: **Time** (newest first, the default), **Country** (grouped under each DXCC entity, A to Z), **Flags** (grouped by the most important alert, in the order of the alert list, then worked stations) or **Frequency** (by audio offset, lowest first). Within a group the newest decode is first, and your own transmissions are grouped as **Sent**. Stations calling you stay in the **Calling you** group on top whatever the sort. Call boxes are not affected. The choice is remembered.
+- **Period breaks** (when sorted by time) draws a line between decode periods (every 15 seconds for FT8), with the period's time and how many decodes and calls it had.
 
 ### Running WSJT-X from the monitor
 

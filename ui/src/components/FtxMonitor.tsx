@@ -32,9 +32,11 @@ interface Filters {
   cycles: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
+  /** Line view order: by time, or grouped by country or flag, or by audio frequency. */
+  sort: "time" | "country" | "flags" | "freq";
 }
 
-const DEFAULTS: Filters = { cq: false, needed: false, instance: "", cycles: false, view: "lines" };
+const DEFAULTS: Filters = { cq: false, needed: false, instance: "", cycles: false, view: "lines", sort: "time" };
 
 /** Decodes of one period share the period's start time. */
 interface Cycle { time: string; decodes: FtxDecode[] }
@@ -45,6 +47,29 @@ function cyclesOf(list: FtxDecode[]): Cycle[] {
     const last = out[out.length - 1];
     if (last && last.time === d.time) last.decodes.push(d);
     else out.push({ time: d.time, decodes: [d] });
+  }
+  return out;
+}
+
+/** One row of the line view: a group heading, or a decode. */
+type Item = { head: string } | { d: FtxDecode };
+
+/** Orders the list (newest first on entry) by country, flag or frequency, with headings for the first two. */
+function arrange(list: FtxDecode[], sort: Filters["sort"], cfg: FtxAlertConfig): Item[] {
+  if (sort === "freq") return [...list].sort((a, b) => a.df - b.df).map((d) => ({ d }));
+  const flag = (d: FtxDecode) => {
+    const main = mainAlert(activeAlerts(d, cfg));
+    return main ? { name: ALERT[main].name, rank: ALERTS.findIndex((a) => a.kind === main) } : isWorked(d) ? { name: "Worked", rank: 50 } : { name: "No flag", rank: 40 };
+  };
+  const key = (d: FtxDecode) => (d.tx ? { name: "Sent", rank: -1 } : sort === "flags" ? flag(d) : { name: d.entity?.name ?? "Unknown", rank: 0 });
+  const keyed = list.map((d) => ({ d, k: key(d) }));
+  keyed.sort((a, b) => a.k.rank - b.k.rank || (a.k.rank === 0 ? a.k.name.localeCompare(b.k.name) : 0));
+  const out: Item[] = [];
+  let last = "";
+  for (const { d, k } of keyed) {
+    if (k.name !== last) out.push({ head: k.name });
+    last = k.name;
+    out.push({ d });
   }
   return out;
 }
@@ -169,6 +194,7 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
   // Decodes addressed to us sit in a group above the rest, newest first, and are not repeated below.
   const calling = useMemo(() => shown.filter((d) => d.to_me && !d.tx), [shown]);
   const below = (list: FtxDecode[]) => list.filter((d) => !(d.to_me && !d.tx));
+  const arranged = useMemo(() => arrange(below(shown), filters.sort, cfg), [shown, filters.sort, cfg]);
 
   const row = (d: FtxDecode) => {
     if (d.tx) {
@@ -240,7 +266,16 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
             <option value="calls">Call boxes</option>
           </select>
         </label>
-        <label className="check" title="Draw a line with the time between decode periods">
+        <label title="Order of the line view. Stations calling you stay at the top.">
+          Sort{" "}
+          <select value={filters.sort} onChange={(e) => setFilter({ sort: e.target.value as Filters["sort"] })}>
+            <option value="time">Time</option>
+            <option value="country">Country</option>
+            <option value="flags">Flags</option>
+            <option value="freq">Frequency</option>
+          </select>
+        </label>
+        <label className="check" title="Draw a line with the time between decode periods (when sorted by time)">
           <input type="checkbox" checked={filters.cycles} onChange={(e) => setFilter({ cycles: e.target.checked })} /> Period breaks
         </label>
         <label className="check"><input type="checkbox" checked={filters.cq} onChange={(e) => setFilter({ cq: e.target.checked })} /> CQ only</label>
@@ -277,7 +312,9 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
               {calling.map(row)}
             </div>
           )}
-          {filters.cycles
+          {filters.sort !== "time"
+            ? arranged.map((it) => ("head" in it ? <div key={`h${it.head}`} className="ftx-group sub">{it.head}</div> : row(it.d)))
+            : filters.cycles
             ? cycles.map((c) => {
                 const rows = below(c.decodes);
                 return rows.length === 0 ? null : (
