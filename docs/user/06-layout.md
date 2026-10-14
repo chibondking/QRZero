@@ -24,6 +24,8 @@ The arrow button next to the **×** opens the pane in its own window (or right-c
 
 Close the window, or click **Dock back**, to put the pane back where it was in the main window (in the same tab group, or on the same side of its neighbour). QRZero remembers where each window was and reopens it there next time. When you close QRZero, the popped-out windows close with it.
 
+In the desktop app, the **Always on top** button in a pop-out's title bar keeps that window above your other windows (handy for a logging form over a full-screen radio program). It affects only that window, and QRZero remembers the setting for each pane. A browser tab can't do this, so the button is not shown there.
+
 In a web browser, allow pop-ups for QRZero's page, or the window can't open.
 
 ## Saved layouts
