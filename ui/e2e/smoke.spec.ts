@@ -175,6 +175,11 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   // The two decodes calling us are grouped at the top, newest first, and not repeated below.
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row")).toHaveCount(2);
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row .msg").first()).toHaveText("N0CALL EA8AB R-10");
+  // Turning the pin off puts them back in time order.
+  await ftx.getByLabel("Pin calling you").uncheck();
+  await expect(ftx.getByRole("rowgroup", { name: "Calling you" })).toHaveCount(0);
+  await expect(ftx.locator(".ftx-table .ftx-row .msg").first()).toHaveText("N0CALL EA8AB R-10");
+  await ftx.getByLabel("Pin calling you").check();
   await ftx.getByLabel("Period breaks").check();
   await expect(ftx.locator(".ftx-break")).toHaveCount(2);
   await expect(ftx.locator(".ftx-break").first()).toContainText("00:01:00 2 decodes, 2 calls");

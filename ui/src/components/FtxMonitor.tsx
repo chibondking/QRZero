@@ -30,6 +30,8 @@ interface Filters {
   instance: string;
   /** Draw a line with the time between decode periods. */
   cycles: boolean;
+  /** Keep decodes calling us in a group at the top (on unless set to false). */
+  pinMe?: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
 }
@@ -167,8 +169,9 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
 
   const cycles = useMemo(() => cyclesOf(shown), [shown]);
   // Decodes addressed to us sit in a group above the rest, newest first, and are not repeated below.
-  const calling = useMemo(() => shown.filter((d) => d.to_me && !d.tx), [shown]);
-  const below = (list: FtxDecode[]) => list.filter((d) => !(d.to_me && !d.tx));
+  const pin = filters.pinMe !== false;
+  const calling = useMemo(() => (pin ? shown.filter((d) => d.to_me && !d.tx) : []), [shown, pin]);
+  const below = (list: FtxDecode[]) => (pin ? list.filter((d) => !(d.to_me && !d.tx)) : list);
 
   const row = (d: FtxDecode) => {
     if (d.tx) {
@@ -242,6 +245,9 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
         </label>
         <label className="check" title="Draw a line with the time between decode periods">
           <input type="checkbox" checked={filters.cycles} onChange={(e) => setFilter({ cycles: e.target.checked })} /> Period breaks
+        </label>
+        <label className="check" title="Keep decodes calling you in a group at the top of the list">
+          <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
         </label>
         <label className="check"><input type="checkbox" checked={filters.cq} onChange={(e) => setFilter({ cq: e.target.checked })} /> CQ only</label>
         <label className="check"><input type="checkbox" checked={filters.needed} onChange={(e) => setFilter({ needed: e.target.checked })} /> Needed only</label>
