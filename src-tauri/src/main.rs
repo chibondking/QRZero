@@ -35,8 +35,14 @@ fn popout_handler(app: AppHandle, home: String) -> impl Fn(tauri::Url, tauri::we
                     let _ = w.destroy();
                     return;
                 }
+                // The page asks to stay above other windows by title too (no IPC; the same UI runs in a browser).
+                if let Some(on) = title.strip_prefix("qrzero:top:") {
+                    let _ = w.set_always_on_top(on == "1");
+                    return;
+                }
                 let _ = w.set_title(&title);
             })
+            .initialization_script("window.__qrzeroDesktop = true;")
             .on_new_window(popout_handler(app.clone(), home.clone()));
         builder = builder.focused(true);
         match builder.build() {

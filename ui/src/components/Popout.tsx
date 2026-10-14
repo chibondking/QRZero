@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "../workspace.css";
-import { closeWindow, listen, post, saveGeometry, type PopContext } from "../bus";
+import { canStayOnTop, closeWindow, getOnTop, listen, post, saveGeometry, setOnTop, type PopContext } from "../bus";
 import { paneTitle, type PaneId } from "../workspace";
 import SharedPane, { type PaneActions } from "./SharedPanes";
 
@@ -8,9 +8,12 @@ import SharedPane, { type PaneActions } from "./SharedPanes";
 export default function Popout({ pane }: { pane: PaneId }) {
   const [ctx, setCtx] = useState<PopContext | null>(null);
   const closing = useRef(false);
+  const [onTop, setTop] = useState(() => canStayOnTop() && getOnTop(pane));
+  const title = `${paneTitle(pane)} - QRZero`;
 
   useEffect(() => {
-    document.title = `${paneTitle(pane)} - QRZero`;
+    document.title = title;
+    if (getOnTop(pane) && canStayOnTop()) setOnTop(pane, true, title);
     const off = listen((m) => {
       if (m.t === "ctx") setCtx(m.ctx);
       if (m.t === "close-all") {
@@ -54,6 +57,19 @@ export default function Popout({ pane }: { pane: PaneId }) {
       <div className="popout-bar">
         <b>{paneTitle(pane)}</b>
         <span className="spacer" />
+        {canStayOnTop() && (
+          <button
+            className={`tiny${onTop ? " on" : ""}`}
+            aria-pressed={onTop}
+            onClick={() => {
+              setTop(!onTop);
+              setOnTop(pane, !onTop, title);
+            }}
+            title="Keep this window above other windows"
+          >
+            Always on top
+          </button>
+        )}
         <button
           className="tiny"
           onClick={() => {
