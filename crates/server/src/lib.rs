@@ -212,7 +212,7 @@ pub async fn start(cfg: Config) -> anyhow::Result<Running> {
     });
     let listener = tokio::net::TcpListener::bind(cfg.addr).await?;
     let addr = listener.local_addr()?;
-    let app = router(state);
+    let app = router(state, cfg.addr.ip().is_loopback());
     let handle = tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
             tracing::error!("server stopped: {e}");
@@ -227,7 +227,7 @@ fn random_token() -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn router(state: Shared) -> Router {
+fn router(state: Shared, loopback_only: bool) -> Router {
     let api = Router::new()
         .route("/info", get(info))
         .route("/logs", get(list_logs).post(create_log))
@@ -315,7 +315,36 @@ fn router(state: Shared) -> Router {
         .merge(backups::routes())
         .layer(middleware::from_fn_with_state(state.clone(), require_token))
         .with_state(state);
-    Router::new().nest("/api", api).fallback(static_file)
+    let mut app = Router::new().nest("/api", api).fallback(static_file).layer(middleware::from_fn(security_headers));
+    if loopback_only {
+        app = app.layer(middleware::from_fn(require_local_host));
+    }
+    app
+}
+
+/// Headers that keep the UI from being framed, sniffed or leaking its address (the first load carries the token in the URL).
+async fn security_headers(req: Request, next: Next) -> Response {
+    let mut resp = next.run(req).await;
+    let h = resp.headers_mut();
+    h.insert("x-content-type-options", "nosniff".parse().unwrap());
+    h.insert("x-frame-options", "DENY".parse().unwrap());
+    h.insert("referrer-policy", "no-referrer".parse().unwrap());
+    resp
+}
+
+/// When bound to this computer only, refuse requests that name another host, so a web page can't reach the
+/// server through a DNS name it controls that points at 127.0.0.1 (DNS rebinding).
+async fn require_local_host(req: Request, next: Next) -> Response {
+    let host = req.headers().get(header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let name = match host.strip_prefix('[') {
+        Some(v6) => v6.split(']').next().unwrap_or(""),
+        None => host.split(':').next().unwrap_or(""),
+    };
+    if name.eq_ignore_ascii_case("localhost") || name.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback()) {
+        next.run(req).await
+    } else {
+        (StatusCode::FORBIDDEN, "QRZero only answers requests for localhost").into_response()
+    }
 }
 
 async fn require_token(State(s): State<Shared>, req: Request, next: Next) -> Response {
