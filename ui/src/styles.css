@@ -471,6 +471,8 @@ table.list.fields input:not([type=checkbox]), table.list.fields select { width: 
 .ftx-row.low { opacity: 0.6; }
 .ftx-row .flags { display: flex; gap: 8px; margin: 0; flex-wrap: nowrap; }
 .ftx-row mark { background: none; color: var(--err); font-weight: 700; }
+.ftx-calling { position: sticky; top: 21px; z-index: 1; background: var(--panel); max-height: 12em; overflow-y: auto; border-bottom: 2px solid var(--err); }
+.ftx-group { padding: 1px 6px; font-size: 11px; font-weight: 600; color: var(--err); background: var(--panel-2); border-bottom: 1px solid var(--line); }
 .ftx .empty { padding: 16px; }
 
 /* Settings, radios */

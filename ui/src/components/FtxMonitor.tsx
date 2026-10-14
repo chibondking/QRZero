@@ -30,6 +30,8 @@ interface Filters {
   instance: string;
   /** Draw a line with the time between decode periods. */
   cycles: boolean;
+  /** Keep decodes calling us in a group at the top (on unless set to false). */
+  pinMe?: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
 }
@@ -166,6 +168,10 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
   };
 
   const cycles = useMemo(() => cyclesOf(shown), [shown]);
+  // Decodes addressed to us sit in a group above the rest, newest first, and are not repeated below.
+  const pin = filters.pinMe !== false;
+  const calling = useMemo(() => (pin ? shown.filter((d) => d.to_me && !d.tx) : []), [shown, pin]);
+  const below = (list: FtxDecode[]) => (pin ? list.filter((d) => !(d.to_me && !d.tx)) : list);
 
   const row = (d: FtxDecode) => {
     if (d.tx) {
@@ -240,6 +246,9 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
         <label className="check" title="Draw a line with the time between decode periods">
           <input type="checkbox" checked={filters.cycles} onChange={(e) => setFilter({ cycles: e.target.checked })} /> Period breaks
         </label>
+        <label className="check" title="Keep decodes calling you in a group at the top of the list">
+          <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
+        </label>
         <label className="check"><input type="checkbox" checked={filters.cq} onChange={(e) => setFilter({ cq: e.target.checked })} /> CQ only</label>
         <label className="check"><input type="checkbox" checked={filters.needed} onChange={(e) => setFilter({ needed: e.target.checked })} /> Needed only</label>
         <button onClick={() => setEditing(true)} title="Choose which stations stand out, their colours, and which to hide">Alerts and filters…</button>
@@ -268,14 +277,23 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
             <span>UTC</span><span title="Source: slice or instance">Src</span><span>dB</span><span>DT</span><span>Freq</span><span>Message</span><span>Country</span><span>Band</span><span>Flags</span>
           </div>
           {shown.length === 0 && <div className="empty muted">No decodes{decodes.length ? " match the filters" : " yet"}.</div>}
+          {calling.length > 0 && (
+            <div className="ftx-calling" role="rowgroup" aria-label="Calling you">
+              <div className="ftx-group">Calling you ({calling.length})</div>
+              {calling.map(row)}
+            </div>
+          )}
           {filters.cycles
-            ? cycles.map((c) => (
-                <Fragment key={c.time + c.decodes[0].seq}>
-                  <CycleBreak cycle={c} />
-                  {c.decodes.map(row)}
-                </Fragment>
-              ))
-            : shown.map(row)}
+            ? cycles.map((c) => {
+                const rows = below(c.decodes);
+                return rows.length === 0 ? null : (
+                  <Fragment key={c.time + c.decodes[0].seq}>
+                    <CycleBreak cycle={c} />
+                    {rows.map(row)}
+                  </Fragment>
+                );
+              })
+            : below(shown).map(row)}
         </div>
       )}
     </div>
