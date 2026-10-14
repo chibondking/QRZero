@@ -14,7 +14,8 @@ Search tip: each Rust module starts with a `//!` doc comment saying what it is, 
 | `src-tauri` | Thin desktop shell (window, installer) around the server. |
 | `ui` | React + Vite front end. The same UI runs in the app and in a browser. |
 | `docs/user` | In-app Help, bundled by `ui/src/components/HelpView.tsx`. |
-| `.github/workflows` | `ci.yml` (tests and builds) and `release.yml` (installers on tag). |
+| `.github/workflows` | `ci.yml` (tests and builds), `release.yml` (installers on tag) and `pages.yml` (publishes `site/`). |
+| `site` | The public website (plain HTML/CSS, no build step), deployed to GitHub Pages. Screenshots in `site/img` are copies of `docs/screenshots`. |
 
 ## Core (`crates/core/src`)
 
@@ -54,4 +55,4 @@ Search tip: each Rust module starts with a `//!` doc comment saying what it is, 
 ## Desktop shell and release
 
 - `src-tauri`: window, icons, installer config (`tauri.conf.json`).
-- CI jobs (Linux tests plus e2e, Windows installer, macOS build) are in `.github/workflows/ci.yml`; tag-triggered release builds are in `.github/workflows/release.yml`.
+- CI jobs (Linux tests plus e2e, Windows installer, macOS build) are in `.github/workflows/ci.yml`; tag-triggered release builds are in `.github/workflows/release.yml`; the website deploy is `.github/workflows/pages.yml`.
