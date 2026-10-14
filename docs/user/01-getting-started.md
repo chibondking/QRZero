@@ -20,6 +20,8 @@ The Mac version is not signed with an Apple Developer account, so macOS blocks i
 - Try to open it once, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to the QRZero message; or
 - In Terminal, run `xattr -dr com.apple.quarantine /Applications/QRZero.app`.
 
+If macOS says QRZero **is damaged and can't be opened**, the file is fine: that message comes from older downloads (before 0.20) that were not signed at all. Run the Terminal command above and it will open. Newer versions show the normal warning instead.
+
 You only need to do this once per downloaded version. It needs a Mac with an Apple chip (M1 or newer) running macOS 11 or later. This version has had less testing than Windows; please report anything odd.
 
 ## 2. The setup wizard

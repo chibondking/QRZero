@@ -112,6 +112,16 @@ jobs:
           exit "$status"
       - name: Build the app and .dmg
         run: npx --yes @tauri-apps/cli@2.12.1 build --bundles dmg
+      - name: Check the app is ad-hoc signed
+        # Without a signature that covers the whole bundle, macOS says the downloaded app is "damaged".
+        run: |
+          # Tauri removes the .app after building the .dmg, so check the copy inside the .dmg.
+          dmg=$(ls target/release/bundle/dmg/*.dmg | head -1)
+          mnt=$(mktemp -d)
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$dmg"
+          codesign --verify --deep --strict --verbose=2 "$mnt/QRZero.app"
+          codesign -dv "$mnt/QRZero.app" 2>&1 | grep -E "Signature|Identifier"
+          hdiutil detach "$mnt"
       - uses: actions/upload-artifact@v4
         with:
           name: QRZero-macos
