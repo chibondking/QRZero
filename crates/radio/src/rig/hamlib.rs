@@ -97,6 +97,10 @@ impl Conn {
                 let Some(req) = ModeReq::from_adif(m, freq_hz) else { return Ok(()) };
                 format!("M {} 0", encode_mode(req))
             }
+            RigCommand::SetSplitMode(m) => {
+                let Some(req) = ModeReq::from_adif(m, freq_hz) else { return Ok(()) };
+                format!("X {} 0", encode_mode(req))
+            }
             RigCommand::SetSplit(tx) => {
                 // Split on with VFO B transmitting, then its frequency; or split off with VFO A transmitting.
                 let on = if tx.is_some() { "S 1 VFOB" } else { "S 0 VFOA" };
@@ -218,6 +222,7 @@ mod tests {
                         freq = hz.parse().unwrap();
                         "RPRT 0\n".into()
                     }
+                    ["X", _, _] => "RPRT 0\n".into(),
                     ["M", m, _] => {
                         mode = m.to_string();
                         "RPRT 0\n".into()
@@ -263,11 +268,13 @@ mod tests {
         handle.send(0, RigCommand::SetSplit(Some(7_035_000)));
         let st = wait(&mut rx, |s| s.split && s.tx_freq_hz == 7_035_000).await;
         assert_eq!(st[0].freq_hz, 7_030_000);
+        handle.send(0, RigCommand::SetSplitMode("CW".into()));
         handle.send(0, RigCommand::SetSplit(None));
         wait(&mut rx, |s| !s.split).await;
         {
             let log = log.lock().unwrap();
             assert!(log.contains(&"S 1 VFOB".to_string()) && log.contains(&"I 7035000".to_string()));
+            assert!(log.contains(&"X CW 0".to_string()));
             assert!(log.contains(&"S 0 VFOA".to_string()));
         }
         handle.send(0, RigCommand::SetFreq(1));

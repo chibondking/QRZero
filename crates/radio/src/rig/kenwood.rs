@@ -77,6 +77,11 @@ impl Protocol for Kenwood {
                 Some(req) => io.set(&encode_mode(self.dialect, self.has_da, req)),
                 None => Ok(()),
             },
+            // A mode lands on the receive VFO, so look at VFO B briefly; FT stays on B, so split keeps going.
+            RigCommand::SetSplitMode(m) => match ModeReq::from_adif(m, freq_hz) {
+                Some(req) => io.set(&format!("FR1;{}FR0;", encode_mode(self.dialect, self.has_da, req))),
+                None => Ok(()),
+            },
             // Receive on VFO A, transmit on VFO B (FR before FT, as the radios want).
             RigCommand::SetSplit(Some(hz)) => io.set(&format!("FB{:011};FR0;FT1;", (*hz).min(99_999_999_999))),
             RigCommand::SetSplit(None) => io.set("FR0;FT0;"),
@@ -297,10 +302,12 @@ mod tests {
         cmd_tx.send((0, RigCommand::SetSplit(Some(7_035_000)))).unwrap();
         let st = wait(|s| s.split).await;
         assert_eq!((st.freq_hz, st.tx_freq_hz), (7_030_000, 7_035_000));
+        cmd_tx.send((0, RigCommand::SetSplitMode("CW".into()))).unwrap();
         cmd_tx.send((0, RigCommand::SetSplit(None))).unwrap();
         wait(|s| !s.split).await;
         let log = String::from_utf8(written.lock().unwrap().clone()).unwrap();
         assert!(log.contains("FB00007035000;FR0;FT1;") && log.contains("FR0;FT0;"), "{log}");
+        assert!(log.contains("FR1;MD3;FR0;"), "{log}");
         drop(cmd_tx);
         thread.join().unwrap().unwrap();
     }

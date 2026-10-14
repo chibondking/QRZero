@@ -64,6 +64,8 @@ pub enum RigCommand {
     SetMode(String),
     /// Transmit on this frequency and turn split on, or turn split off (`None`). 
     SetSplit(Option<u64>),
+    /// Put the transmit side of a split (VFO B, or the transmit slice) in this ADIF mode, as `SetMode` does for the receive side.
+    SetSplitMode(String),
 }
 
 /// Handle to a running rig backend. Dropping it stops the backend.

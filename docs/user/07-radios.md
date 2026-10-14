@@ -45,6 +45,8 @@ When you double-click a cluster or band map spot whose comment says where the DX
 - `DN 2` or `DOWN 2`: 2 kHz below.
 - `QSX 14.205` (MHz), `QSX 14205` (kHz) or `QSX 205` (the last three digits of the spot's kHz). `LISTENING` and `LSN` work the same way.
 
+The radio's transmit side is put in the spot's mode too, not just the receive side. This works over TCI, Hamlib (rigctld), Kenwood/Elecraft/Flex CAT and Icom CI-V (radios that can set the other VFO). Yaesu CAT can't set VFO B's mode, so on those radios set it on the radio if it differs.
+
 Anything more than 100 kHz from the spot is ignored. Spots that set split show it in the row's tooltip. Double-clicking a spot that doesn't say turns split off, so the radio never keeps the last station's transmit frequency.
 
 WSJT-X radios are listed too (when it is connected), so the panel can follow them, but they can't be tuned from QRZero.

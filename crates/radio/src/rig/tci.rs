@@ -172,6 +172,10 @@ fn encode_command(trx: usize, cmd: &RigCommand, freq_hz: u64) -> Option<String> 
         RigCommand::SetFreq(hz) => Some(format!("vfo:{trx},0,{hz};")),
         // The transmit frequency lives on VFO B, which split switches transmit to.
         RigCommand::SetSplit(Some(hz)) => Some(format!("vfo:{trx},1,{hz};split_enable:{trx},true;")),
+        // TCI has one modulation per trx; setting it again after the split frequency makes sure a transmit slice a bridge adds for split follows.
+        RigCommand::SetSplitMode(m) => {
+            ModeReq::from_adif(m, freq_hz).map(|req| format!("modulation:{trx},{};", encode_mode(req)))
+        }
         RigCommand::SetSplit(None) => Some(format!("split_enable:{trx},false;")),
         RigCommand::SetMode(m) => {
             ModeReq::from_adif(m, freq_hz).map(|req| format!("modulation:{trx},{};", encode_mode(req)))
@@ -239,6 +243,7 @@ mod tests {
         assert_eq!(set("FM", 145_000_000).unwrap(), "modulation:0,nfm;");
         assert_eq!(set("", 0), None);
         assert_eq!(encode_command(0, &RigCommand::SetSplit(Some(14_205_000)), 0).unwrap(), "vfo:0,1,14205000;split_enable:0,true;");
+        assert_eq!(encode_command(0, &RigCommand::SetSplitMode("CW".into()), 0).unwrap(), "modulation:0,cw;");
         assert_eq!(encode_command(1, &RigCommand::SetSplit(None), 0).unwrap(), "split_enable:1,false;");
     }
 

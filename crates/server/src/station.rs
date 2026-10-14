@@ -770,7 +770,11 @@ impl Hub {
                 ("SSB", Some(f)) => if f < 10_000_000 && !(5_250_000..=5_450_000).contains(&f) { "LSB" } else { "USB" }.to_string(),
                 _ => m,
             };
-            conn.handle.send(ch, RigCommand::SetMode(m));
+            conn.handle.send(ch, RigCommand::SetMode(m.clone()));
+            // Split transmits on the other VFO or slice, which must be in the same mode.
+            if matches!(split, Some(Some(_))) {
+                conn.handle.send(ch, RigCommand::SetSplitMode(m));
+            }
         }
         Ok(())
     }

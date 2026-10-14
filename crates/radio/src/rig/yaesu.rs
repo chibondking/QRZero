@@ -39,6 +39,8 @@ impl Protocol for Yaesu {
                 Some(req) => io.set(&format!("MD0{};", encode_mode(req))),
                 None => Ok(()),
             },
+            // Yaesu CAT has no command for VFO B's mode; it keeps the mode it had.
+            RigCommand::SetSplitMode(_) => Ok(()),
             RigCommand::SetSplit(Some(hz)) => io.set(&format!("FB{:09};ST1;", (*hz).min(999_999_999))),
             RigCommand::SetSplit(None) => io.set("ST0;"),
         }
