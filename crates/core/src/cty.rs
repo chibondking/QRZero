@@ -277,6 +277,17 @@ impl CtyDb {
                 .filter(|&n| base.is_char_boundary(n))
                 .find_map(|n| self.prefixes.get(&base[..n]))
         })?;
+        // Guantanamo Bay is only KG4 with a two-letter suffix (KG4AA..KG4ZZ). KG4 calls with
+        // one or three letters, like KG4OJT, are ordinary US calls.
+        if self.entities[hit.ent].prefix == "KG4" && !self.exact.contains_key(base) {
+            if let Some(rest) = base.strip_prefix("KG4") {
+                if !rest.is_empty() && rest.len() != 2 && rest.bytes().all(|b| b.is_ascii_alphabetic()) {
+                    if let Some(us) = self.prefixes.get("K") {
+                        return Some(self.resolve(us));
+                    }
+                }
+            }
+        }
         Some(self.resolve(hit))
     }
 
@@ -382,6 +393,8 @@ Vienna Intl Ctr:          15:  28:  EU:   48.20:   -16.30:    -1.0:  *4U1V:
         assert_eq!(name(&db, "KG4AA").as_deref(), Some("Guantanamo Bay"));
         // A 2x3 KG4 call is an ordinary US call: Guantanamo is listed only as exact calls.
         assert_eq!(name(&db, "KG4ABC").as_deref(), Some("United States"));
+        assert_eq!(name(&db, "KG4OJT").as_deref(), Some("United States"));
+        assert_eq!(name(&db, "KG4OJT/P").as_deref(), Some("United States"));
         assert_eq!(name(&db, "W1XX").as_deref(), Some("Alaska"));
         let vic = db.lookup("4U1VIC").unwrap();
         assert_eq!(
@@ -389,6 +402,18 @@ Vienna Intl Ctr:          15:  28:  EU:   48.20:   -16.30:    -1.0:  *4U1V:
             ("Vienna Intl Ctr", "4U1V", None)
         );
         assert_eq!(vic.lon, 16.30);
+    }
+
+    #[test]
+    fn guantanamo_needs_two_letter_suffix() {
+        // A country file that lists KG4 as a plain prefix must not claim 3-letter calls.
+        let text = CSV.replace("=KG4AA =KG4AB =KG4WW;", "KG4 =KG4AA;");
+        let db = CtyDb::parse_csv(&text).unwrap();
+        assert_eq!(name(&db, "KG4OJT").as_deref(), Some("United States"));
+        assert_eq!(name(&db, "KG4W").as_deref(), Some("United States"));
+        assert_eq!(name(&db, "KG4XY").as_deref(), Some("Guantanamo Bay"));
+        assert_eq!(name(&db, "KG4AA").as_deref(), Some("Guantanamo Bay"));
+        assert_eq!(name(&db, "KG4").as_deref(), Some("Guantanamo Bay"));
     }
 
     #[test]
