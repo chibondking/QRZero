@@ -136,6 +136,21 @@ async fn token_is_required() {
     // The UI itself is served without a token.
     let ui = reqwest::get(api.base.replace("/api", "/")).await.unwrap();
     assert_eq!(ui.status(), 200);
+    assert_eq!(ui.headers()["x-frame-options"], "DENY");
+    assert_eq!(ui.headers()["x-content-type-options"], "nosniff");
+}
+
+#[tokio::test]
+async fn other_host_names_are_refused() {
+    let api = Api::new(String::new()).await;
+    let ask = |host: &'static str| {
+        let (http, url, token) = (api.http.clone(), format!("{}/logs", api.base), api.token.clone());
+        async move { http.get(url).header("host", host).header("x-qrzero-token", token).send().await.unwrap().status().as_u16() }
+    };
+    assert_eq!(ask("localhost:8073").await, 200);
+    assert_eq!(ask("[::1]:8073").await, 200);
+    assert_eq!(ask("rebind.example:8073").await, 403);
+    assert_eq!(ask("127.0.0.1.example").await, 403);
 }
 
 #[tokio::test]

@@ -244,7 +244,7 @@ pub fn parse_rss(text: &str, now: i64) -> Vec<Contest> {
         let Some(title) = tag(item, "title").filter(|t| !t.is_empty()) else { continue };
         let when = tag(item, "description").unwrap_or_default();
         let Some((start, end)) = parse_when(&when, today).or_else(|| parse_when(&title, today)) else { continue };
-        out.push(Contest { modes: modes_of(&title), link: tag(item, "link").unwrap_or_default(), title, start, end, when });
+        out.push(Contest { modes: modes_of(&title), link: tag(item, "link").filter(|l| l.starts_with("https://") || l.starts_with("http://")).unwrap_or_default(), title, start, end, when });
     }
     out
 }
