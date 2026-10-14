@@ -1,5 +1,6 @@
 # Notes for working on QRZero
 
+- `docs/code-map.md` says where things live (module and folder level). Read it before searching, and update it in any PR that adds, renames, moves or removes a module.
 - Keep `docs/user/*.md` current with every user-visible change: it is the in-app Help (bundled by `ui/src/components/HelpView.tsx`).
 - QSOs store all ADIF fields as JSON (`qsos.fields`), the source of truth. The other `qsos` columns are indexed copies; recompute them via `Columns::from_fields` when fields change. Schema changes go through `Store::migrate` with a new `user_version`.
 - Speed matters (the user left Log4OM 2 because it got slow). Run the perf test after touching queries; interactive queries must stay under 100 ms at 200k QSOs.
