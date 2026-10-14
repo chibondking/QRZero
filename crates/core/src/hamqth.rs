@@ -20,6 +20,7 @@ use quick_xml::Reader;
 
 use crate::adif::Fields;
 use crate::error::{Error, Result};
+use crate::qsl::net_reason;
 
 pub const DEFAULT_ENDPOINT: &str = "https://www.hamqth.com/xml.php";
 
@@ -69,7 +70,7 @@ impl HamqthClient {
     async fn login(&mut self) -> Result<String> {
         if let Some((at, msg)) = &self.login_failure {
             if at.elapsed() < LOGIN_BACKOFF {
-                return Err(Error::Lookup(msg.clone()));
+                return Err(lookup_err(msg));
             }
         }
         let resp = self
@@ -82,9 +83,9 @@ impl HamqthClient {
                 Ok(id)
             }
             None => {
-                let msg = resp.error.unwrap_or_else(|| "HamQTH login failed".into());
+                let msg = resp.error.unwrap_or_else(|| "login failed".into());
                 self.login_failure = Some((std::time::Instant::now(), msg.clone()));
-                Err(Error::Lookup(msg))
+                Err(lookup_err(&msg))
             }
         }
     }
@@ -125,11 +126,7 @@ impl HamqthClient {
                     continue;
                 }
             }
-            return Err(Error::Lookup(if err.is_empty() {
-                "HamQTH returned no data".into()
-            } else {
-                err
-            }));
+            return Err(lookup_err(if err.is_empty() { "no data returned" } else { &err }));
         }
         unreachable!()
     }
@@ -142,12 +139,17 @@ impl HamqthClient {
             .send()
             .await
             .and_then(|r| r.error_for_status())
-            .map_err(|e| Error::Lookup(format!("HamQTH request failed: {e}")))?
+            .map_err(|e| lookup_err(&format!("service unreachable ({})", net_reason(&e))))?
             .text()
             .await
-            .map_err(|e| Error::Lookup(format!("HamQTH response: {e}")))?;
+            .map_err(|e| lookup_err(&format!("unreadable reply ({})", net_reason(&e))))?;
         parse_response(&text)
     }
+}
+
+/// A lookup error worded the same for every service, e.g. "HamQTH lookup failed: login failed".
+fn lookup_err(reason: &str) -> Error {
+    Error::Lookup(format!("HamQTH lookup failed: {reason}"))
 }
 
 fn parse_response(xml: &str) -> Result<Response> {
@@ -180,7 +182,7 @@ fn parse_response(xml: &str) -> Result<Response> {
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(Error::Lookup(format!("bad HamQTH XML: {e}"))),
+            Err(_) => return Err(lookup_err("unreadable reply")),
             _ => {}
         }
     }
@@ -298,5 +300,14 @@ mod tests {
         assert_eq!(f["STATE"], "CT");
         assert_eq!(f["CNTY"], "Hartford");
         assert!(!f.contains_key("GRIDSQUARE"));
+    }
+
+    #[tokio::test]
+    async fn unreachable_error_hides_credentials() {
+        // Nothing listens on port 1, so the request fails to connect.
+        let mut c = HamqthClient::new("http://127.0.0.1:1/xml?key=SECRETKEY", "W1AW", "hunter2");
+        let msg = c.lookup("K1ABC").await.unwrap_err().to_string();
+        assert_eq!(msg, "HamQTH lookup failed: service unreachable (connection failed)");
+        assert!(!msg.contains("hunter2") && !msg.contains("SECRETKEY") && !msg.contains("127.0.0.1"));
     }
 }

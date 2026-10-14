@@ -10,6 +10,7 @@ use quick_xml::Reader;
 
 use crate::adif::Fields;
 use crate::error::{Error, Result};
+use crate::qsl::net_reason;
 
 pub const DEFAULT_ENDPOINT: &str = "https://xmldata.qrz.com/xml/current/";
 
@@ -58,7 +59,7 @@ impl QrzClient {
     async fn login(&mut self) -> Result<String> {
         if let Some((at, msg)) = &self.login_failure {
             if at.elapsed() < LOGIN_BACKOFF {
-                return Err(Error::Lookup(msg.clone()));
+                return Err(lookup_err(msg));
             }
         }
         let resp = self
@@ -75,9 +76,9 @@ impl QrzClient {
                 Ok(key)
             }
             None => {
-                let msg = resp.error.unwrap_or_else(|| "QRZ login failed".into());
+                let msg = resp.error.unwrap_or_else(|| "login failed".into());
                 self.login_failure = Some((std::time::Instant::now(), msg.clone()));
-                Err(Error::Lookup(msg))
+                Err(lookup_err(&msg))
             }
         }
     }
@@ -111,7 +112,7 @@ impl QrzClient {
                     continue;
                 }
             }
-            return Err(Error::Lookup(if err.is_empty() { "QRZ returned no data".into() } else { err }));
+            return Err(lookup_err(if err.is_empty() { "no data returned" } else { &err }));
         }
         unreachable!()
     }
@@ -124,12 +125,17 @@ impl QrzClient {
             .send()
             .await
             .and_then(|r| r.error_for_status())
-            .map_err(|e| Error::Lookup(format!("QRZ request failed: {e}")))?
+            .map_err(|e| lookup_err(&format!("service unreachable ({})", net_reason(&e))))?
             .text()
             .await
-            .map_err(|e| Error::Lookup(format!("QRZ response: {e}")))?;
+            .map_err(|e| lookup_err(&format!("unreadable reply ({})", net_reason(&e))))?;
         parse_response(&text)
     }
+}
+
+/// A lookup error worded the same for every service, e.g. "QRZ lookup failed: login failed".
+fn lookup_err(reason: &str) -> Error {
+    Error::Lookup(format!("QRZ lookup failed: {reason}"))
 }
 
 fn parse_response(xml: &str) -> Result<Response> {
@@ -165,7 +171,7 @@ fn parse_response(xml: &str) -> Result<Response> {
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(Error::Lookup(format!("bad QRZ XML: {e}"))),
+            Err(_) => return Err(lookup_err("unreadable reply")),
             _ => {}
         }
     }
@@ -260,5 +266,14 @@ mod tests {
         .unwrap();
         assert_eq!(r.error.as_deref(), Some("Not found: XX1XX"));
         assert!(r.key.is_none());
+    }
+
+    #[tokio::test]
+    async fn unreachable_error_hides_credentials() {
+        // Nothing listens on port 1, so the request fails to connect.
+        let mut c = QrzClient::new("http://127.0.0.1:1/xml?key=SECRETKEY", "W1AW", "hunter2");
+        let msg = c.lookup("K1ABC").await.unwrap_err().to_string();
+        assert_eq!(msg, "QRZ lookup failed: service unreachable (connection failed)");
+        assert!(!msg.contains("hunter2") && !msg.contains("SECRETKEY") && !msg.contains("127.0.0.1"));
     }
 }

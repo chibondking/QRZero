@@ -10,7 +10,7 @@ pub enum Error {
     NotFound(String),
     #[error("invalid input: {0}")]
     Invalid(String),
-    #[error("lookup failed: {0}")]
+    #[error("{0}")]
     Lookup(String),
     #[error("file error: {0}")]
     Io(#[from] std::io::Error),

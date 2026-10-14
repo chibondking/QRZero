@@ -23,6 +23,24 @@ pub const CLUBLOG_BATCH_ENDPOINT: &str = "https://clublog.org/putlogs.php";
 /// User-Agent sent to QSL services.
 pub const USER_AGENT: &str = concat!("QRZero/", env!("CARGO_PKG_VERSION"));
 
+/// A short reason for a failed web request that never includes the URL or query
+/// string, which can carry a password or API key.
+pub fn net_reason(e: &reqwest::Error) -> String {
+    if e.is_timeout() {
+        "timeout".into()
+    } else if e.is_connect() {
+        "connection failed".into()
+    } else if let Some(status) = e.status() {
+        format!("HTTP {}", status.as_u16())
+    } else if e.is_decode() || e.is_body() {
+        "unreadable reply".into()
+    } else if e.is_redirect() {
+        "too many redirects".into()
+    } else {
+        "request error".into()
+    }
+}
+
 /// Why an upload could not be done at all.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum QslError {
@@ -186,9 +204,9 @@ impl QrzLogbook {
             .body(form_encode(form))
             .send()
             .await
-            .map_err(|e| QslError::Network(format!("QRZ: {e}")))?;
+            .map_err(|e| QslError::Network(format!("QRZ: {}", net_reason(&e))))?;
         let status = resp.status();
-        let text = resp.text().await.map_err(|e| QslError::Network(format!("QRZ: {e}")))?;
+        let text = resp.text().await.map_err(|e| QslError::Network(format!("QRZ: {}", net_reason(&e))))?;
         if !status.is_success() {
             return Err(QslError::Service(format!("QRZ HTTP {status}: {}", text.trim())));
         }
@@ -250,9 +268,9 @@ impl ClubLog {
             .body(body)
             .send()
             .await
-            .map_err(|e| QslError::Network(format!("Club Log: {e}")))?;
+            .map_err(|e| QslError::Network(format!("Club Log: {}", net_reason(&e))))?;
         let status = resp.status().as_u16();
-        let text = resp.text().await.map_err(|e| QslError::Network(format!("Club Log: {e}")))?;
+        let text = resp.text().await.map_err(|e| QslError::Network(format!("Club Log: {}", net_reason(&e))))?;
         let text = text.trim().to_string();
         match status {
             200..=299 => Ok(Upload::Added),
@@ -297,9 +315,9 @@ impl ClubLog {
             .body(body)
             .send()
             .await
-            .map_err(|e| QslError::Network(format!("Club Log: {e}")))?;
+            .map_err(|e| QslError::Network(format!("Club Log: {}", net_reason(&e))))?;
         let status = resp.status().as_u16();
-        let text = resp.text().await.map_err(|e| QslError::Network(format!("Club Log: {e}")))?;
+        let text = resp.text().await.map_err(|e| QslError::Network(format!("Club Log: {}", net_reason(&e))))?;
         let text = text.trim().to_string();
         match status {
             200..=299 => Ok(()),

@@ -10,7 +10,7 @@ use chrono::{NaiveDate, NaiveTime};
 
 use crate::adif::{self, Fields};
 use crate::band::{band_for_freq, normalize_band};
-use crate::qsl::{form_encode, http_client, upload_record, url_decode, QslError, Upload, USER_AGENT};
+use crate::qsl::{form_encode, net_reason, http_client, upload_record, url_decode, QslError, Upload, USER_AGENT};
 
 /// Production LoTW report endpoint.
 pub const LOTW_REPORT_ENDPOINT: &str = "https://lotw.arrl.org/lotwuser/lotwreport.adi";
@@ -72,9 +72,9 @@ fn with_query(endpoint: &str, pairs: &[(&str, &str)]) -> String {
 
 /// GETs `url` and returns the body; non-2xx is a service error.
 async fn get_text(http: &reqwest::Client, url: &str, who: &str) -> Result<String, QslError> {
-    let resp = http.get(url).send().await.map_err(|e| QslError::Network(format!("{who}: {}", e.without_url())))?;
+    let resp = http.get(url).send().await.map_err(|e| QslError::Network(format!("{who}: {}", net_reason(&e))))?;
     let status = resp.status();
-    let bytes = resp.bytes().await.map_err(|e| QslError::Network(format!("{who}: {}", e.without_url())))?;
+    let bytes = resp.bytes().await.map_err(|e| QslError::Network(format!("{who}: {}", net_reason(&e))))?;
     let text = String::from_utf8_lossy(&bytes).into_owned();
     if !status.is_success() {
         return Err(QslError::Service(format!("{who} HTTP {status}: {}", visible_text(&text))));
@@ -175,9 +175,9 @@ pub async fn qrz_confirmations(endpoint: &str, api_key: &str) -> Result<Vec<Fiel
             .body(body)
             .send()
             .await
-            .map_err(|e| QslError::Network(format!("QRZ: {}", e.without_url())))?;
+            .map_err(|e| QslError::Network(format!("QRZ: {}", net_reason(&e))))?;
         let status = resp.status();
-        let text = resp.text().await.map_err(|e| QslError::Network(format!("QRZ: {}", e.without_url())))?;
+        let text = resp.text().await.map_err(|e| QslError::Network(format!("QRZ: {}", net_reason(&e))))?;
         if !status.is_success() {
             return Err(QslError::Service(format!("QRZ HTTP {status}: {}", visible_text(&text))));
         }
@@ -252,9 +252,9 @@ pub async fn clublog_matches(
         .get(with_query(endpoint, &q))
         .send()
         .await
-        .map_err(|e| QslError::Network(format!("Club Log: {}", e.without_url())))?;
+        .map_err(|e| QslError::Network(format!("Club Log: {}", net_reason(&e))))?;
     let status = resp.status();
-    let text = resp.text().await.map_err(|e| QslError::Network(format!("Club Log: {}", e.without_url())))?;
+    let text = resp.text().await.map_err(|e| QslError::Network(format!("Club Log: {}", net_reason(&e))))?;
     let text = text.trim();
     if status.as_u16() == 403 || status.as_u16() == 401 {
         let why = visible_text(text);
@@ -326,9 +326,9 @@ pub async fn eqsl_upload(
         .body(form_encode(&[("ADIFData", &doc)]))
         .send()
         .await
-        .map_err(|e| QslError::Network(format!("eQSL: {}", e.without_url())))?;
+        .map_err(|e| QslError::Network(format!("eQSL: {}", net_reason(&e))))?;
     let status = resp.status();
-    let bytes = resp.bytes().await.map_err(|e| QslError::Network(format!("eQSL: {}", e.without_url())))?;
+    let bytes = resp.bytes().await.map_err(|e| QslError::Network(format!("eQSL: {}", net_reason(&e))))?;
     let text = visible_text(&String::from_utf8_lossy(&bytes));
     if !status.is_success() {
         return Err(QslError::Service(format!("eQSL HTTP {status}: {text}")));
