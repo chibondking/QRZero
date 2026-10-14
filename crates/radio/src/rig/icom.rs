@@ -180,6 +180,15 @@ impl Protocol for Icom {
                 }
                 Ok(())
             }
+            RigCommand::SetSplitMode(m) => {
+                let Some(req) = ModeReq::from_adif(m, freq_hz) else { return Ok(()) };
+                if !self.has_unselected {
+                    return Ok(());
+                }
+                let (mode, data) = encode_mode(req);
+                // 0x26 sets the mode of the unselected VFO (0x01): mode, data on/off, filter 1.
+                self.set(io, 0x26, &[0x01], &[mode, data as u8, 0x01], "split mode")
+            }
             RigCommand::SetSplit(Some(hz)) => {
                 if !self.has_unselected {
                     bail!("this radio can't set the split transmit frequency over CI-V");
@@ -355,6 +364,7 @@ mod tests {
                     freq.copy_from_slice(f);
                     reply(&[0xFB])
                 }
+                [0x26, 0x01, ..] => reply(&[0xFB]),
                 [0x06, m] => {
                     mode = *m;
                     reply(&[0xFB])
@@ -398,6 +408,8 @@ mod tests {
         icom.command(&mut io, &RigCommand::SetSplit(Some(7_035_000)), 0).unwrap();
         let st = icom.poll(&mut io).unwrap();
         assert_eq!((st.freq_hz, st.split, st.tx_freq_hz), (7_030_000, true, 7_035_000));
+        icom.command(&mut io, &RigCommand::SetSplitMode("CW".into()), 7_030_000).unwrap();
+        assert!(written.lock().unwrap().windows(9).any(|x| x == [0xFE, 0xFE, 0x94, 0xE0, 0x26, 0x01, 0x03, 0x00, 0x01]));
         icom.command(&mut io, &RigCommand::SetSplit(None), 0).unwrap();
         assert!(!icom.poll(&mut io).unwrap().split);
         // A radio without the unselected-VFO command can't be given a split frequency.
