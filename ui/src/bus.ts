@@ -81,7 +81,7 @@ export function listen(f: (m: BusMsg) => void): () => void {
   return () => channel.removeEventListener("message", h);
 }
 
-export interface Geometry { w: number; h: number; x: number | null; y: number | null }
+export interface Geometry { w: number; h: number; x: number | null; y: number | null; top?: boolean }
 
 const geoKey = (id: WindowId) => `qrzero.popout.${id}`;
 const DEFAULT_SIZE: Partial<Record<WindowId, Geometry>> = {
@@ -107,7 +107,22 @@ export function openPopout(id: WindowId): Window | null {
 
 /** Called in the popped-out window to remember where it is. */
 export function saveGeometry(id: WindowId) {
-  localSet(geoKey(id), { w: window.innerWidth, h: window.innerHeight, x: window.screenX, y: window.screenY });
+  const top = localGet<Geometry | null>(geoKey(id), null)?.top;
+  localSet(geoKey(id), { w: window.innerWidth, h: window.innerHeight, x: window.screenX, y: window.screenY, ...(top ? { top } : {}) });
+}
+
+/** True in the desktop app, whose windows can be kept on top; a browser tab cannot. */
+export const canStayOnTop = () => !!(window as unknown as { __qrzeroDesktop?: boolean }).__qrzeroDesktop;
+
+/** Whether this pane's window was last left on top of other windows. */
+export const getOnTop = (id: WindowId) => !!localGet<Geometry | null>(geoKey(id), null)?.top;
+
+/** Keeps this window on top (or not) and remembers it. The desktop shell watches for the title, as with closing. */
+export function setOnTop(id: WindowId, on: boolean, title: string) {
+  const g = localGet<Geometry>(geoKey(id), { w: window.innerWidth, h: window.innerHeight, x: window.screenX, y: window.screenY });
+  localSet(geoKey(id), { ...g, top: on });
+  document.title = on ? "qrzero:top:1" : "qrzero:top:0";
+  setTimeout(() => (document.title = title), 100);
 }
 
 /** Closes this window. The desktop shell can ignore window.close(), so it also watches for this title and closes the window itself. */

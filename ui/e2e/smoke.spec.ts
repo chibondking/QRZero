@@ -578,6 +578,8 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   // The WSJT-X fed in above may still be listed, so look for the monitor itself.
   await expect(popup.getByLabel("Period breaks")).toBeVisible();
   await expect(page.getByRole("tab", { name: "FTx monitor" })).toHaveCount(0);
+  // Only the desktop app can keep a window on top, so a browser pop-out has no such button.
+  await expect(popup.getByRole("button", { name: "Always on top" })).toHaveCount(0);
   await closeWindow(popup.getByRole("button", { name: "Dock back" }));
   await expect(page.getByRole("tab", { name: "FTx monitor" })).toBeVisible();
   // It returns to the tab group it left, not to a default spot.
