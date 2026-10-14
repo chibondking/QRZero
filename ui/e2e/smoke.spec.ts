@@ -175,6 +175,13 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   // The two decodes calling us are grouped at the top, newest first, and not repeated below.
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row")).toHaveCount(2);
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row .msg").first()).toHaveText("N0CALL EA8AB R-10");
+  // Sorting: by frequency the lower offset comes first; by country each group gets a heading.
+  const sort = ftx.getByRole("combobox").filter({ hasText: "Frequency" });
+  await sort.selectOption("freq");
+  await expect(ftx.locator(".ftx-table .ftx-row .msg").nth(2)).toHaveText("CQ DL1ABC JO62");
+  await sort.selectOption("country");
+  await expect(ftx.locator(".ftx-group.sub").first()).toBeVisible();
+  await sort.selectOption("time");
   // Turning the pin off puts them back in time order.
   await ftx.getByLabel("Pin calling you").uncheck();
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" })).toHaveCount(0);
