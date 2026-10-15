@@ -34,7 +34,7 @@ interface Filters {
   pinMe?: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
-  /** Line view order: by time, DXCC entity, flag, or audio frequency. */
+  /** Line view order inside each decode period. */
   sort: "time" | "dxcc" | "flags" | "freq";
 }
 
@@ -53,8 +53,9 @@ function cyclesOf(list: FtxDecode[]): Cycle[] {
   return out;
 }
 
-/** Orders the list (newest first on entry) by DXCC entity, flag or frequency; ties stay newest first. */
+/** Orders the decodes of one period by DXCC entity, flag or audio offset; ties keep their order. */
 function arrange(list: FtxDecode[], sort: Filters["sort"], cfg: FtxAlertConfig): FtxDecode[] {
+  if (sort === "time") return list;
   if (sort === "freq") return [...list].sort((a, b) => a.df - b.df);
   const rank = (d: FtxDecode) => {
     if (d.tx) return -1;
@@ -193,7 +194,11 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
   }, [shown, pin]);
   const pinned = useMemo(() => new Set(calling.map((d) => d.seq)), [calling]);
   const below = (list: FtxDecode[]) => list.filter((d) => !pinned.has(d.seq));
-  const arranged = useMemo(() => arrange(below(shown), filters.sort, cfg), [shown, filters.sort, cfg, pinned]);
+  // Always newest period first; the chosen sort only orders the decodes inside each period.
+  const periods = useMemo(
+    () => cycles.map((c) => ({ cycle: c, rows: arrange(below(c.decodes), filters.sort, cfg) })).filter((p) => p.rows.length > 0),
+    [cycles, filters.sort, cfg, pinned],
+  );
 
   const row = (d: FtxDecode) => {
     if (d.tx) {
@@ -292,19 +297,12 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
               {calling.map(row)}
             </div>
           )}
-          {filters.sort !== "time"
-            ? arranged.map(row)
-            : filters.cycles
-            ? cycles.map((c) => {
-                const rows = below(c.decodes);
-                return rows.length === 0 ? null : (
-                  <Fragment key={c.time + c.decodes[0].seq}>
-                    <CycleBreak cycle={c} />
-                    {rows.map(row)}
-                  </Fragment>
-                );
-              })
-            : below(shown).map(row)}
+          {periods.map(({ cycle, rows }) => (
+            <Fragment key={cycle.time + cycle.decodes[0].seq}>
+              {filters.cycles && <CycleBreak cycle={cycle} />}
+              {rows.map(row)}
+            </Fragment>
+          ))}
         </div>
       )}
     </div>
@@ -342,13 +340,13 @@ function OptionsMenu({ filters, setFilter, onAlerts }: { filters: Filters; setFi
           {radio("view", "lines", "Lines", "Every decode on its own line")}
           {radio("view", "calls", "Call boxes", "Each station heard, one box per call")}
           <hr />
-          <div className="head">Sort lines by</div>
-          {radio("sort", "time", "Time")}
+          <div className="head">Within each period, sort by</div>
+          {radio("sort", "time", "Decode order", "As the decodes arrived")}
           {radio("sort", "dxcc", "DXCC")}
           {radio("sort", "flags", "Flags")}
-          {radio("sort", "freq", "Frequency")}
+          {radio("sort", "freq", "Offset", "Audio frequency in the passband, lowest first")}
           <hr />
-          <label className="item" title="Draw a line with the time between decode periods (when sorted by time)">
+          <label className="item" title="Draw a line with the time between decode periods">
             <input type="checkbox" checked={filters.cycles} onChange={(e) => setFilter({ cycles: e.target.checked })} /> Period breaks
           </label>
           <label className="item" title="Keep decodes calling you in a group at the top of the list">

@@ -181,14 +181,18 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     const b = ftx.getByRole("button", { name: "Options" });
     if ((await b.getAttribute("aria-expanded")) !== "true") await b.click();
   };
-  // Sorting: by frequency the lower offset comes first; DXCC and flags reorder without headings.
+  // Time always comes first: the sort only orders the decodes inside each period, so the newest
+  // period stays on top. By offset, JA1XYZ (1100 Hz) comes before EA8AB (1120 Hz) in the older period.
+  const msgs = ftx.locator(".ftx-table .ftx-row .msg");
+  await expect(msgs).toHaveText(["N0CALL EA8AB R-10", "CQ DL1ABC JO62", "N0CALL EA8AB IL18", "CQ JA1XYZ PM95"]);
   await opts();
-  await ftx.getByLabel("Frequency").check();
-  await expect(ftx.locator(".ftx-table .ftx-row .msg").nth(1)).toHaveText("CQ DL1ABC JO62");
+  await ftx.getByLabel("Offset").check();
+  await expect(msgs).toHaveText(["N0CALL EA8AB R-10", "CQ DL1ABC JO62", "CQ JA1XYZ PM95", "N0CALL EA8AB IL18"]);
+  await ftx.getByLabel("Flags").check();
+  await expect(msgs).toHaveText(["N0CALL EA8AB R-10", "CQ DL1ABC JO62", "N0CALL EA8AB IL18", "CQ JA1XYZ PM95"]);
   await ftx.getByLabel("DXCC").check();
   await expect(ftx.locator(".ftx-table .ftx-row:not(.head)")).toHaveCount(4);
-  await expect(ftx.locator(".ftx-group.sub")).toHaveCount(0);
-  await ftx.getByLabel("Time", { exact: true }).check();
+  await ftx.getByLabel("Decode order").check();
   // Turning the pin off puts them back in time order.
   await ftx.getByLabel("Pin calling you").uncheck();
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" })).toHaveCount(0);
