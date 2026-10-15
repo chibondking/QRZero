@@ -15,6 +15,8 @@ pub struct StationCallsign {
     pub log_id: i64,
     pub callsign: String,
     pub is_default: bool,
+    /// No longer held: hidden from pickers and automatic uploads; its QSOs stay.
+    pub archived: bool,
 }
 
 /// An operating location. `fields` holds the MY_* ADIF fields (MY_GRIDSQUARE,

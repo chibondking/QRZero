@@ -1,7 +1,7 @@
 export type Fields = Record<string, string>;
 
 export interface Log { id: number; name: string; qso_count: number }
-export interface StationCallsign { id: number; log_id: number; callsign: string; is_default: boolean }
+export interface StationCallsign { id: number; log_id: number; callsign: string; is_default: boolean; archived: boolean }
 export interface Location { id: number; log_id: number; name: string; is_default: boolean; fields: Fields }
 export interface Qso { id: number; log_id: number; location_id: number | null; fields: Fields }
 

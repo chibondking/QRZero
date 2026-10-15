@@ -312,7 +312,7 @@ impl Qsl {
     pub fn queue(&self, name: &str, from: &str, to: &str, limit: i64) -> Result<Queue, String> {
         let svc = Self::service(name).ok_or_else(|| format!("unknown service {name}"))?;
         let (a, b) = day_range(from, to)?;
-        let cfg = self.config();
+        let cfg = self.upload_config();
         let mut total = 0;
         let mut qsos = Vec::new();
         let mut take = |st: &mut Store, log_id: i64, calls: &[String], loc: Option<i64>| -> qrzero_core::Result<()> {
@@ -499,6 +499,21 @@ impl Qsl {
         self.lock().config.clone()
     }
 
+    /// The settings for sending QSOs: `config()` without the callsigns the user has archived,
+    /// so an old call stays ticked in the settings but nothing is uploaded under it.
+    fn upload_config(&self) -> QslConfig {
+        let mut cfg = self.config();
+        let archived = self.db(|st| st.archived_callsigns()).unwrap_or_default();
+        if !archived.is_empty() {
+            let gone = |c: &str| archived.iter().any(|a| a.eq_ignore_ascii_case(c));
+            for list in [&mut cfg.qrz_calls, &mut cfg.clublog_calls, &mut cfg.eqsl_calls] {
+                list.retain(|c| !gone(c));
+            }
+            cfg.lotw.retain(|m| !gone(&m.callsign));
+        }
+        cfg
+    }
+
     fn secret(&self, name: &str) -> Option<String> {
         self.db(|st| secrets::get(st, &self.secret_service, name)).ok().flatten().filter(|s| !s.is_empty())
     }
@@ -517,6 +532,7 @@ impl Qsl {
             })
             .unwrap_or(0)
         };
+        let up = self.upload_config();
         let lotw: Vec<_> = cfg
             .lotw
             .iter()
@@ -540,9 +556,9 @@ impl Qsl {
                 "eqsl_password": self.secret("eqsl-password").is_some(),
             },
             "pending": {
-                "qrz": pending(&QRZ, &cfg.qrz_calls, &cfg.qrz_since),
-                "clublog": pending(&CLUBLOG, &cfg.clublog_calls, &cfg.clublog_since),
-                "eqsl": pending(&EQSL, &cfg.eqsl_calls, &cfg.eqsl_since),
+                "qrz": pending(&QRZ, &up.qrz_calls, &cfg.qrz_since),
+                "clublog": pending(&CLUBLOG, &up.clublog_calls, &cfg.clublog_since),
+                "eqsl": pending(&EQSL, &up.eqsl_calls, &cfg.eqsl_since),
                 "lotw": lotw,
             },
             "runs": self.lock().runs,
@@ -665,7 +681,7 @@ impl Qsl {
 
     /// Services that are set up well enough to upload to, for the log's right-click menu.
     pub fn targets(&self) -> Vec<&'static str> {
-        let cfg = self.config();
+        let cfg = self.upload_config();
         let mut out = Vec::new();
         if cfg.qrz_calls.iter().any(|c| self.secret(&qrz_secret(c)).is_some()) {
             out.push("qrz");
@@ -710,7 +726,7 @@ impl Qsl {
 
     async fn upload_service(&self, svc: &Service, only: Option<&[i64]>, bounds: Option<(i64, i64)>) -> Run {
         let mut run = Run { at: Utc::now().timestamp(), ..Run::default() };
-        let cfg = self.config();
+        let cfg = self.upload_config();
         let (calls, date) = match svc.name {
             "qrz" => (&cfg.qrz_calls, &cfg.qrz_since),
             "eqsl" => (&cfg.eqsl_calls, &cfg.eqsl_since),
@@ -1106,7 +1122,7 @@ impl Qsl {
     /// instead of the mapped one (the mapping still picks which QSOs go).
     async fn lotw_run(&self, bounds: Option<(i64, i64)>, only: Option<&HashSet<i64>>, location: Option<&str>) -> Run {
         let mut run = Run { at: Utc::now().timestamp(), ..Run::default() };
-        let cfg = self.config();
+        let cfg = self.upload_config();
         let Some(tqsl) = (if cfg.tqsl_path.is_empty() { qsl::find_tqsl() } else { Some(PathBuf::from(&cfg.tqsl_path)) }) else {
             run.error = Some("TQSL isn't installed (or set where tqsl.exe is)".into());
             return run;

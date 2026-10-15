@@ -628,6 +628,26 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await closeWindow(entryWin.getByRole("button", { name: "Dock back" }));
   await expect(page.getByTestId("call")).toBeVisible();
 
+  // An archived callsign leaves the top-bar picker, stays listed under Show archived, and comes back.
+  const stationPick = page.locator(".topbar label", { hasText: "Station" }).locator("select");
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Callsigns", exact: true }).click();
+  await page.getByLabel("Add callsign").fill("n0tmp");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  const tmpRow = page.locator("table.list tr", { hasText: "N0TMP" });
+  await expect(tmpRow).toBeVisible();
+  await tmpRow.getByRole("button", { name: "Archive" }).click();
+  await expect(tmpRow).toHaveCount(0);
+  await page.getByLabel(/Show archived/).check();
+  await expect(tmpRow).toContainText("archived");
+  await page.getByRole("dialog").screenshot({ path: "e2e-results/callsigns-archived.png" });
+  await expect(stationPick.locator("option", { hasText: "N0TMP" })).toHaveCount(0);
+  await tmpRow.getByRole("button", { name: "Unarchive" }).click();
+  await expect(stationPick.locator("option", { hasText: "N0TMP" })).toHaveCount(1);
+  await tmpRow.getByRole("button", { name: "Remove" }).click();
+  await expect(tmpRow).toHaveCount(0);
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+
   // Entry fields can differ by mode group: CW gets its own layout with an SKCC box.
   await fromMenu(page, "Settings…");
   await page.getByRole("button", { name: "Entry fields", exact: true }).click();
