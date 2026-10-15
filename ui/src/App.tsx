@@ -316,8 +316,16 @@ export default function App() {
   const currentLog = logs.find((l) => l.id === logId);
   const home = location ? positionOf(location.fields, "MY_") : null;
   const entryCall = entry.fields.CALL ?? "";
+  // A station picked in the Log shows only while the call box is as it was then: typing or
+  // looking up another call (even one typed earlier) puts the box's own station back.
+  useEffect(() => {
+    setBrowse((b) => (b && b.entryCall !== entryCall ? null : b));
+  }, [entryCall]);
   const browsing = browse && browse.entryCall === entryCall && browse.lookup ? browse : null;
-  const paneLookup = browsing ? browsing.lookup : lookup;
+  // A lookup belongs to the call it was made for: while another call is being typed, the
+  // previous station isn't shown for it.
+  const typed = entryCall.trim().toUpperCase();
+  const paneLookup = browsing ? browsing.lookup : lookup && typed && lookup.call !== typed ? null : lookup;
   const paneEntry: EntryContext = browsing ? { ...entry, fields: { CALL: browsing.call } } : entry;
   const dxStation = paneLookup?.station ?? null;
   const dxEntity = paneLookup?.entity;
@@ -391,7 +399,10 @@ export default function App() {
     if (m.t === "settings") actions.onSettings(m.tab);
     if (m.t === "radio") chooseRadio(m.key);
     if (m.t === "logged") refreshGrid();
-    if (m.t === "lookup") setLookup(m.lookup);
+    if (m.t === "lookup") {
+      setLookup(m.lookup);
+      setBrowse(null);
+    }
     if (m.t === "entry") setEntry(m.entry);
     if (m.t === "setup") setDialog("wizard");
   };
@@ -518,7 +529,10 @@ export default function App() {
                 modeLayouts={modeLayouts}
                 equipment={equipment.filter((e) => e.location_id === location?.id)}
                 onLogged={refreshGrid}
-                onLookup={setLookup}
+                onLookup={(r) => {
+                  setLookup(r);
+                  setBrowse(null);
+                }}
                 onContext={setEntry}
                 radios={radios}
                 radioKey={radioKey}

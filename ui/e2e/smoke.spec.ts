@@ -555,6 +555,17 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.getByLabel("Award hints", { exact: true })).toContainText("WPX");
   // The DXCC slot grid shows when the call resolves to an entity (needs the country file).
   if (await page.getByLabel("DXCC slots", { exact: true }).count()) await expect(page.getByLabel("DXCC slots", { exact: true })).toContainText("CW");
+  // Typing another call doesn't leave the last station's details showing for it.
+  await call.fill("K1XYZZ");
+  await expect(page.locator(".lookup-note")).toHaveCount(0);
+  await call.fill("K1XYZ");
+  await expect(page.locator(".lookup-note")).toContainText("Runs 5 W / QSL direct only");
+  // A Log row shows its own station while picked; typing the box's call again brings the box's station back.
+  await page.locator(".grid-row", { hasText: "K1ABC" }).first().click();
+  await expect(page.locator(".lookup-note")).toHaveCount(0);
+  await call.fill("K1XYZZ");
+  await call.fill("K1XYZ");
+  await expect(page.locator(".lookup-note")).toContainText("Runs 5 W / QSL direct only");
   await page.getByRole("tab", { name: "Worked before" }).click();
 
   // Panes: drag the Cluster tab beside the Station pane, it gets its own group.

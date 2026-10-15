@@ -122,6 +122,12 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
   const callRef = useRef<HTMLInputElement>(null);
   const lookedUp = useRef("");
   const lookupSeq = useRef(0);
+  // The call `lookupFill` was made for. Once the box holds another call the details of the
+  // old one (name, QTH, grid, and the map position that follows it) are dropped.
+  const lookupFillFor = useRef("");
+  useEffect(() => {
+    if (call.trim().toUpperCase() !== lookupFillFor.current) setLookupFill((f) => (Object.keys(f).length ? {} : f));
+  }, [call]);
 
   // A different mode group can show different fields: drop the values of fields that went away
   // (so they aren't logged unseen), start the new ones from their defaults, and refill from the lookup.
@@ -265,6 +271,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
         const v = station[key] ?? (key in station || PER_QSO.has(key) ? undefined : last[key]);
         if (v && !touched.has(key) && !key.startsWith("MY_")) fill[key] = v;
       }
+      lookupFillFor.current = c;
       setLookupFill(fill);
       if (r.error) {
         setStatus({ text: `Lookup: ${r.error}`, kind: "err" });
@@ -286,6 +293,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
     setCall("");
     setForm(freshValues(layout, logged ?? form));
     setLookupFill({});
+    lookupFillFor.current = "";
     setTouched(new Set());
     setStart(null);
     setRstSent(choiceFor(mode).rst);
