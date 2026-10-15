@@ -41,12 +41,11 @@ async function openSpotBox(page: Page, reply: (r: Route) => Promise<void>) {
     if (await wizard.waitFor({ timeout: 3000 }).then(() => true, () => false)) await wizard.getByRole("button", { name: "Close", exact: true }).click();
   };
   await closeWizard();
-  const headers = { "x-qrzero-token": "e2e" };
-  const lid = (await (await page.request.get("/api/logs", { headers })).json())[0].id;
   const d = new Date();
   const p2 = (n: number) => String(n).padStart(2, "0");
   const fields = { CALL: "JA1XYZ", QSO_DATE: `${d.getUTCFullYear()}${p2(d.getUTCMonth() + 1)}${p2(d.getUTCDate())}`, TIME_ON: `${p2(d.getUTCHours())}${p2(d.getUTCMinutes())}`, BAND: "20m", MODE: "CW", FREQ: "14.025" };
-  await page.request.post(`/api/logs/${lid}/qsos`, { headers, data: { location_id: null, fields } });
+  // The QSO is served from a stand-in, so this spec never writes to the log the other specs share (and count).
+  await page.route("**/api/logs/*/qsos/search", (r) => r.fulfill({ json: { total: 1, rows: [{ id: 1, log_id: 1, location_id: null, fields }] } }));
   await page.reload();
   await closeWizard();
   // Another spec may have left a different tab (such as Cluster) active in the saved layout.
