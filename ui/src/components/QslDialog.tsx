@@ -296,7 +296,7 @@ function Online({ callsigns, locations, onClose }: Props) {
             <p className="small muted"><b>Moving from another logger?</b> Download confirmations before your first upload. Matching QSOs are marked sent and confirmed, so they aren't uploaded again.</p>
           </details>
           <UploadLog lines={o.logs?.lotw} />
-          <p className="small muted">To download confirmations (for awards), enter your LoTW website login. It's not your TQSL password.</p>
+          <p className="small muted">To download confirmations (for awards), enter your LoTW website login. It's not your TQSL password. The download only updates QSOs already in your log. It never changes a QSO's location or your station details, and it doesn't add QSOs.</p>
           <div className="row">
             <label className="f w-m"><span>LoTW username</span><input value={cfg.lotw_username} onChange={(e) => set({ lotw_username: e.target.value })} /></label>
             <label className="f w-m"><span>Password</span><input type="password" value={lotwPassword} placeholder={o.secrets.lotw_password ? "saved" : ""} onChange={(e) => setLotwPassword(e.target.value)} /></label>

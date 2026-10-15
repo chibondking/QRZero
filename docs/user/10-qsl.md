@@ -53,7 +53,7 @@ If your log came from another logger, **download confirmations before your first
 
 ### LoTW confirmations
 
-To see which QSOs LoTW has confirmed (for the **Awards** tab), enter your LoTW **website** username and password (the ones you use at lotw.arrl.org, not your certificate password) and click **Download confirmations**. Matching QSOs get **LoTW R** set to Y with the date. LoTW also sends the other station's state, zones, grid and county, and QRZero fills those in where your QSO has them blank. The next download only fetches confirmations newer than the last one.
+To see which QSOs LoTW has confirmed (for the **Awards** tab), enter your LoTW **website** username and password (the ones you use at lotw.arrl.org, not your certificate password) and click **Download confirmations**. Matching QSOs get **LoTW R** set to Y with the date. LoTW also sends the other station's state, zones, grid and county, and QRZero fills those in where your QSO has them blank. It only updates QSOs already in your log: it never changes a QSO's location or your own station details (so QSOs logged from old station locations keep them), and QSOs that are only on LoTW are not added. The next download only fetches confirmations newer than the last one.
 
 ### New toward your awards
 
