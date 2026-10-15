@@ -176,6 +176,31 @@ fn worked_before_by_call_and_dxcc() {
 }
 
 #[test]
+fn archiving_a_callsign_keeps_its_qsos() {
+    let (mut st, log) = setup();
+    let old = st.add_callsign(log, "N0OLD").unwrap();
+    let new = st.add_callsign(log, "N0NEW").unwrap();
+    assert!(old.is_default && !old.archived);
+    st.insert_qso(log, None, &f(&[("CALL", "W1AW"), ("STATION_CALLSIGN", "N0OLD"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200")])).unwrap();
+
+    st.set_callsign_archived(old.id, true).unwrap();
+    let list = st.list_callsigns(log).unwrap();
+    let get = |c: &str| list.iter().find(|x| x.callsign == c).unwrap();
+    assert!(get("N0OLD").archived && !get("N0OLD").is_default, "archived call gives up the default");
+    assert!(get("N0NEW").is_default && !get("N0NEW").archived);
+    assert_eq!(st.archived_callsigns().unwrap(), ["N0OLD"]);
+    let (total, _) = st.search(log, &QsoFilter { call: Some("W1AW".into()), ..Default::default() }, Sort::Newest, 0, 10).unwrap();
+    assert_eq!(total, 1, "QSOs stay");
+
+    st.set_callsign_archived(new.id, true).unwrap();
+    assert!(st.list_callsigns(log).unwrap().iter().all(|c| !c.is_default));
+    st.set_callsign_archived(old.id, false).unwrap();
+    let list = st.list_callsigns(log).unwrap();
+    assert!(list.iter().find(|c| c.callsign == "N0OLD").unwrap().is_default, "restored call becomes default when none is");
+    assert_eq!(st.archived_callsigns().unwrap(), ["N0NEW"]);
+}
+
+#[test]
 fn defaults_and_update() {
     let (mut st, log) = setup();
     let a = st.add_callsign(log, "n0old").unwrap();

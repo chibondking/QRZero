@@ -181,14 +181,18 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     const b = ftx.getByRole("button", { name: "Options" });
     if ((await b.getAttribute("aria-expanded")) !== "true") await b.click();
   };
-  // Sorting: by frequency the lower offset comes first; DXCC and flags reorder without headings.
+  // Time always comes first: the sort only orders the decodes inside each period, so the newest
+  // period stays on top. By offset, JA1XYZ (1100 Hz) comes before EA8AB (1120 Hz) in the older period.
+  const msgs = ftx.locator(".ftx-table .ftx-row .msg");
+  await expect(msgs).toHaveText(["N0CALL EA8AB R-10", "CQ DL1ABC JO62", "N0CALL EA8AB IL18", "CQ JA1XYZ PM95"]);
   await opts();
-  await ftx.getByLabel("Frequency").check();
-  await expect(ftx.locator(".ftx-table .ftx-row .msg").nth(1)).toHaveText("CQ DL1ABC JO62");
+  await ftx.getByLabel("Offset").check();
+  await expect(msgs).toHaveText(["N0CALL EA8AB R-10", "CQ DL1ABC JO62", "CQ JA1XYZ PM95", "N0CALL EA8AB IL18"]);
+  await ftx.getByLabel("Flags").check();
+  await expect(msgs).toHaveText(["N0CALL EA8AB R-10", "CQ DL1ABC JO62", "N0CALL EA8AB IL18", "CQ JA1XYZ PM95"]);
   await ftx.getByLabel("DXCC").check();
   await expect(ftx.locator(".ftx-table .ftx-row:not(.head)")).toHaveCount(4);
-  await expect(ftx.locator(".ftx-group.sub")).toHaveCount(0);
-  await ftx.getByLabel("Time", { exact: true }).check();
+  await ftx.getByLabel("Decode order").check();
   // Turning the pin off puts them back in time order.
   await ftx.getByLabel("Pin calling you").uncheck();
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" })).toHaveCount(0);
@@ -627,6 +631,26 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.locator(".grid-row").first()).toContainText("DL1ABC");
   await closeWindow(entryWin.getByRole("button", { name: "Dock back" }));
   await expect(page.getByTestId("call")).toBeVisible();
+
+  // An archived callsign leaves the top-bar picker, stays listed under Show archived, and comes back.
+  const stationPick = page.locator(".topbar label", { hasText: "Station" }).locator("select");
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Callsigns", exact: true }).click();
+  await page.getByLabel("Add callsign").fill("n0tmp");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  const tmpRow = page.locator("table.list tr", { hasText: "N0TMP" });
+  await expect(tmpRow).toBeVisible();
+  await tmpRow.getByRole("button", { name: "Archive" }).click();
+  await expect(tmpRow).toHaveCount(0);
+  await page.getByLabel(/Show archived/).check();
+  await expect(tmpRow).toContainText("archived");
+  await page.getByRole("dialog").screenshot({ path: "e2e-results/callsigns-archived.png" });
+  await expect(stationPick.locator("option", { hasText: "N0TMP" })).toHaveCount(0);
+  await tmpRow.getByRole("button", { name: "Unarchive" }).click();
+  await expect(stationPick.locator("option", { hasText: "N0TMP" })).toHaveCount(1);
+  await tmpRow.getByRole("button", { name: "Remove" }).click();
+  await expect(tmpRow).toHaveCount(0);
+  await page.getByRole("button", { name: "Close", exact: true }).click();
 
   // Entry fields can differ by mode group: CW gets its own layout with an SKCC box.
   await fromMenu(page, "Settings…");

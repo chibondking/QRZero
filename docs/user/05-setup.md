@@ -17,6 +17,8 @@ Type in the **Search settings** box at the top left to find a setting by its nam
 
 Each log can hold several callsigns, for example your current call and the calls you held before. The default callsign is selected when QRZero starts. Every QSO you log records the station callsign in `STATION_CALLSIGN` and `OPERATOR`.
 
+**Archive** a callsign you no longer hold. An archived call is no longer offered in the top bar, the QSO editor or the QSL pages, and nothing is uploaded under it automatically, but every QSO logged with it stays in the log, and its awards and confirmations still count. It also stays in the Awards and Export lists, so you can still pick it there. Tick **Show archived** under the list to see archived calls, and **Unarchive** brings one back. Archiving the default callsign passes the default to the next one in use. **Remove** is different: it only forgets the call in this list, so use Archive to retire one.
+
 ## Locations
 
 A location is somewhere you operate from: home, a holiday QTH, a park. Locations (and the equipment under them) are shared by every log. Each has a name and the details that describe it:
