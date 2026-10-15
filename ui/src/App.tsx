@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import MainMenu from "./components/MainMenu";
 import VfoBar from "./components/VfoBar";
@@ -130,8 +130,10 @@ export default function App() {
   locationsRef.current = locations;
   const equipmentRef = useRef(equipment);
   equipmentRef.current = equipment;
+  // Archived callsigns stay in `callsigns` (awards and export still list them) but are not offered for new QSOs.
+  const activeCalls = useMemo(() => (callsigns ?? []).filter((c) => !c.archived), [callsigns]);
   const callsignsRef = useRef<StationCallsign[]>([]);
-  callsignsRef.current = callsigns ?? [];
+  callsignsRef.current = activeCalls;
   const [ws, setWsState] = useState<WS>(initialWorkspace);
   const wsRef = useRef(ws);
   const windows = useRef(new Map<PaneId, Window>());
@@ -159,7 +161,8 @@ export default function App() {
     setCallsigns(calls);
     setLocations(locs);
     setEquipment(gear);
-    setStationCall((cur) => (calls.some((c) => c.callsign === cur) ? cur : calls.find((c) => c.is_default)?.callsign ?? calls[0]?.callsign ?? ""));
+    const active = calls.filter((c) => !c.archived);
+    setStationCall((cur) => (active.some((c) => c.callsign === cur) ? cur : active.find((c) => c.is_default)?.callsign ?? active[0]?.callsign ?? ""));
     setLocationId((cur) => (locs.some((l) => l.id === cur) ? cur : locs.find((l) => l.is_default)?.id ?? null));
     return calls;
   }, []);
@@ -341,7 +344,7 @@ export default function App() {
       : {
           logId,
           stationCall,
-          callsigns: callsigns ?? [],
+          callsigns: activeCalls,
           lookup: paneLookup,
           entry: paneEntry,
           home,
@@ -466,8 +469,8 @@ export default function App() {
         </label>
         <label>
           Station
-          <select value={stationCall} onChange={(e) => setStationCall(e.target.value)} disabled={!callsigns.length}>
-            {callsigns.map((c) => <option key={c.id} value={c.callsign}>{c.callsign}</option>)}
+          <select value={stationCall} onChange={(e) => setStationCall(e.target.value)} disabled={!activeCalls.length}>
+            {activeCalls.map((c) => <option key={c.id} value={c.callsign}>{c.callsign}</option>)}
           </select>
         </label>
         <label>
@@ -497,7 +500,7 @@ export default function App() {
         onClosePane={(id) => setWs({ ...wsRef.current, root: removePane(wsRef.current.root, id) })}
         render={(id) => {
           if (id === "entry")
-            return callsigns.length === 0 ? (
+            return activeCalls.length === 0 ? (
               <section className="panel entry">
                 <div className="panel-title"><span>Welcome</span></div>
                 <div className="panel-body">
@@ -613,7 +616,7 @@ export default function App() {
           }}
         />
       )}
-      {(dialog === "qsl" || dialog === "qslqueue") && logId !== null && <QslDialog tab={dialog === "qsl" ? "online" : "queue"} logId={logId} callsigns={callsigns} locations={locations} onClose={() => setDialog(null)} />}
+      {(dialog === "qsl" || dialog === "qslqueue") && logId !== null && <QslDialog tab={dialog === "qsl" ? "online" : "queue"} logId={logId} callsigns={activeCalls} locations={locations} onClose={() => setDialog(null)} />}
       {dialog === "help" && <HelpView onClose={() => setDialog(null)} />}
       {dialog === "about" && <AboutDialog onClose={() => setDialog(null)} />}
     </div>

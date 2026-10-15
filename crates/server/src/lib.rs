@@ -235,6 +235,7 @@ fn router(state: Shared, loopback_only: bool) -> Router {
         .route("/logs/{id}/callsigns", get(list_callsigns).post(add_callsign))
         .route("/callsigns/{id}", axum::routing::delete(delete_callsign))
         .route("/callsigns/{id}/default", post(default_callsign))
+        .route("/callsigns/{id}/archive", post(archive_callsign))
         .route("/logs/{id}/locations", get(list_locations).post(create_location))
         .route("/locations/{id}", put(update_location).delete(delete_location))
         .route("/locations/{id}/default", post(default_location))
@@ -471,6 +472,15 @@ async fn add_callsign(State(s): State<Shared>, Path(id): Path<i64>, Json(b): Jso
 
 async fn delete_callsign(State(s): State<Shared>, Path(id): Path<i64>) -> ApiResult<()> {
     db(&s, move |st| st.delete_callsign(id)).await.map(Json)
+}
+
+#[derive(Deserialize)]
+struct ArchiveBody {
+    archived: bool,
+}
+
+async fn archive_callsign(State(s): State<Shared>, Path(id): Path<i64>, Json(b): Json<ArchiveBody>) -> ApiResult<()> {
+    db(&s, move |st| st.set_callsign_archived(id, b.archived)).await.map(Json)
 }
 
 async fn default_callsign(State(s): State<Shared>, Path(id): Path<i64>) -> ApiResult<()> {

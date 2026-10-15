@@ -20,7 +20,7 @@ use crate::cwclubs::ClubQso;
 use crate::worked::WorkedIndex;
 
 /// Migrations in order; migration N brings the schema to user_version N.
-const MIGRATIONS: &[&str] = &[SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8];
+const MIGRATIONS: &[&str] = &[SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9];
 /// The newest schema this build knows (`PRAGMA user_version`).
 pub const SCHEMA_VERSION: i32 = MIGRATIONS.len() as i32;
 
@@ -82,6 +82,10 @@ DROP TABLE IF EXISTS lookup_cache;
 /// Locations (and the equipment under them) are shared by every log, so one station can be
 /// logged under several callsigns. `locations.log_id` stays as the log a location was made in.
 /// Identical locations that were built once per log are merged into one.
+/// A callsign the operator no longer holds can be archived: hidden from pickers and automatic
+/// uploads, while its QSOs stay exactly as they were.
+const SCHEMA_V9: &str = "ALTER TABLE station_callsigns ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;";
+
 const SCHEMA_V8: &str = r#"
 -- Equipment of a duplicate that the kept location doesn't already have moves across.
 UPDATE equipment SET location_id = (
@@ -273,7 +277,7 @@ impl Store {
 
     pub fn list_callsigns(&self, log_id: i64) -> Result<Vec<StationCallsign>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, log_id, callsign, is_default FROM station_callsigns
+            "SELECT id, log_id, callsign, is_default, archived FROM station_callsigns
              WHERE log_id = ?1 ORDER BY is_default DESC, callsign",
         )?;
         let rows = stmt.query_map([log_id], |r| {
@@ -282,6 +286,7 @@ impl Store {
                 log_id: r.get(1)?,
                 callsign: r.get(2)?,
                 is_default: r.get(3)?,
+                archived: r.get(4)?,
             })
         })?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
@@ -302,7 +307,7 @@ impl Store {
         )?;
         self.conn
             .query_row(
-                "SELECT id, log_id, callsign, is_default FROM station_callsigns
+                "SELECT id, log_id, callsign, is_default, archived FROM station_callsigns
                  WHERE log_id = ?1 AND callsign = ?2",
                 params![log_id, callsign],
                 |r| {
@@ -311,6 +316,7 @@ impl Store {
                         log_id: r.get(1)?,
                         callsign: r.get(2)?,
                         is_default: r.get(3)?,
+                        archived: r.get(4)?,
                     })
                 },
             )
@@ -319,6 +325,46 @@ impl Store {
 
     pub fn set_default_callsign(&mut self, id: i64) -> Result<()> {
         self.set_default("station_callsigns", id)
+    }
+
+    /// Archives or restores a callsign. Archiving the default hands the default to the first
+    /// callsign still in use; QSOs are not touched.
+    pub fn set_callsign_archived(&mut self, id: i64, archived: bool) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        let (log_id, was_default): (i64, bool) = tx
+            .query_row("SELECT log_id, is_default FROM station_callsigns WHERE id = ?1", [id], |r| Ok((r.get(0)?, r.get(1)?)))
+            .optional()?
+            .ok_or_else(|| Error::NotFound(format!("callsign {id}")))?;
+        tx.execute("UPDATE station_callsigns SET archived = ?2 WHERE id = ?1", params![id, archived])?;
+        if archived && was_default {
+            tx.execute("UPDATE station_callsigns SET is_default = 0 WHERE id = ?1", [id])?;
+            tx.execute(
+                "UPDATE station_callsigns SET is_default = 1 WHERE id = (
+                     SELECT id FROM station_callsigns WHERE log_id = ?1 AND archived = 0 ORDER BY callsign LIMIT 1)",
+                [log_id],
+            )?;
+        } else if !archived {
+            let has_default: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM station_callsigns WHERE log_id = ?1 AND is_default = 1)",
+                [log_id],
+                |r| r.get(0),
+            )?;
+            if !has_default {
+                tx.execute("UPDATE station_callsigns SET is_default = 1 WHERE id = ?1", [id])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Callsigns archived in every log that has them, for leaving them out of uploads.
+    pub fn archived_callsigns(&self) -> Result<Vec<String>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT DISTINCT callsign FROM station_callsigns WHERE archived = 1
+             AND callsign NOT IN (SELECT callsign FROM station_callsigns WHERE archived = 0)",
+        )?;
+        let rows = stmt.query_map([], |r| r.get(0))?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
     pub fn delete_callsign(&self, id: i64) -> Result<()> {

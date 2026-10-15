@@ -195,20 +195,31 @@ type Guard = (fn: () => Promise<unknown>) => () => Promise<void>;
 
 function StationTab({ logId, callsigns, guard }: Props & { guard: Guard }) {
   const [call, setCall] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = callsigns.filter((c) => c.archived).length;
+  const shown = callsigns.filter((c) => showArchived || !c.archived);
   return (
     <div>
-      <p className="muted">Callsigns you operate under in this log. Add your old calls too, so imported QSOs are labelled correctly.</p>
+      <p className="muted">Callsigns you operate under in this log. Add your old calls too, so imported QSOs are labelled correctly. Archive a call you no longer hold: it is no longer offered for new QSOs or uploaded, and its QSOs, awards and confirmations stay as they are.</p>
       <table className="list">
         <tbody>
-          {callsigns.map((c) => (
-            <tr key={c.id}>
+          {shown.map((c) => (
+            <tr key={c.id} className={c.archived ? "muted" : undefined}>
               <td className="call">{c.callsign}</td>
-              <td>{c.is_default ? <span className="flag info">default</span> : <button onClick={guard(() => api.defaultCallsign(c.id))}>Make default</button>}</td>
+              <td>
+                {c.archived ? <span className="flag">archived</span>
+                  : c.is_default ? <span className="flag info">default</span>
+                  : <button onClick={guard(() => api.defaultCallsign(c.id))}>Make default</button>}
+              </td>
+              <td><button onClick={guard(() => api.archiveCallsign(c.id, !c.archived))}>{c.archived ? "Unarchive" : "Archive"}</button></td>
               <td><button className="danger" onClick={guard(() => api.deleteCallsign(c.id))}>Remove</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+      {archivedCount > 0 && (
+        <label className="check"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived ({archivedCount})</label>
+      )}
       <div className="row">
         <label className="f"><span>Add callsign</span><input value={call} onChange={(e) => setCall(e.target.value.toUpperCase())} /></label>
         <div className="actions"><button disabled={!call.trim()} onClick={guard(async () => { await api.addCallsign(logId, call); setCall(""); })}>Add</button></div>
