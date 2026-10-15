@@ -56,6 +56,8 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.locator(".map-info")).toContainText("SP");
   await page.locator("#rst-sent").press("Enter");
   await expect(page.getByText("Logged W1AW on 20m CW")).toBeVisible();
+  // The confirmation goes away by itself after a few seconds.
+  await expect(page.getByText("Logged W1AW on 20m CW")).toHaveCount(0, { timeout: 8000 });
   await expect(call).toBeFocused();
   await expect(page.locator(".grid-row").first()).toContainText("W1AW");
 

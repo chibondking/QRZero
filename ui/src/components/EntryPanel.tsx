@@ -105,6 +105,15 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
   const [manualClock, setManualClock] = useState("");
   const [status, setStatus] = useState<{ text: string; kind: "ok" | "err" | "" }>({ text: "", kind: "" });
   const [busy, setBusy] = useState(false);
+  // The "Logged ..." confirmation fades after a few seconds; each new log restarts it.
+  const loggedMsg = status.kind === "ok" && status.text.startsWith("Logged ") ? status : null;
+  const loggedN = useRef({ msg: loggedMsg, n: 0 });
+  if (loggedN.current.msg !== loggedMsg) loggedN.current = { msg: loggedMsg, n: loggedN.current.n + 1 };
+  useEffect(() => {
+    if (!loggedMsg) return;
+    const t = setTimeout(() => setStatus((st) => (st === loggedMsg ? { text: "", kind: "" } : st)), 4000);
+    return () => clearTimeout(t);
+  }, [loggedMsg]);
   const gearKey = `qrzero.gear.${location?.id ?? 0}`;
   const [gear, setGear] = useState<Gear>(() => localGet<Gear>(gearKey, {}));
   // The antenna last picked by hand on each band, preferred by Auto when several fit.
@@ -535,7 +544,7 @@ export default function EntryPanel({ logId, stationCall, location, layout: baseL
               <label className="f w-s"><span>Time UTC</span><input type="time" value={manualClock} onChange={(e) => setManualClock(e.target.value)} /></label>
             </>
           )}
-          <div className={`status ${status.kind}`} role="status">
+          <div key={loggedN.current.n} className={`status ${status.kind}${loggedMsg ? " fades-logged" : ""}`} role="status">
             {status.text || (radio?.error ? `${radio.name}: ${radio.error}` : `${stationCall || "No callsign"} · ${location ? location.name : "no location"}${radio ? ` · ${radio.name}` : ""}`)}
           </div>
           <div className="actions">
