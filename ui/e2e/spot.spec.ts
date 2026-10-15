@@ -49,6 +49,8 @@ async function openSpotBox(page: Page, reply: (r: Route) => Promise<void>) {
   await page.request.post(`/api/logs/${lid}/qsos`, { headers, data: { location_id: null, fields } });
   await page.reload();
   await closeWizard();
+  // Another spec may have left a different tab (such as Cluster) active in the saved layout.
+  await page.getByRole("tab", { name: "Log", exact: true }).click();
   await page.getByTestId("search").fill("JA1XYZ");
   await page.locator(".grid-row", { hasText: "JA1XYZ" }).first().click({ button: "right" });
   await page.getByRole("menuitem", { name: /^Spot JA1XYZ to the cluster/ }).click();
