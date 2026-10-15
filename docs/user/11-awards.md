@@ -16,7 +16,7 @@ The **Awards** pane, a tab next to the log to start with, shows how far you are 
 
 On the **DXCC** tab a line under the toolbar also shows the **DXCC Challenge** (confirmed and worked entity-band slots on 160 to 6 m, 1000 needed) and **5BDXCC** (entities confirmed on 80, 40, 20, 15 and 10 m, 100 needed).
 
-Each row is an entity, state, zone, prefix and so on. The columns are **Mixed**, then **CW**, **Phone** and **Digital**, then each band from 160 m to 6 m, plus 2 m and 70 cm. A green **C** means confirmed and an amber **W** means worked but not yet confirmed. The second header row shows confirmed and worked totals for each column, and the top right shows the overall total.
+Each row is an entity, state, zone, prefix and so on. The columns are **Mixed**, then **CW**, **Phone** and **Digital**, then each band from 160 m to 6 m, plus 2 m and 70 cm. A green **V** on a shaded cell means verified, a green **C** means confirmed and an amber **W** means worked but not yet confirmed. The second header row shows confirmed and worked totals for each column, and the top right shows the overall total.
 
 ## Choosing which awards to show
 
@@ -31,6 +31,17 @@ Tick the sources that count under **Confirmed by**:
 - **LoTW**: QSOs with **LoTW R** = Y. Download them in QSL, LoTW, **Download confirmations**. The page then lists what the download newly confirmed toward your awards.
 - **Cards**: QSOs with **QSL rcvd** = Y, from paper cards you've marked as received.
 - **eQSL**: QSOs with **eQSL R** = Y. ARRL's DXCC and WAS don't accept eQSL, so it's off by default.
+
+## Verified
+
+**V** is a step above **C**: LoTW has granted award credit for that QSO. It is optional. Turn it on under **Settings…**, **Awards**, **Show V (verified)**; until then every LoTW confirmation shows as C.
+
+Credit comes from the QSO's **CREDIT_GRANTED** field. Two ways to fill it:
+
+- With the option on, **QSL**, **LoTW** gets a **Download verified credit** button. It asks LoTW for the DXCC credit granted on your LoTW DXCC award account and stores it on the matching QSOs. This needs your LoTW website login and a DXCC award account linked to your DXCC record, and it covers DXCC only: LoTW does not offer other awards' credit this way.
+- Import an ADIF file that already has CREDIT_GRANTED (for example from another logger). QSOs already in your log are skipped by an import, so use this for new QSOs.
+
+Each cell is V when a credited QSO falls in that cell (Mixed, mode or band); a cell with only plain confirmations stays C. Verified cells count as confirmed, and the top right adds a verified total. Credit is shown whichever sources are ticked under **Confirmed by**.
 
 ## Finding what you need
 

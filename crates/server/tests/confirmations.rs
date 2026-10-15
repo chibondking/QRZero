@@ -35,6 +35,14 @@ async fn mock(uploads: Arc<Mutex<Vec<String>>>) -> QslEndpoints {
         out += &record(&[("CALL", "VK2XYZ"), ("BAND", "40M"), ("MODE", "SSB"), ("QSO_DATE", "20260102"), ("TIME_ON", "0800"), ("QSL_RCVD", "Y")]);
         out
     });
+    let credits = get(|Query(q): Query<std::collections::HashMap<String, String>>| async move {
+        if q.get("password").map(String::as_str) != Some("lotwpw") {
+            return "<html>Username/password incorrect</html>".to_string();
+        }
+        let mut out = String::from("LoTW DXCC credits\n<PROGRAMID:4>LoTW\n<eoh>\n");
+        out += &record(&[("CALL", "W1AW"), ("BAND", "20M"), ("MODE", "CW"), ("QSO_DATE", "20260101"), ("TIME_ON", "1158"), ("CREDIT_GRANTED", "DXCC:LOTW")]);
+        out
+    });
     let inbox = get(|Query(q): Query<std::collections::HashMap<String, String>>| async move {
         if q.get("Password").map(String::as_str) != Some("eqslpw") {
             return "<HTML>Error: No such Username/Password found</HTML>".to_string();
@@ -72,6 +80,7 @@ async fn mock(uploads: Arc<Mutex<Vec<String>>>) -> QslEndpoints {
         .route("/qrz", qrz)
         .route("/getmatches.php", matches)
         .route("/lotwuser/lotwreport.adi", lotw)
+        .route("/lotwuser/logbook/qslcards.php", credits)
         .route("/qslcard/DownloadInBox.cfm", inbox)
         .route("/downloadedfiles/abc.adi", file)
         .route("/qslcard/ImportADIF.cfm", upload);
@@ -80,6 +89,7 @@ async fn mock(uploads: Arc<Mutex<Vec<String>>>) -> QslEndpoints {
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     QslEndpoints {
         lotw_report: format!("http://{addr}/lotwuser/lotwreport.adi"),
+        lotw_credits: format!("http://{addr}/lotwuser/logbook/qslcards.php"),
         eqsl_inbox: format!("http://{addr}/qslcard/DownloadInBox.cfm"),
         eqsl_upload: format!("http://{addr}/qslcard/ImportADIF.cfm"),
         qrz: format!("http://{addr}/qrz"),
@@ -195,6 +205,15 @@ async fn confirmations_awards_and_paper_cards() {
     assert_eq!((ja["LOTW_QSL_RCVD"].as_str(), ja["LOTW_QSLRDATE"].as_str()), (Some("Y"), Some("20260105")));
     assert_eq!(api.fields(log, "W1AW").await["STATE"], "CT", "blank state filled from LoTW");
     assert_eq!(api.get("/qsl").await["config"]["lotw_rcvd_since"], "2026-01-07");
+    // The credit download marks W1AW's QSO as credited, and the award shows it verified only when asked.
+    let c = api.post("/qsl/download/lotw-credit", json!(null)).await;
+    assert_eq!((c["received"].as_u64(), c["confirmed"].as_u64()), (Some(1), Some(1)), "{c}");
+    assert_eq!(api.fields(log, "W1AW").await["CREDIT_GRANTED"], "DXCC:LOTW");
+    let plain = api.get(&format!("/logs/{log}/awards/dxcc?lotw=true&unworked=true")).await;
+    assert!(has_cell(&plain, "291", "20m", "confirmed"), "{plain}");
+    let verified = api.get(&format!("/logs/{log}/awards/dxcc?lotw=true&unworked=true&verified=true")).await;
+    assert!(has_cell(&verified, "291", "20m", "verified"), "{verified}");
+    assert!(has_cell(&verified, "339", "20m", "confirmed"), "{verified}");
     // Downloading again changes nothing.
     let again = api.post("/qsl/download/lotw", json!(null)).await;
     assert_eq!((again["confirmed"].as_u64(), again["new_awards"].as_array().unwrap().len()), (Some(0), 0));

@@ -689,6 +689,29 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   for (let n = 1; n <= 10; n++) clubAdif.push(cwQso(`K${n}CWT`, "20240103", "130500", { CWOPS: String(1000 + n) }));
   await page.getByRole("tab", { name: "Awards" }).click();
   await page.request.post(`/api/logs/${logId}/import`, { headers, data: Buffer.from(clubAdif.join("\n")) });
+  // A QSO LoTW granted DXCC credit for shows V instead of C.
+  await page.request.post(`/api/logs/${logId}/import`, {
+    headers,
+    data: Buffer.from(["<EOH>", cwQso("VK9XX", "20240210", "090000", { DXCC: "35", LOTW_QSL_RCVD: "Y", CREDIT_GRANTED: "DXCC,DXCC_BAND" }), cwQso("ZL1ABC", "20240210", "091000", { DXCC: "170", LOTW_QSL_RCVD: "Y" })].join("\n")),
+  });
+  await page.getByRole("button", { name: "DXCC", exact: true }).click();
+  // Verified is optional: off, the credited QSO is just confirmed.
+  await expect(page.locator(".award-table td.confirmed").first()).toHaveText("C");
+  await expect(page.locator(".award-table td.verified")).toHaveCount(0);
+  await fromMenu(page, "Settings…");
+  await page.getByRole("button", { name: "Awards", exact: true }).click();
+  await page.getByRole("checkbox", { name: /Show V/ }).check();
+  await page.screenshot({ path: "e2e-results/settings-verified.png" });
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  // The LoTW page gets a button to download the credit.
+  await fromMenu(page, /^QSL:/);
+  await expect(page.getByRole("button", { name: "Download verified credit" })).toBeVisible();
+  await page.screenshot({ path: "e2e-results/lotw-verified-button.png" });
+  await page.getByRole("button", { name: "Save and close" }).click();
+  await expect(page.locator(".award-score")).toContainText("verified");
+  await expect(page.locator(".award-table td.verified").first()).toHaveText("V");
+  await expect(page.locator(".award-table td.confirmed").first()).toHaveText("C");
+  await page.screenshot({ path: "e2e-results/awards-verified.png" });
   await page.getByRole("button", { name: "SKCC" }).click();
   const centurion = page.locator(".club-table tbody tr", { hasText: "Centurion" }).first();
   await expect(centurion).toContainText("100");

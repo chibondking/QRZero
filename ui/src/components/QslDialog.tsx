@@ -1,3 +1,4 @@
+import { useTrackVerified } from "../awardsPref";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { onLive } from "../live";
@@ -59,6 +60,13 @@ function DownloadLine({ d }: { d?: QslDownload }) {
   );
 }
 
+function CreditLine({ d }: { d?: QslDownload }) {
+  if (!d) return <span className="muted">Gets the DXCC credit LoTW granted, from your DXCC award account.</span>;
+  if (d.running) return <span>Downloading…</span>;
+  if (d.error) return <span className="err">{d.error}</span>;
+  return <span>{d.received} credited QSO{d.received === 1 ? "" : "s"} from LoTW, {d.confirmed} updated in the log{d.unmatched_count > 0 ? `, ${d.unmatched_count} not found in the log` : ""}.</span>;
+}
+
 function RunLine({ run }: { run?: QslRun }) {
   if (!run) return <span className="muted">Not uploaded yet this session.</span>;
   if (run.running) return <span>Uploading…</span>;
@@ -114,6 +122,7 @@ function Online({ callsigns, locations, onClose }: Props) {
   const [eqslPassword, setEqslPassword] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState("");
+  const trackVerified = useTrackVerified();
   const [lotwLoc, setLotwLoc] = useState("");
   const [svc, setSvc] = useState<"lotw" | "qrz" | "clublog" | "eqsl">("lotw");
 
@@ -169,7 +178,7 @@ function Online({ callsigns, locations, onClose }: Props) {
     }
   };
 
-  const download = async (service: "lotw" | "eqsl" | "qrz" | "clublog") => {
+  const download = async (service: "lotw" | "lotw-credit" | "eqsl" | "qrz" | "clublog") => {
     setBusy(`${service}-rcvd`);
     setMsg(null);
     try {
@@ -295,6 +304,12 @@ function Online({ callsigns, locations, onClose }: Props) {
             <DownloadLine d={o.downloads.lotw} />
           </div>
           {o.downloads.lotw && !o.downloads.lotw.running && !o.downloads.lotw.error && <NewAwards d={o.downloads.lotw} service="lotw" />}
+          {trackVerified && (
+            <div className="row">
+              <button disabled={!!busy || !cfg.lotw_username} onClick={() => download("lotw-credit")}>{busy === "lotw-credit-rcvd" ? "Downloading…" : "Download verified credit"}</button>
+              <CreditLine d={o.downloads["lotw-credit"]} />
+            </div>
+          )}
           <div className="row">
             <label className="check"><input type="checkbox" checked={cfg.lotw_download_enabled} onChange={(e) => set({ lotw_download_enabled: e.target.checked })} /> Download confirmations automatically</label>
             <label className="f w-s"><span>Every (min)</span><input value={cfg.lotw_download_interval_min} disabled={!cfg.lotw_download_enabled} inputMode="numeric" onChange={(e) => set({ lotw_download_interval_min: Math.max(1, Number(e.target.value) || 1440) })} /></label>
