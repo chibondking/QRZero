@@ -318,6 +318,8 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await fromMenu(page, "About QRZero");
   const about = page.getByRole("dialog", { name: "About QRZero" });
   await expect(about).toContainText(/Version \d+\.\d+\.\d+/);
+  await expect(about.getByRole("link", { name: "qrzero.app" })).toHaveAttribute("href", "https://qrzero.app");
+  await about.screenshot({ path: "e2e-results/about.png" });
   await expect(about.getByRole("link", { name: "Releases and downloads" })).toHaveAttribute("href", "https://github.com/nreed97/QRZero/releases");
   await expect(about.getByRole("link", { name: "Report a problem or suggest a change" })).toHaveAttribute("href", "https://github.com/nreed97/QRZero/issues");
   await about.getByRole("button", { name: "Close" }).click();
