@@ -61,10 +61,10 @@ function DownloadLine({ d }: { d?: QslDownload }) {
 }
 
 function CreditLine({ d }: { d?: QslDownload }) {
-  if (!d) return <span className="muted">Gets the DXCC credit LoTW granted, from your DXCC award account.</span>;
+  if (!d) return <span className="muted">Asks LoTW for every confirmation again and stores the DXCC credit it granted.</span>;
   if (d.running) return <span>Downloading…</span>;
   if (d.error) return <span className="err">{d.error}</span>;
-  return <span>{d.received} credited QSO{d.received === 1 ? "" : "s"} from LoTW, {d.confirmed} updated in the log{d.unmatched_count > 0 ? `, ${d.unmatched_count} not found in the log` : ""}.</span>;
+  return <span>{d.received} QSO{d.received === 1 ? "" : "s"} with credit from LoTW, {d.confirmed} updated in the log{d.unmatched_count > 0 ? `, ${d.unmatched_count} not found in the log` : ""}.</span>;
 }
 
 function RunLine({ run }: { run?: QslRun }) {

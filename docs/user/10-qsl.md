@@ -16,7 +16,7 @@ QSOs count as confirmed when LoTW R, QSL R (card), eQSL R, QRZ R or Club Log R i
 
 Club Log OQRS (online QSL request) has no ADIF field, so QRZero keeps your request in its own fields, `APP_QRZERO_OQRS` and `APP_QRZERO_OQRSDATE`. It doesn't talk to Club Log's OQRS queue; it's a reminder that you've asked. To mark many QSOs, select them in the log and pick **Paper QSL…, Mark OQRS requested**, or right-click.
 
-With **Show V (verified)** on in Settings, Awards, the LoTW page also has **Download verified credit**, which stores the DXCC credit LoTW granted so the Awards pane can show V. See Awards.
+With **Show V (verified)** on in Settings, Awards, the LoTW page also has **Download verified credit**, which reads the award credit from all your LoTW confirmations so the Awards pane can show V. See Awards.
 
 Log grid columns for all of this: **LoTW R**, **QSL R**, **QRZ R**, **Club Log R**, **OQRS** and **Confirmed** (letters for each confirming service: L LoTW, C card, E eQSL, Q QRZ, G Club Log).
 

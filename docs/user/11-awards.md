@@ -34,14 +34,14 @@ Tick the sources that count under **Confirmed by**:
 
 ## Verified
 
-**V** is a step above **C**: LoTW has granted award credit for that QSO. It is optional. Turn it on under **Settings…**, **Awards**, **Show V (verified)**; until then every LoTW confirmation shows as C.
+**V** is a step above **C** and applies to **DXCC** only: LoTW has granted DXCC credit for that QSO. It is optional. Turn it on under **Settings…**, **Awards**, **Show V (verified)**; until then every LoTW confirmation shows as C.
 
-Credit comes from the QSO's **CREDIT_GRANTED** field. Two ways to fill it:
+Credit comes from the QSO's **CREDIT_GRANTED** field (and LoTW's `APP_LoTW_CREDIT_GRANTED`). Two ways to fill it:
 
-- With the option on, **QSL**, **LoTW** gets a **Download verified credit** button. It asks LoTW for the DXCC credit granted on your LoTW DXCC award account and stores it on the matching QSOs. This needs your LoTW website login and a DXCC award account linked to your DXCC record, and it covers DXCC only: LoTW does not offer other awards' credit this way.
+- With the option on, **QSL**, **LoTW** gets a **Download verified credit** button. It downloads all your LoTW confirmations again and stores the credit LoTW lists on them. Run it once, then normal confirmation downloads keep the credit up to date for new confirmations. It needs your LoTW website login.
 - Import an ADIF file that already has CREDIT_GRANTED (for example from another logger). QSOs already in your log are skipped by an import, so use this for new QSOs.
 
-Each cell is V when a credited QSO falls in that cell (Mixed, mode or band); a cell with only plain confirmations stays C. Verified cells count as confirmed, and the top right adds a verified total. Credit is shown whichever sources are ticked under **Confirmed by**.
+Each cell is V when a credited QSO falls in that cell; a cell with only plain confirmations stays C. LoTW says whether the credit was for Mixed, a mode or a band, and only those cells turn V. Verified cells count as confirmed, and the top right adds a verified total. Credit is shown whichever sources are ticked under **Confirmed by**.
 
 ## Finding what you need
 

@@ -76,8 +76,63 @@ pub struct AwardQso {
     /// Awards this QSO was granted credit for (ADIF CREDIT_GRANTED, as written by LoTW):
     /// bit `1 << award as usize` per [`Award`]. See [`credit_mask`].
     pub credit: u16,
+    /// For DXCC credit, the columns the credit was granted for (bit per [`COLUMNS`] entry), when
+    /// LoTW said (Mixed, a mode group or a band). `None`: every column the QSO fills.
+    pub credit_cols: Option<u16>,
     /// QSO row id, so the UI can list QSOs for a cell.
     pub id: i64,
+}
+
+/// The DXCC award columns a QSO's credit covers, from its ADIF CREDIT_GRANTED (`DXCC`, `DXCC_BAND`,
+/// `DXCC_MODE`) and LoTW's APP_LOTW_CREDIT_GRANTED (`DXCC-20`, `DXCC-CW`, `DXCC-M-HR`...), given the
+/// QSO's own mode and band. `None` when neither names DXCC credit.
+pub fn dxcc_credit_cols(
+    credit: &str,
+    app_credit: &str,
+    mode: Option<&str>,
+    band: Option<&str>,
+) -> Option<u16> {
+    let (mut found, mut cols) = (false, 0u16);
+    let mut add = |c: Option<usize>| {
+        found = true;
+        if let Some(c) = c {
+            cols |= 1 << c;
+        }
+    };
+    for part in credit.split(',') {
+        match part
+            .split(':')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_uppercase()
+            .as_str()
+        {
+            "DXCC" => add(Some(0)),
+            "DXCC_BAND" => add(band.and_then(band_col)),
+            "DXCC_MODE" => add(mode.and_then(mode_col)),
+            n if n.starts_with("DXCC") => add(None),
+            _ => {}
+        }
+    }
+    for part in app_credit.split(',') {
+        let name = part.trim().to_ascii_uppercase();
+        let Some(rest) = name.strip_prefix("DXCC-") else {
+            continue;
+        };
+        let rest = rest.strip_suffix("-HR").unwrap_or(rest);
+        add(match rest {
+            "M" => Some(0),
+            "CW" => Some(COL_CW),
+            "PH" => Some(COL_PHONE),
+            "RTTY" => Some(COL_DIGITAL),
+            n => n
+                .parse::<u32>()
+                .ok()
+                .and_then(|n| band_col(&format!("{n}m"))),
+        });
+    }
+    found.then_some(cols)
 }
 
 /// The awards named in an ADIF CREDIT_GRANTED value like `DXCC,DXCC_BAND:LOTW,WAS`, as a bit per [`Award`].
@@ -122,10 +177,19 @@ impl AwardQso {
         let dxcc = get("DXCC").and_then(|d| d.parse().ok());
         let cont = get("CONT").map(str::to_ascii_uppercase);
         let itu = get("ITUZ").and_then(|z| z.parse().ok());
-        let facts = if dxcc.is_none() || cont.is_none() || itu.is_none() { resolve(&call) } else { CtyFacts::default() };
+        let facts = if dxcc.is_none() || cont.is_none() || itu.is_none() {
+            resolve(&call)
+        } else {
+            CtyFacts::default()
+        };
+        let credit = get("CREDIT_GRANTED").unwrap_or("");
+        let app_credit = get("APP_LOTW_CREDIT_GRANTED").unwrap_or("");
+        let band = get("BAND").map(str::to_ascii_lowercase);
+        let mode = get("SUBMODE").or(get("MODE")).map(str::to_ascii_uppercase);
         AwardQso {
-            band: get("BAND").map(str::to_ascii_lowercase),
-            mode: get("SUBMODE").or(get("MODE")).map(str::to_ascii_uppercase),
+            credit_cols: dxcc_credit_cols(credit, app_credit, mode.as_deref(), band.as_deref()),
+            band,
+            mode,
             dxcc: dxcc.or(facts.dxcc),
             cont: cont.or(facts.cont),
             itu: itu.or(facts.itu),
@@ -137,7 +201,7 @@ impl AwardQso {
             lotw: yes("LOTW_QSL_RCVD"),
             paper: yes("QSL_RCVD"),
             eqsl: yes("EQSL_QSL_RCVD"),
-            credit: get("CREDIT_GRANTED").map_or(0, credit_mask),
+            credit: credit_mask(credit) | credit_mask(app_credit),
             id: 0,
             call,
         }
@@ -514,18 +578,30 @@ impl Tally {
     pub fn add(&mut self, q: &AwardQso) {
         let Some(id) = row_id(self.award, q) else { return };
         let c = &self.counts;
-        let v = if self.verified && q.credit & (1 << self.award as usize) != 0 {
-            3
-        } else if (c.lotw && q.lotw) || (c.paper && q.paper) || (c.eqsl && q.eqsl) {
+        let base = if (c.lotw && q.lotw) || (c.paper && q.paper) || (c.eqsl && q.eqsl) {
             2
         } else {
             1
+        };
+        // Only DXCC has verified credit; it says which columns the credit was granted for.
+        let credited = self.verified && self.award == Award::Dxcc && q.credit & (1 << self.award as usize) != 0;
+        let cols = if self.award == Award::Dxcc {
+            q.credit_cols
+        } else {
+            None
+        };
+        let value = |i: usize| {
+            if credited && cols.is_none_or(|m| m >> i & 1 == 1) {
+                3
+            } else {
+                base
+            }
         };
         let cells = match id {
             RowId::Num(n) => self.nums.entry(n).or_insert([0; NCOLS]),
             RowId::Text(s) => self.texts.entry(s).or_insert([0; NCOLS]),
         };
-        let mut set = |i: usize| cells[i] = cells[i].max(v);
+        let mut set = |i: usize| cells[i] = cells[i].max(value(i));
         set(0);
         if let Some(i) = q.mode.as_deref().and_then(mode_col) {
             set(i);
@@ -911,6 +987,52 @@ mod tests {
         assert_eq!((col("20m").confirmed, col("20m").verified), (1, 0));
         assert_eq!(tab.rows[0].cells.get("40m"), Some(&Status::Verified));
         assert_eq!(tab.rows[0].cells.get("20m"), Some(&Status::Confirmed));
+    }
+
+    #[test]
+    fn dxcc_credit_names_the_verified_columns() {
+        let bit = |c: &str| 1u16 << COLUMNS.iter().position(|x| *x == c).unwrap();
+        assert_eq!(
+            dxcc_credit_cols("DXCC", "DXCC-M", None, None),
+            Some(bit("mixed"))
+        );
+        assert_eq!(
+            dxcc_credit_cols("DXCC_BAND", "", None, Some("20m")),
+            Some(bit("20m"))
+        );
+        assert_eq!(
+            dxcc_credit_cols("", "DXCC-CW-HR,DXCC-40,DXCC-CHAL", None, None),
+            Some(bit("cw") | bit("40m"))
+        );
+        assert_eq!(dxcc_credit_cols("WAS", "", Some("CW"), Some("20m")), None);
+        // Only the credited columns are verified; the rest of the QSO's cells are plain confirmations.
+        let mut t = Tally::new(
+            Award::Dxcc,
+            Counts {
+                lotw: true,
+                ..Counts::default()
+            },
+            BTreeMap::new(),
+        )
+        .with_verified(true);
+        let credit = dxcc_credit_cols("", "DXCC-M,DXCC-20", None, None);
+        t.add(&AwardQso {
+            dxcc: Some(291),
+            lotw: true,
+            credit: 1,
+            credit_cols: credit,
+            ..q("K1ABC", "20m", "CW")
+        });
+        let tab = t.finish(false);
+        let cell = |k: &str| tab.rows[0].cells.get(k).copied();
+        assert_eq!(
+            (cell("mixed"), cell("20m"), cell("cw")),
+            (
+                Some(Status::Verified),
+                Some(Status::Verified),
+                Some(Status::Confirmed)
+            )
+        );
     }
 
     fn all_counts() -> Counts {

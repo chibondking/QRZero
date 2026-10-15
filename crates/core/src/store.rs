@@ -626,6 +626,8 @@ impl Store {
             EQSL_QSL_RCVD: Option<std::borrow::Cow<'a, str>>,
             #[serde(borrow)]
             CREDIT_GRANTED: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            APP_LOTW_CREDIT_GRANTED: Option<std::borrow::Cow<'a, str>>,
         }
         let yes = |v: &Option<std::borrow::Cow<str>>| matches!(v.as_deref(), Some("Y") | Some("V"));
         let mut q = AwardQso::default();
@@ -654,7 +656,17 @@ impl Store {
             q.lotw = yes(&facts.LOTW_QSL_RCVD);
             q.paper = yes(&facts.QSL_RCVD);
             q.eqsl = yes(&facts.EQSL_QSL_RCVD);
-            q.credit = facts.CREDIT_GRANTED.as_deref().map_or(0, crate::awards::credit_mask);
+            let (credit, app_credit) = (
+                facts.CREDIT_GRANTED.as_deref().unwrap_or(""),
+                facts.APP_LOTW_CREDIT_GRANTED.as_deref().unwrap_or(""),
+            );
+            q.credit = crate::awards::credit_mask(credit) | crate::awards::credit_mask(app_credit);
+            q.credit_cols = crate::awards::dxcc_credit_cols(
+                credit,
+                app_credit,
+                q.mode.as_deref(),
+                q.band.as_deref(),
+            );
             f(&q);
         }
         Ok(())

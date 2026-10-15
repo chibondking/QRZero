@@ -732,9 +732,9 @@ function AwardsTab() {
       <fieldset>
         <legend>Verified credit</legend>
         <label className="check">
-          <input type="checkbox" checked={verified} onChange={(e) => setTrackVerified(e.target.checked)} /> Show <b>V</b> (verified) for QSOs LoTW granted award credit
+          <input type="checkbox" checked={verified} onChange={(e) => setTrackVerified(e.target.checked)} /> Show <b>V</b> (verified) in DXCC for QSOs LoTW granted DXCC credit
         </label>
-        <p className="small muted">Off, every LoTW confirmation shows as C. On, QSOs with credit show V. LoTW sends credit in its own report: under QSL, LoTW, a Download verified credit button then appears.</p>
+        <p className="small muted">Off, every LoTW confirmation shows as C. On, QSOs with credit show V. LoTW grants credit itself, so under QSL, LoTW a Download verified credit button then appears; it reads the credit from all your LoTW confirmations.</p>
       </fieldset>
       <div className="row">
         <button onClick={() => setAwardsOff([])}>Select all</button>

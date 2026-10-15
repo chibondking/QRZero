@@ -14,8 +14,6 @@ use crate::qsl::{form_encode, net_reason, http_client, upload_record, url_decode
 
 /// Production LoTW report endpoint.
 pub const LOTW_REPORT_ENDPOINT: &str = "https://lotw.arrl.org/lotwuser/lotwreport.adi";
-/// LoTW's DXCC credit report: the QSOs granted DXCC credit on a linked DXCC award account.
-pub const LOTW_CREDITS_ENDPOINT: &str = "https://lotw.arrl.org/lotwuser/logbook/qslcards.php";
 /// Production eQSL inbox download endpoint.
 pub const EQSL_INBOX_ENDPOINT: &str = "https://www.eqsl.cc/qslcard/DownloadInBox.cfm";
 /// Production eQSL ADIF upload endpoint.
@@ -123,28 +121,13 @@ pub async fn lotw_confirmations(
     Ok(LotwReport { records: file.records, last_qsl })
 }
 
-/// Downloads the QSOs LoTW granted DXCC credit for (needs a LoTW DXCC award account linked to
-/// a DXCC record). Each record carries CREDIT_GRANTED.
-pub async fn lotw_credits(endpoint: &str, username: &str, password: &str) -> Result<Vec<Fields>, QslError> {
-    let q = [("login", username.trim()), ("password", password)];
-    let text = get_text(&download_client(), &with_query(endpoint, &q), "LoTW").await?;
-    if !text.to_ascii_lowercase().contains("<eoh>") {
-        let lower = text.to_ascii_lowercase();
-        return Err(if lower.contains("password") || lower.contains("login") {
-            QslError::Auth("LoTW refused the username or password".into())
-        } else {
-            QslError::Service(format!("LoTW: {}", visible_text(&text)))
-        });
-    }
-    Ok(adif::parse(text.as_bytes()).records)
-}
-
-/// The fields to apply to the log QSO matched to a downloaded LoTW credit record: the credit granted.
-pub fn credit_updates(rec: &Fields) -> ConfirmUpdate {
-    let mut set = Fields::new();
-    let credit = nonempty(rec, "CREDIT_GRANTED").unwrap_or("DXCC");
-    set.insert("CREDIT_GRANTED".into(), credit.to_string());
-    ConfirmUpdate { set, fill: Fields::new() }
+/// The credit fields of a record from LoTW's QSO report, or `None` when it carries none.
+pub fn report_credit(rec: &Fields) -> Option<Fields> {
+    let set: Fields = ["CREDIT_GRANTED", "APP_LOTW_CREDIT_GRANTED"]
+        .iter()
+        .filter_map(|k| nonempty(rec, k).map(|v| (k.to_string(), v.to_string())))
+        .collect();
+    (!set.is_empty()).then_some(set)
 }
 
 /// Downloads eQSL inbox confirmations received since `since` (YYYY-MM-DD;
@@ -545,9 +528,7 @@ pub fn confirmation_updates(service: Service, rec: &Fields) -> ConfirmUpdate {
     set.insert(date_key.into(), date_field(rec, date_sources).unwrap_or_else(today));
     // LoTW says which awards it credited the QSO toward, when the report carries that.
     if service == Service::Lotw {
-        if let Some(c) = nonempty(rec, "CREDIT_GRANTED") {
-            set.insert("CREDIT_GRANTED".into(), c.to_string());
-        }
+        set.extend(report_credit(rec).unwrap_or_default());
     }
     let mut fill: Fields = fill_keys.iter().filter_map(|k| nonempty(rec, k).map(|v| (k.to_string(), v.to_string()))).collect();
     fill.insert(sent_date, today());
