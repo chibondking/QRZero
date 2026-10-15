@@ -36,6 +36,7 @@ mod udp_out;
 mod contests;
 mod updates;
 mod dxped;
+mod mostwanted;
 mod watch;
 
 pub use qsl::Endpoints as QslEndpoints;
@@ -71,6 +72,8 @@ pub struct Config {
     pub dxped_url: String,
     /// WA7BNM's contest calendar feed (tests point this at a stand-in).
     pub contests_url: String,
+    /// Club Log's Most Wanted list (tests point this at a stand-in).
+    pub mostwanted_url: String,
     /// GitHub releases list for the update check (tests point this at a stand-in).
     pub updates_url: String,
     /// Start the programs listed under Settings, Startup programs.
@@ -91,6 +94,7 @@ impl Config {
             propagation_url: propagation::DEFAULT_URL.to_string(),
             dxped_url: dxped::DEFAULT_URL.to_string(),
             contests_url: contests::DEFAULT_URL.to_string(),
+            mostwanted_url: mostwanted::DEFAULT_URL.to_string(),
             updates_url: updates::DEFAULT_URL.to_string(),
             launch_apps: true,
         }
@@ -155,6 +159,7 @@ pub async fn start(cfg: Config) -> anyhow::Result<Running> {
     hub.start(cfg.update_cty);
     hub.dxped.set_url(cfg.dxped_url);
     hub.contests.set_url(cfg.contests_url);
+    hub.mostwanted.set_url(cfg.mostwanted_url);
     hub.updates.set_url(cfg.updates_url);
     if cfg.update_cty {
         updates::spawn(&hub);
@@ -163,7 +168,7 @@ pub async fn start(cfg: Config) -> anyhow::Result<Running> {
         tokio::spawn(async move {
             loop {
                 let Some(hub) = weak.upgrade() else { break };
-                let wait = dxped::refresh(&hub, false).await.min(contests::refresh(&hub, false).await);
+                let wait = dxped::refresh(&hub, false).await.min(contests::refresh(&hub, false).await).min(mostwanted::refresh(&hub).await);
                 drop(hub);
                 tokio::time::sleep(wait).await;
             }
@@ -296,6 +301,8 @@ fn router(state: Shared, loopback_only: bool) -> Router {
         .route("/watch/hits", get(watch_hits))
         .route("/dxpeditions", get(dxped_get).put(dxped_put))
         .route("/dxpeditions/refresh", post(dxped_refresh))
+        .route("/mostwanted", get(mostwanted_get))
+        .route("/mostwanted/refresh", post(mostwanted_refresh))
         .route("/updates", get(updates_get).put(updates_put))
         .route("/contests", get(contests_get))
         .route("/contests/refresh", post(contests_refresh))
@@ -1799,6 +1806,15 @@ async fn dxped_get(State(s): State<Shared>) -> ApiResult<serde_json::Value> {
 async fn dxped_put(State(s): State<Shared>, Json(list): Json<Vec<dxped::Planned>>) -> ApiResult<serde_json::Value> {
     dxped::save_manual(&s.hub, list).map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(dxped_view(&s)))
+}
+
+async fn mostwanted_get(State(s): State<Shared>) -> Json<serde_json::Value> {
+    Json(s.hub.mostwanted.view())
+}
+
+async fn mostwanted_refresh(State(s): State<Shared>) -> Json<serde_json::Value> {
+    mostwanted::refresh(&s.hub).await;
+    Json(s.hub.mostwanted.view())
 }
 
 async fn dxped_refresh(State(s): State<Shared>) -> ApiResult<serde_json::Value> {

@@ -412,6 +412,8 @@ pub struct Hub {
     pub(crate) watch: crate::watch::Watch,
     /// DXpeditions from the calendar feed and the user's own.
     pub(crate) dxped: crate::dxped::Dxped,
+    /// Club Log's Most Wanted ranking of entities.
+    pub(crate) mostwanted: crate::mostwanted::MostWanted,
     /// Contests from the WA7BNM calendar feed.
     pub(crate) contests: crate::contests::Contests,
     pub(crate) updates: crate::updates::Updates,
@@ -443,8 +445,9 @@ impl Hub {
             .unwrap_or_default();
         let udp = crate::udp_out::Outputs::new(conns);
         let dxped = crate::dxped::saved(|k| store.lock().unwrap_or_else(|p| p.into_inner()).get_setting(k).ok().flatten());
+        let mostwanted = crate::mostwanted::saved(|k| store.lock().unwrap_or_else(|p| p.into_inner()).get_setting(k).ok().flatten());
         let contests = crate::contests::saved(|k| store.lock().unwrap_or_else(|p| p.into_inner()).get_setting(k).ok().flatten());
-        let hub = Arc::new(Hub { store, data_dir, events, inner: Mutex::default(), cty: RwLock::default(), watch, dxped, contests, updates: crate::updates::Updates::new(), udp, auto_lookup: Mutex::default() });
+        let hub = Arc::new(Hub { store, data_dir, events, inner: Mutex::default(), cty: RwLock::default(), watch, dxped, mostwanted, contests, updates: crate::updates::Updates::new(), udp, auto_lookup: Mutex::default() });
         if let Err(e) = hub.load_cty_file() {
             tracing::info!("no country file yet: {e}");
         }
