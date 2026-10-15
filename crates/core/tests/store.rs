@@ -223,7 +223,7 @@ fn equipment_per_location() {
     assert_eq!(ic7300.kind, "rig");
 
     st.move_equipment(ic7300.id, -1).unwrap();
-    let all = st.list_equipment(log).unwrap();
+    let all = st.list_equipment().unwrap();
     let home_rigs: Vec<_> = all.iter().filter(|e| e.location_id == home.id && e.kind == "rig").map(|e| e.name.as_str()).collect();
     assert_eq!(home_rigs, ["IC-7300", "K3"]);
     assert_eq!(all.len(), 4);
@@ -231,7 +231,7 @@ fn equipment_per_location() {
     let moved = st.update_equipment(k3.id, park.id, "rig", "K3", &k3.fields).unwrap();
     assert_eq!(moved.location_id, park.id);
     st.delete_location(park.id).unwrap();
-    assert_eq!(st.list_equipment(log).unwrap().len(), 2, "equipment goes with its location");
+    assert_eq!(st.list_equipment().unwrap().len(), 2, "equipment goes with its location");
 }
 
 #[test]
@@ -313,4 +313,32 @@ fn paper_queue_holds_only_queued_cards_and_marking_touches_only_the_ids_given() 
     let queue = st.paper_queue(log).unwrap();
     assert_eq!(queue.iter().map(|q| q.id).collect::<Vec<_>>(), [a.id]);
     assert!(!queue.iter().any(|q| q.id == b.id));
+}
+
+#[test]
+fn locations_and_gear_are_shared_by_every_log() {
+    let (mut st, personal) = setup();
+    let club = st.create_log("Club").unwrap().id;
+    let home = st.create_location(personal, "Home", &Fields::new()).unwrap();
+    let park = st.create_location(club, "Park", &Fields::new()).unwrap();
+    st.create_equipment(home.id, "rig", "K3", &Fields::new()).unwrap();
+    assert!(home.is_default && !park.is_default);
+
+    let names: Vec<_> = st.list_locations().unwrap().into_iter().map(|l| l.name).collect();
+    assert_eq!(names, ["Home", "Park"], "both logs see both locations");
+    assert_eq!(st.list_equipment().unwrap().len(), 1);
+
+    st.set_default_location(park.id).unwrap();
+    let defaults: Vec<_> = st.list_locations().unwrap().into_iter().filter(|l| l.is_default).map(|l| l.name).collect();
+    assert_eq!(defaults, ["Park"], "one default location overall");
+
+    // A QSO in the club log may use a location made in the personal log.
+    let q = st.insert_qso(club, Some(home.id), &f(&[("CALL", "W1AW"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "20m"), ("MODE", "CW")])).unwrap();
+    assert_eq!(q.location_id, Some(home.id));
+
+    // Deleting the log a location was made in keeps the location, its gear and the other log's QSOs.
+    st.delete_log(personal).unwrap();
+    assert_eq!(st.list_locations().unwrap().len(), 2);
+    assert_eq!(st.list_equipment().unwrap().len(), 1);
+    assert_eq!(st.get_qso(q.id).unwrap().location_id, Some(home.id));
 }

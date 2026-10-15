@@ -280,7 +280,7 @@ function LogsTab({ logs, logId, onSwitchLog, guard }: Props & { guard: Guard }) 
   const [renames, setRenames] = useState<Record<number, string>>({});
   return (
     <div>
-      <p className="muted">Each log is separate, for example one per operator. Switch logs from the top bar.</p>
+      <p className="muted">Each log keeps its own QSOs and callsigns, for example one for a personal call and one for a club call. Locations and equipment are shared by every log. Switch logs from the top bar.</p>
       <table className="list">
         <tbody>
           {logs.map((l) => (

@@ -19,7 +19,7 @@ Each log can hold several callsigns, for example your current call and the calls
 
 ## Locations
 
-A location is somewhere you operate from: home, a holiday QTH, a park. Each has a name and the details that describe it:
+A location is somewhere you operate from: home, a holiday QTH, a park. Locations (and the equipment under them) are shared by every log. Each has a name and the details that describe it:
 
 | Setting | ADIF field |
 | --- | --- |
@@ -29,7 +29,7 @@ A location is somewhere you operate from: home, a holiday QTH, a park. Each has 
 | IOTA, SOTA, POTA, WWFF references | `MY_IOTA`, `MY_SOTA_REF`, `MY_POTA_REF`, `MY_WWFF_REF` |
 | Rig, Antenna | `MY_RIG`, `MY_ANTENNA` (only used when no equipment is picked) |
 
-One location is the **default**: it's selected when QRZero starts and offered first when importing. Pick a different location in the top bar before logging from somewhere else.
+One location is the **default** (one for the whole program): it's selected when QRZero starts and offered first when importing. Pick a different location in the top bar before logging from somewhere else.
 
 Removing a location doesn't change QSOs already logged from it; they keep their details.
 
@@ -73,7 +73,7 @@ The options people change most. They apply at once and are kept with your other 
 
 ## Logs
 
-Logs are completely separate, for example one per operator sharing the computer. Create, rename, open or delete logs on the **Logs** tab, and switch between them from the top bar. Deleting a log removes all its QSOs, so QRZero asks you to type the log's name first.
+Each log has its own QSOs, callsigns and notes, for example one for your personal call and one for a club call, or one per operator sharing the computer. **Locations and equipment are shared by every log**, so a station used under two callsigns is built once: both logs show the same locations and gear, and a change in one appears in the other. Deleting a log keeps the locations it was created with. Create, rename, open or delete logs on the **Logs** tab, and switch between them from the top bar. Deleting a log removes all its QSOs, so QRZero asks you to type the log's name first.
 
 ## Callsign lookup
 

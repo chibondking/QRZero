@@ -463,7 +463,7 @@ impl Hub {
         // Until the UI says otherwise: the first log, its default location and callsign.
         let initial = self.with_store(|st| {
             let Some(log) = st.list_logs()?.into_iter().next() else { return Ok(Active::default()) };
-            let location_id = st.list_locations(log.id)?.into_iter().find(|l| l.is_default).map(|l| l.id);
+            let location_id = st.list_locations()?.into_iter().find(|l| l.is_default).map(|l| l.id);
             let station_callsign = st.list_callsigns(log.id)?.into_iter().find(|c| c.is_default).map(|c| c.callsign).unwrap_or_default();
             Ok(Active { log_id: Some(log.id), location_id, station_callsign })
         });
@@ -691,8 +691,8 @@ impl Hub {
             (inner.active.log_id, inner.active.location_id)
         };
         let wanted: Vec<(i64, String, RigConfig)> = match (log_id, loc_id) {
-            (Some(log), Some(loc)) => self
-                .with_store(|st| st.list_equipment(log))
+            (Some(_), Some(loc)) => self
+                .with_store(|st| st.list_equipment())
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|e| e.location_id == loc && e.kind == "rig")
@@ -1232,7 +1232,7 @@ impl Hub {
         self.fill_from_cty(&mut fields);
         let result = self.with_store(|st| {
             if let Some(loc) = active.location_id {
-                let gear = st.list_equipment(log_id)?;
+                let gear = st.list_equipment()?;
                 fill_antenna(&mut fields, gear.iter().filter(|e| e.location_id == loc));
             }
             if let Some((id, replace)) = n1mm_id {
