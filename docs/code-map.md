@@ -42,7 +42,7 @@ Search tip: each Rust module starts with a `//!` doc comment saying what it is, 
 - Online uploads and QSL queues: `qsl.rs`. Label printing: `label.rs`.
 - Custom UDP connections and relay: `udp_out.rs`. Programs started with QRZero: `startup.rs`.
 - Backups API: `backups.rs`. Update check: `updates.rs`.
-- Feeds: `propagation.rs`, `contests.rs`, `dxped.rs`.
+- Feeds: `propagation.rs`, `contests.rs`, `dxped.rs`, `mostwanted.rs` (Club Log Most Wanted ranks).
 - Tests: `crates/server/tests` (each file is named for its area; `api.rs` is the general one).
 
 ## UI (`ui/src`)

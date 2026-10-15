@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { AlertGate, needRank, spotKey, type NeededAlertConfig } from "../src/needed";
+import { AlertGate, compareNeeded, needRank, spotKey, type NeededAlertConfig } from "../src/needed";
 import type { Spot } from "../src/types";
 
 const flags = (o: Partial<NonNullable<Spot["needed"]>>) => ({ new_call: true, new_call_band: true, new_dxcc: false, new_band: false, new_mode: false, ...o });
@@ -36,4 +36,15 @@ test("the alert level limits what alerts", () => {
   // A spot that did not alert is not remembered as having alerted.
   expect(gate.check(spot("K2", { new_band: true }), { ...cfg, level: 1 }, 0)).toBe(true);
   expect(gate.check(spot("K3", {}), cfg, 0)).toBe(false);
+});
+
+test("within a need, the most wanted entity comes first, then the newest spot", () => {
+  const rows = [
+    { id: "unranked new", rank: 0 as const, wanted: Infinity, received: 900 },
+    { id: "band, wanted 3", rank: 1 as const, wanted: 3, received: 100 },
+    { id: "entity, wanted 50 old", rank: 0 as const, wanted: 50, received: 100 },
+    { id: "entity, wanted 50 new", rank: 0 as const, wanted: 50, received: 200 },
+    { id: "entity, wanted 5", rank: 0 as const, wanted: 5, received: 10 },
+  ];
+  expect(rows.sort(compareNeeded).map((r) => r.id)).toEqual(["entity, wanted 5", "entity, wanted 50 new", "entity, wanted 50 old", "unranked new", "band, wanted 3"]);
 });

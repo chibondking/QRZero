@@ -46,6 +46,8 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await wizard.getByRole("button", { name: "Start logging" }).click();
   await expect(page.getByText("N0CALL · Home")).toBeVisible();
   await expect(page.getByLabel("Their POTA")).toBeVisible();
+  // Another spec may have left a different tab (such as Needed now) in front of the Log in the saved layout.
+  await page.getByRole("tab", { name: "Log", exact: true }).click();
 
   // Log a QSO from the keyboard.
   const call = page.getByTestId("call");

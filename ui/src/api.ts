@@ -1,4 +1,4 @@
-import type { LogStats, UpdateInfo, ContestList, DxpedList, DxpedPlanned, PropagationReport } from "./types";
+import type { LogStats, UpdateInfo, ContestList, DxpedList, MostWanted, DxpedPlanned, PropagationReport } from "./types";
 import type { ClubAwards, QslQueue, QslService, QslDownload, AwardHint, SlotGrid, AwardKind, AwardTable, ClusterConfig, ClusterSnapshot, QslConfig, QslOverview, QslRun, QslSecrets, CtyStatus, Equipment, Fields, FtxConfigure, FtxDecode, FtxInstance, IntegrationStatus, Integrations, ImportReport, Location, Log, LookupResult, Note, Qso, QsoFilter, RunStatus, Settings, StartupApp, StationCallsign, UdpConnection, WatchEntry, WatchHit, CtyEntityInfo } from "./types";
 
 // The session token arrives once in the URL (?token=...) and is kept for this tab.
@@ -172,6 +172,7 @@ export const api = {
   setUpdates: (enabled: boolean) => json<UpdateInfo>("PUT", "/updates", { enabled }),
   contests: () => json<ContestList>("GET", "/contests"),
   refreshContests: () => json<ContestList>("POST", "/contests/refresh"),
+  mostWanted: () => json<MostWanted>("GET", "/mostwanted"),
   dxpeditions: () => json<DxpedList>("GET", "/dxpeditions"),
   refreshDxpeditions: () => json<DxpedList>("POST", "/dxpeditions/refresh"),
   saveDxpeditions: (list: DxpedPlanned[]) => json<DxpedList>("PUT", "/dxpeditions", list),

@@ -45,3 +45,9 @@ export class AlertGate {
     return true;
   }
 }
+
+export interface NeededRow { rank: NeedRank; /** Club Log Most Wanted rank, Infinity when unknown. */ wanted: number; received: number }
+
+/** New entity, band, mode; then the most wanted entity (unranked last); then the newest spot. */
+export const compareNeeded = (a: NeededRow, b: NeededRow) =>
+  a.rank - b.rank || (a.wanted === b.wanted ? 0 : a.wanted < b.wanted ? -1 : 1) || b.received - a.received;

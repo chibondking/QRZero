@@ -356,6 +356,8 @@ export interface DxpedItem {
   spot: DxpedSpot | null;
 }
 export interface DxpedList { items: DxpedItem[]; fetched_at: number | null; error: string | null; url: string }
+/** Club Log's Most Wanted: DXCC entity code to rank (1 is the most wanted). */
+export interface MostWanted { ranks: Record<string, number>; fetched_at: number | null; error: string | null }
 export interface DxpedPlanned { id: number; call: string; start: string; end: string; note: string }
 export interface ContestItem {
   title: string;

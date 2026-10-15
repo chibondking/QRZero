@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { onLive } from "../live";
 import { MODE_GROUP_NAME, modeGroup } from "../modes";
-import { NEED_NAME, needRank, spotKey } from "../needed";
+import { compareNeeded, NEED_NAME, type NeedRank, needRank, spotKey } from "../needed";
 import { setNeededConfig, useNeededConfig } from "../neededPrefs";
-import type { Spot } from "../types";
+import type { MostWanted, Spot } from "../types";
 import type { DecodePick } from "./FtxMonitor";
 import "../watch.css";
 
@@ -17,6 +17,7 @@ export default function NeededPane({ onPick, onSettings }: { onPick: (p: DecodeP
   const [connected, setConnected] = useState(false);
   const [now, setNow] = useState(Date.now() / 1000);
   const [err, setErr] = useState("");
+  const [wanted, setWanted] = useState<MostWanted | null>(null);
 
   useEffect(() => {
     api
@@ -30,6 +31,7 @@ export default function NeededPane({ onPick, onSettings }: { onPick: (p: DecodeP
         });
       })
       .catch((e) => setErr(e.message));
+    api.mostWanted().then(setWanted).catch(() => {});
     const t = setInterval(() => setNow(Date.now() / 1000), 15000);
     const off = onLive((e) => {
       if (e.type === "spot") setSpots((m) => new Map(m).set(spotKey(e.spot), e.spot));
@@ -42,14 +44,17 @@ export default function NeededPane({ onPick, onSettings }: { onPick: (p: DecodeP
   }, []);
 
   const rows = useMemo(() => {
-    const out: { s: Spot; rank: number }[] = [];
+    const out: { s: Spot; rank: NeedRank; wanted: number }[] = [];
     for (const s of spots.values()) {
       const rank = needRank(s);
-      if (rank !== null && now - s.received < cfg.listMin * 60) out.push({ s, rank });
+      if (rank !== null && now - s.received < cfg.listMin * 60) {
+        const code = s.entity?.dxcc;
+        out.push({ s, rank, wanted: (code != null && wanted?.ranks[code]) || Infinity });
+      }
     }
-    // New entity first, then band, then mode; the newest spot first within each.
-    return out.sort((a, b) => a.rank - b.rank || b.s.received - a.s.received);
-  }, [spots, now, cfg.listMin]);
+    // New entity first, then band, then mode; within each the most wanted entity, then the newest spot.
+    return out.sort((a, b) => compareNeeded({ ...a, received: a.s.received }, { ...b, received: b.s.received }));
+  }, [spots, now, cfg.listMin, wanted]);
 
   return (
     <div className="ftx cluster needed-pane">
@@ -64,20 +69,21 @@ export default function NeededPane({ onPick, onSettings }: { onPick: (p: DecodeP
             <option value={120}>2 hours</option>
           </select>
         </label>
+        {wanted && Object.keys(wanted.ranks).length === 0 && <span className="muted small" title={wanted.error ?? ""}>Most Wanted ranks not loaded</span>}
         <span className="spacer" />
         <button onClick={onSettings} title="Sound and popup alerts for needed spots">Alerts…</button>
       </div>
       {err && <div className="ftx-msg small err">{err}</div>}
       <div className="ftx-table needed-table" role="table" aria-label="Needed now">
         <div className="needed-row head" role="row">
-          <span>New</span><span>Call</span><span>Country</span><span>Band</span><span>Freq</span><span>Mode</span><span>UTC</span><span>Spotter</span><span>Comment</span>
+          <span>New</span><span title="Club Log Most Wanted rank of the entity">Wanted</span><span>Call</span><span>Country</span><span>Band</span><span>Freq</span><span>Mode</span><span>UTC</span><span>Spotter</span><span>Comment</span>
         </div>
         {rows.length === 0 && (
           <div className="empty muted">
             {connected ? "Nothing you need is on the air right now." : "Connect to a cluster (Cluster tab) to see what is on the air."}
           </div>
         )}
-        {rows.map(({ s, rank }) => {
+        {rows.map(({ s, rank, wanted: wr }) => {
           const group = modeGroup(s.mode);
           return (
             <div
@@ -89,6 +95,7 @@ export default function NeededPane({ onPick, onSettings }: { onPick: (p: DecodeP
               title={s.tx_freq_hz ? `Click to fill in ${s.call}; double-click to tune too and set split to ${(s.tx_freq_hz / 1000).toFixed(2)} kHz` : `Click to fill in ${s.call}; double-click to tune too`}
             >
               <span><span className={`flag ${rank === 0 ? "new" : "info"}`}>{NEED_NAME[rank]}</span></span>
+              <span className="mono num" title={wr === Infinity ? "" : `Club Log Most Wanted: number ${wr}`}>{wr === Infinity ? "" : wr}</span>
               <span className={`mono call ${s.watched ? "watched" : ""}`}>{s.call}</span>
               <span>{s.entity?.name ?? ""}</span>
               <span className="mono">{s.band ?? ""}</span>

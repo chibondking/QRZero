@@ -28,7 +28,9 @@ Each spot shows the time, frequency, call, country, a best guess at the mode (fr
 
 ## Needed now
 
-The **Needed now** pane (Layout menu; it starts as a tab beside Cluster) lists only the spots on the air that would be new for your log, best first: a **new entity**, then a **new band** for an entity you have worked, then a **new mode**. Within each group the newest spot is on top. It uses the same needed flags as the Cluster pane, so a spot shows here exactly when it would be flagged **New DXCC**, **New band** or **New mode** there. Click a spot to fill in the QSO panel, or double-click it to fill in and tune, just like in the Cluster pane.
+The **Needed now** pane (Layout menu; it starts as a tab beside Cluster) lists only the spots on the air that would be new for your log, best first: a **new entity**, then a **new band** for an entity you have worked, then a **new mode**. Within each group the most wanted entity is on top, then the newest spot. It uses the same needed flags as the Cluster pane, so a spot shows here exactly when it would be flagged **New DXCC**, **New band** or **New mode** there. Click a spot to fill in the QSO panel, or double-click it to fill in and tune, just like in the Cluster pane.
+
+The **Wanted** column is the entity's rank on Club Log's public Most Wanted list (1 is the entity the most Club Log users still need), and it decides the order within a group. QRZero reads that list at most once a day, keeps it in your log database, and never asks Club Log about individual spots. Entities not on the list, or all of them when the list can't be read (offline, say), show a blank and fall back to newest first. No Club Log account is needed.
 
 A call on the same band and mode is listed once, however many people spot it. Spots drop off after the time chosen in the pane (30 minutes to start with). It works for every mode: CW, phone and digital spots are ranked together, with the mode coloured as in the Cluster pane.
 
