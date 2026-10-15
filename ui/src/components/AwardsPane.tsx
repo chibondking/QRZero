@@ -203,7 +203,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         </div>
       )}
       {!club && <div className="ftx-msg small muted">
-        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}{verified && "V verified (LoTW granted award credit), "}C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
+        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}{verified && current === "dxcc" && "V verified (LoTW granted DXCC credit), "}C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
       </div>}
     </div>
   );

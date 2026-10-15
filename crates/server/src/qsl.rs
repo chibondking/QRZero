@@ -216,7 +216,6 @@ pub struct Endpoints {
     pub eqsl_upload: String,
     pub eqsl_inbox: String,
     pub lotw_report: String,
-    pub lotw_credits: String,
 }
 
 impl Default for Endpoints {
@@ -229,7 +228,6 @@ impl Default for Endpoints {
             eqsl_upload: confirm::EQSL_UPLOAD_ENDPOINT.into(),
             eqsl_inbox: confirm::EQSL_INBOX_ENDPOINT.into(),
             lotw_report: confirm::LOTW_REPORT_ENDPOINT.into(),
-            lotw_credits: confirm::LOTW_CREDITS_ENDPOINT.into(),
         }
     }
 }
@@ -894,7 +892,7 @@ impl Qsl {
         d
     }
 
-    /// Downloads the DXCC credit LoTW granted and stores it on the matching QSOs, so the Awards pane can show them as verified.
+    /// Downloads the award credit LoTW granted and stores it on the matching QSOs, so the Awards pane can show them as verified.
     async fn download_credits(&self) -> Download {
         let mut d = Download { at: Utc::now().timestamp(), ..Download::default() };
         let cfg = self.config();
@@ -902,23 +900,34 @@ impl Qsl {
             d.error = Some("enter your LoTW website username and password first".into());
             return d;
         };
-        let records = match confirm::lotw_credits(&self.endpoints.lotw_credits, &cfg.lotw_username, &password).await {
-            Ok(r) => r,
+        // LoTW's own QSO report carries the credit it granted (CREDIT_GRANTED) on every confirmed QSO,
+        // but a normal download only asks for the new ones, so this one asks for all of them.
+        let report = match confirm::lotw_confirmations(
+            &self.endpoints.lotw_report,
+            &cfg.lotw_username,
+            &password,
+            None,
+            "",
+        )
+        .await
+        {
+            Ok(r) => r.records,
             Err(e) => {
                 d.error = Some(e.to_string());
                 return d;
             }
         };
-        let updates: Vec<_> = records
+        let credited: Vec<(&_, Fields)> = report
             .iter()
-            .map(|r| {
-                let u = confirm::credit_updates(r);
-                (r, u.set, u.fill)
-            })
+            .filter_map(|r| confirm::report_credit(r).map(|c| (r, c)))
             .collect();
         let stats = self.db(|st| {
             let logs: Vec<i64> = st.list_logs()?.iter().map(|l| l.id).collect();
-            st.apply_confirmations(&logs, updates, confirm::same_qso)
+            st.apply_confirmations(
+                &logs,
+                credited.into_iter().map(|(r, set)| (r, set, Fields::new())),
+                confirm::same_qso,
+            )
         });
         match stats {
             Ok(s) => {
