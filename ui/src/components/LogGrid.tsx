@@ -384,14 +384,18 @@ export default function LogGrid({ logId, refreshKey, filter, onFilter, selection
         {notice && !error && <span className="muted">{notice}</span>}
         {error && <span className="err">{error}</span>}
         <button onClick={() => setPicking(!picking)}>Columns</button>
-        <button disabled={!selection.size} onClick={() => onSelection(new Set())}>Clear selection</button>
-        <select value="" disabled={!selection.size} onChange={(e) => void markPaper(e.target.value)} aria-label="Paper QSL">
-          <option value="">Paper QSL…</option>
-          {PAPER_ACTIONS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
-          {OQRS_ACTIONS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
-        </select>
-        <button disabled={!selection.size} onClick={onExportSelected}>Export selected</button>
-        <button disabled={!selection.size} className="danger" onClick={deleteSelected}>Delete</button>
+        {selection.size > 0 && (
+          <>
+            <button onClick={() => onSelection(new Set())}>Clear selection</button>
+            <select value="" onChange={(e) => void markPaper(e.target.value)} aria-label="Paper QSL">
+              <option value="">Paper QSL…</option>
+              {PAPER_ACTIONS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
+              {OQRS_ACTIONS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
+            </select>
+            <button onClick={onExportSelected}>Export selected</button>
+            <button className="danger" onClick={deleteSelected}>Delete</button>
+          </>
+        )}
       </div>
       {picking && (
         <div className="column-picker">

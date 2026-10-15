@@ -13,7 +13,7 @@ The grid shows every QSO in the open log, newest first. It stays fast with hundr
 - Click a row to select it. <kbd>Ctrl</kbd>+click adds or removes rows, <kbd>Shift</kbd>+click selects a range.
 - Or tick the box at the start of each row.
 
-With rows selected you can **Export selected** or **Delete** them. Deleting asks first and can't be undone.
+With rows selected, the toolbar shows **Clear selection**, **Paper QSL…**, **Export selected** and **Delete**. Deleting asks first and can't be undone.
 
 **Paper QSL…** sets the card fields on the selected QSOs: queue a card to send, card sent (bureau or direct), card received (bureau or direct; a card received also queues a card back to send, unless one was already sent), or not sending (takes it out of the queue), plus **Mark OQRS requested** and **Clear OQRS request** for Club Log OQRS. Sent and received also record today's date. See [QSL](10-qsl.md) for printing labels.
 
