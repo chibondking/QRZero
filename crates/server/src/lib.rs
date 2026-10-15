@@ -1149,9 +1149,9 @@ async fn ask_service(s: &Shared, id: &str, call: &str) -> Result<Option<Fields>,
             return Ok(None);
         };
         let client = guard.as_mut().expect("client present");
-        let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?.filter(|f| record_is_for(f, call, None));
+        let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?;
         if let (None, Some(b)) = (&found, &base) {
-            found = client.lookup(b).await.map_err(|e| login_hint(e.to_string()))?.filter(|f| record_is_for(f, call, Some(b)));
+            found = client.lookup(b).await.map_err(|e| login_hint(e.to_string()))?;
         }
         return Ok(found);
     }
@@ -1159,26 +1159,11 @@ async fn ask_service(s: &Shared, id: &str, call: &str) -> Result<Option<Fields>,
         return Ok(None);
     };
     let client = guard.as_mut().expect("client present");
-    let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?.filter(|f| record_is_for(f, call, None));
+    let mut found = client.lookup(call).await.map_err(|e| login_hint(e.to_string()))?;
     if let (None, Some(b)) = (&found, &base) {
-        found = client.lookup(b).await.map_err(|e| login_hint(e.to_string()))?.filter(|f| record_is_for(f, call, Some(b)));
+        found = client.lookup(b).await.map_err(|e| login_hint(e.to_string()))?;
     }
     Ok(found)
-}
-
-/// Whether a lookup record describes the call that was asked for. QRZ answers an alias or a
-/// former call with the record of the station that holds it (FO5QS comes back as VU2ORO), and
-/// showing that as the typed call's details is wrong. A record naming the home call of a
-/// portable or prefixed call (`base`) is right; a record with no call is taken as it comes.
-fn record_is_for(record: &Fields, asked: &str, base: Option<&str>) -> bool {
-    let Some(got) = record.get("CALL").map(|c| c.trim()).filter(|c| !c.is_empty()) else {
-        return true;
-    };
-    let ok = got.eq_ignore_ascii_case(asked) || base.is_some_and(|b| got.eq_ignore_ascii_case(b));
-    if !ok {
-        tracing::info!("lookup for {asked} came back as {got}; ignored");
-    }
-    ok
 }
 
 /// How much of the chain to use.

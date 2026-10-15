@@ -27,8 +27,6 @@ async fn mock_qrz(logins: Arc<AtomicUsize>) -> String {
                     Some("K5BOTH") => "<QRZDatabase><Callsign><call>K5BOTH</call><fname>From</fname><name>QRZ</name></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
                     // The same call with the grid HamQTH is missing.
                     Some("K7GAP") => "<QRZDatabase><Callsign><call>K7GAP</call><fname>Patricia</fname><name>Ray</name><grid>DN13</grid><state>ID</state></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
-                    // QRZ answers an alias with the record of the station that holds it.
-                    Some("FO5QS") => "<QRZDatabase><Callsign><call>VU2ORO</call><fname>Other</fname><name>Station</name><dxcc>324</dxcc></Callsign><Session><Key>abc</Key></Session></QRZDatabase>".to_string(),
                     Some(c) => format!("<QRZDatabase><Session><Key>abc</Key><Error>Not found: {c}</Error></Session></QRZDatabase>"),
                     None => String::new(),
                 }
@@ -245,11 +243,6 @@ async fn qrz_lookup_and_cache() {
     assert_eq!(r["source"], "QRZ");
 
     let r = api.get(&format!("/logs/{log}/lookup/ZZ9ZZ")).await;
-    assert!(r["station"].is_null() && r["error"].is_null());
-
-    // A record for a different call (an alias QRZ resolves to its holder) is not shown.
-    let r = api.get(&format!("/logs/{log}/lookup/fo5qs")).await;
-    assert_eq!(r["call"], "FO5QS");
     assert!(r["station"].is_null() && r["error"].is_null());
 
     // Clearing the password removes it from the credential store.
