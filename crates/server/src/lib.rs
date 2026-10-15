@@ -669,6 +669,9 @@ struct AwardQuery {
     eqsl: bool,
     #[serde(default)]
     unworked: bool,
+    /// Show QSOs LoTW granted award credit for as verified.
+    #[serde(default)]
+    verified: bool,
 }
 
 async fn award(State(s): State<Shared>, Path((id, award)): Path<(i64, Award)>, Query(q): Query<AwardQuery>) -> ApiResult<AwardTable> {
@@ -684,14 +687,14 @@ async fn award(State(s): State<Shared>, Path((id, award)): Path<(i64, Award)>, Q
     let calls: Vec<String> = q.calls.split(',').map(|c| c.trim().to_ascii_uppercase()).filter(|c| !c.is_empty()).collect();
     let counts = Counts { lotw: q.lotw, paper: q.paper, eqsl: q.eqsl };
     // Counting a big log takes a moment, so keep the last few tables until a QSO changes.
-    let key = format!("{id}|{award:?}|{}|{}{}{}|{}|{}", calls.join(","), q.lotw, q.paper, q.eqsl, q.unworked, cty.as_ref().map_or(0, |c| c.len()));
+    let key = format!("{id}|{award:?}|{}|{}{}{}{}|{}|{}", calls.join(","), q.lotw, q.paper, q.eqsl, q.verified, q.unworked, cty.as_ref().map_or(0, |c| c.len()));
     let cache = s.award_cache.clone();
     let table = db(&s, move |st| {
         let version = st.qso_version()?;
         if let Some(t) = cache.lock().unwrap_or_else(|p| p.into_inner()).get(&key).filter(|(v, _)| *v == version) {
             return Ok(t.1.clone());
         }
-        let mut tally = Tally::new(award, counts, names);
+        let mut tally = Tally::new(award, counts, names).with_verified(q.verified);
         let resolve = |c: &str| cty_facts(cty.as_deref(), c);
         st.for_each_award_qso(id, &calls, resolve, |qso| tally.add(qso))?;
         let table = Arc::new(tally.finish(q.unworked));

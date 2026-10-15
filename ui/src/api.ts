@@ -72,8 +72,8 @@ export const api = {
   lookupQsos: (ids: number[]) => json<{ updated: number; errors: string[] }>("POST", "/qsos/lookup", { ids }),
   /** Sends the QSOs out through the "QSO logged" UDP connections. */
   sendQsos: (ids: number[]) => json<number>("POST", "/qsos/send", { ids }),
-  award: (logId: number, award: AwardKind, o: { calls: string[]; lotw: boolean; paper: boolean; eqsl: boolean; unworked: boolean }) => {
-    const q = new URLSearchParams({ calls: o.calls.join(","), lotw: String(o.lotw), paper: String(o.paper), eqsl: String(o.eqsl), unworked: String(o.unworked) });
+  award: (logId: number, award: AwardKind, o: { calls: string[]; lotw: boolean; paper: boolean; eqsl: boolean; unworked: boolean; verified?: boolean }) => {
+    const q = new URLSearchParams({ calls: o.calls.join(","), lotw: String(o.lotw), paper: String(o.paper), eqsl: String(o.eqsl), unworked: String(o.unworked), verified: String(!!o.verified) });
     return json<AwardTable>("GET", `/logs/${logId}/awards/${award}?${q}`);
   },
   clubAwards: (logId: number, o: { calls: string[]; region: "na_eu" | "other"; cwtTagged: boolean }) => {
@@ -189,6 +189,6 @@ export const api = {
   qslQueue: (service: QslService, from: string, to: string) => json<QslQueue>("GET", `/qsl/queue/${service}?from=${from}&to=${to}`),
   qslQueueUpload: (service: QslService, from: string, to: string, location = "") => json<QslRun>("POST", `/qsl/queue/${service}/upload`, { from, to, location }),
   qslQueueRemove: (service: QslService, ids: number[]) => json<{ removed: number }>("POST", `/qsl/queue/${service}/remove`, { ids }),
-  qslDownload: (service: QslService) => json<QslDownload>("POST", `/qsl/download/${service}`),
+  qslDownload: (service: QslService | "lotw-credit") => json<QslDownload>("POST", `/qsl/download/${service}`),
   propagation: (refresh = false) => json<PropagationReport>("GET", `/propagation${refresh ? "?refresh=true" : ""}`),
 };

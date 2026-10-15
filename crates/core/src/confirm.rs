@@ -14,6 +14,8 @@ use crate::qsl::{form_encode, net_reason, http_client, upload_record, url_decode
 
 /// Production LoTW report endpoint.
 pub const LOTW_REPORT_ENDPOINT: &str = "https://lotw.arrl.org/lotwuser/lotwreport.adi";
+/// LoTW's DXCC credit report: the QSOs granted DXCC credit on a linked DXCC award account.
+pub const LOTW_CREDITS_ENDPOINT: &str = "https://lotw.arrl.org/lotwuser/logbook/qslcards.php";
 /// Production eQSL inbox download endpoint.
 pub const EQSL_INBOX_ENDPOINT: &str = "https://www.eqsl.cc/qslcard/DownloadInBox.cfm";
 /// Production eQSL ADIF upload endpoint.
@@ -119,6 +121,30 @@ pub async fn lotw_confirmations(
     let file = adif::parse(text.as_bytes());
     let last_qsl = file.header.get("APP_LOTW_LASTQSL").filter(|v| !v.is_empty()).cloned();
     Ok(LotwReport { records: file.records, last_qsl })
+}
+
+/// Downloads the QSOs LoTW granted DXCC credit for (needs a LoTW DXCC award account linked to
+/// a DXCC record). Each record carries CREDIT_GRANTED.
+pub async fn lotw_credits(endpoint: &str, username: &str, password: &str) -> Result<Vec<Fields>, QslError> {
+    let q = [("login", username.trim()), ("password", password)];
+    let text = get_text(&download_client(), &with_query(endpoint, &q), "LoTW").await?;
+    if !text.to_ascii_lowercase().contains("<eoh>") {
+        let lower = text.to_ascii_lowercase();
+        return Err(if lower.contains("password") || lower.contains("login") {
+            QslError::Auth("LoTW refused the username or password".into())
+        } else {
+            QslError::Service(format!("LoTW: {}", visible_text(&text)))
+        });
+    }
+    Ok(adif::parse(text.as_bytes()).records)
+}
+
+/// The fields to apply to the log QSO matched to a downloaded LoTW credit record: the credit granted.
+pub fn credit_updates(rec: &Fields) -> ConfirmUpdate {
+    let mut set = Fields::new();
+    let credit = nonempty(rec, "CREDIT_GRANTED").unwrap_or("DXCC");
+    set.insert("CREDIT_GRANTED".into(), credit.to_string());
+    ConfirmUpdate { set, fill: Fields::new() }
 }
 
 /// Downloads eQSL inbox confirmations received since `since` (YYYY-MM-DD;

@@ -52,3 +52,25 @@ export function useAwardsOff(): readonly string[] {
     awardsOff,
   );
 }
+
+const VERIFIED_KEY = "qrzero.awards_verified";
+const readVerified = () => !!localGet<{ on: boolean }>(VERIFIED_KEY, { on: false }).on;
+let verified = readVerified();
+onLocalPrefsLoaded(() => {
+  verified = readVerified();
+  listeners.forEach((l) => l());
+});
+
+/** Whether the Awards pane shows QSOs LoTW granted credit for as verified (V). Off until switched on. */
+export function useTrackVerified(): boolean {
+  return useSyncExternalStore(
+    (cb) => (listeners.add(cb), () => void listeners.delete(cb)),
+    () => verified,
+  );
+}
+
+export function setTrackVerified(on: boolean) {
+  verified = on;
+  localSet(VERIFIED_KEY, { on });
+  listeners.forEach((l) => l());
+}

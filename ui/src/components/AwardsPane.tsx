@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { onLive } from "../live";
 import { localGet, localSet } from "../prefs";
-import { useAwardsOff } from "../awardsPref";
+import { useAwardsOff, useTrackVerified } from "../awardsPref";
 import ClubAwards from "./ClubAwards";
 import type { AwardKind, AwardTable, QsoFilter, StationCallsign } from "../types";
 
@@ -61,6 +61,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
   const [err, setErr] = useState("");
   const [stamp, setStamp] = useState(0);
   const hidden = useAwardsOff();
+  const verified = useTrackVerified();
   const awards = AWARDS.filter((a) => !hidden.includes(a.key));
   const clubs = CLUBS.filter((a) => !hidden.includes(a.key));
   // The award last looked at may have been switched off in Settings: fall back to the first one still on.
@@ -79,13 +80,13 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
     let live = true;
     setErr("");
     api
-      .award(logId, kind, { calls: opts.call ? [opts.call] : [], lotw: opts.lotw, paper: opts.paper, eqsl: opts.eqsl, unworked: FIXED.has(kind) })
+      .award(logId, kind, { calls: opts.call ? [opts.call] : [], lotw: opts.lotw, paper: opts.paper, eqsl: opts.eqsl, unworked: FIXED.has(kind), verified })
       .then((t) => live && setTable(t))
       .catch((e) => live && setErr(e.message));
     return () => {
       live = false;
     };
-  }, [logId, none, current, opts.call, opts.lotw, opts.paper, opts.eqsl, stamp]);
+  }, [logId, none, current, opts.call, opts.lotw, opts.paper, opts.eqsl, verified, stamp]);
 
   // Recount when QSOs are logged or confirmations arrive (at most every few seconds).
   useEffect(() => {
@@ -148,7 +149,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         <span className="spacer" />
         {mixed && (
           <span className="award-score">
-            <b>{mixed.worked}</b> worked, <b>{mixed.confirmed}</b> confirmed{mixed.verified > 0 ? <>, <b>{mixed.verified}</b> verified</> : null}{table && table.total > 0 ? ` of ${table.total}` : ""} {award.what}
+            <b>{mixed.worked}</b> worked, <b>{mixed.confirmed}</b> confirmed{verified && mixed.verified > 0 ? <>, <b>{mixed.verified}</b> verified</> : null}{table && table.total > 0 ? ` of ${table.total}` : ""} {award.what}
           </span>
         )}
       </div>
@@ -202,7 +203,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         </div>
       )}
       {!club && <div className="ftx-msg small muted">
-        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}V verified (LoTW granted award credit), C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
+        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}{verified && "V verified (LoTW granted award credit), "}C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
       </div>}
     </div>
   );

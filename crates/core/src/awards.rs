@@ -483,6 +483,7 @@ type Cells = [u8; NCOLS];
 pub struct Tally {
     award: Award,
     counts: Counts,
+    verified: bool,
     names: BTreeMap<String, String>,
     nums: HashMap<u32, Cells>,
     texts: HashMap<String, Cells>,
@@ -497,16 +498,23 @@ impl Tally {
         Tally {
             award,
             counts,
+            verified: false,
             names,
             nums: HashMap::new(),
             texts: HashMap::new(),
         }
     }
 
+    /// Whether QSOs LoTW granted award credit for show as verified (otherwise they count as plain confirmations).
+    pub fn with_verified(mut self, on: bool) -> Self {
+        self.verified = on;
+        self
+    }
+
     pub fn add(&mut self, q: &AwardQso) {
         let Some(id) = row_id(self.award, q) else { return };
         let c = &self.counts;
-        let v = if q.credit & (1 << self.award as usize) != 0 {
+        let v = if self.verified && q.credit & (1 << self.award as usize) != 0 {
             3
         } else if (c.lotw && q.lotw) || (c.paper && q.paper) || (c.eqsl && q.eqsl) {
             2
@@ -893,7 +901,7 @@ mod tests {
         assert_eq!(credit_mask("DXCC,DXCC_BAND:LOTW, WAS"), (1 << Award::Dxcc as usize) | (1 << Award::Was as usize));
         assert_eq!(credit_mask("CQDX"), 0);
         assert_eq!(credit_mask("5BWAS, WAS_TRIPLE_PLAY"), 1 << Award::Was as usize);
-        let mut t = Tally::new(Award::Dxcc, Counts { lotw: true, ..Counts::default() }, BTreeMap::new());
+        let mut t = Tally::new(Award::Dxcc, Counts { lotw: true, ..Counts::default() }, BTreeMap::new()).with_verified(true);
         t.add(&AwardQso { dxcc: Some(291), lotw: true, credit: credit_mask("DXCC"), ..q("K1ABC", "40m", "CW") });
         t.add(&AwardQso { dxcc: Some(291), lotw: true, ..q("K1ABC", "20m", "CW") });
         let tab = t.finish(false);

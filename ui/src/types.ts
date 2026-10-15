@@ -264,7 +264,7 @@ export interface QslOverview {
   pending: { qrz: number; clublog: number; eqsl: number; lotw: { mapping: LotwMapping; pending: number }[] };
   runs: Partial<Record<QslService, QslRun>>;
   logs: Partial<Record<QslService, QslLogLine[]>>;
-  downloads: Partial<Record<QslService, QslDownload>>;
+  downloads: Partial<Record<QslService | "lotw-credit", QslDownload>>;
   tqsl: { path: string | null; found: boolean; locations: string[] };
 }
 export interface QslSecrets { qrz_keys?: Record<string, string>; clublog_password?: string; lotw_password?: string; eqsl_password?: string }

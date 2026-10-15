@@ -216,6 +216,7 @@ pub struct Endpoints {
     pub eqsl_upload: String,
     pub eqsl_inbox: String,
     pub lotw_report: String,
+    pub lotw_credits: String,
 }
 
 impl Default for Endpoints {
@@ -228,6 +229,7 @@ impl Default for Endpoints {
             eqsl_upload: confirm::EQSL_UPLOAD_ENDPOINT.into(),
             eqsl_inbox: confirm::EQSL_INBOX_ENDPOINT.into(),
             lotw_report: confirm::LOTW_REPORT_ENDPOINT.into(),
+            lotw_credits: confirm::LOTW_CREDITS_ENDPOINT.into(),
         }
     }
 }
@@ -878,6 +880,7 @@ impl Qsl {
     pub async fn download(&self, name: &str, auto: bool) -> Download {
         let name: &'static str = match name {
             "lotw" => "lotw",
+            "lotw-credit" => "lotw-credit",
             "eqsl" => "eqsl",
             "qrz" => "qrz",
             "clublog" => "clublog",
@@ -885,9 +888,54 @@ impl Qsl {
         };
         let _busy = self.busy.lock().await;
         self.set_download(name, Download { running: true, at: Utc::now().timestamp(), auto, ..Download::default() });
-        let mut d = self.download_service(name).await;
+        let mut d = if name == "lotw-credit" { self.download_credits().await } else { self.download_service(name).await };
         d.auto = auto;
         self.set_download(name, d.clone());
+        d
+    }
+
+    /// Downloads the DXCC credit LoTW granted and stores it on the matching QSOs, so the Awards pane can show them as verified.
+    async fn download_credits(&self) -> Download {
+        let mut d = Download { at: Utc::now().timestamp(), ..Download::default() };
+        let cfg = self.config();
+        let Some(password) = self.secret("lotw-password").filter(|_| !cfg.lotw_username.is_empty()) else {
+            d.error = Some("enter your LoTW website username and password first".into());
+            return d;
+        };
+        let records = match confirm::lotw_credits(&self.endpoints.lotw_credits, &cfg.lotw_username, &password).await {
+            Ok(r) => r,
+            Err(e) => {
+                d.error = Some(e.to_string());
+                return d;
+            }
+        };
+        let updates: Vec<_> = records
+            .iter()
+            .map(|r| {
+                let u = confirm::credit_updates(r);
+                (r, u.set, u.fill)
+            })
+            .collect();
+        let stats = self.db(|st| {
+            let logs: Vec<i64> = st.list_logs()?.iter().map(|l| l.id).collect();
+            st.apply_confirmations(&logs, updates, confirm::same_qso)
+        });
+        match stats {
+            Ok(s) => {
+                d.received = s.received;
+                d.confirmed = s.new;
+                d.unmatched_count = s.unmatched.len();
+                d.unmatched = s.unmatched.into_iter().take(1000).collect();
+            }
+            Err(e) => {
+                d.error = Some(e.to_string());
+                return d;
+            }
+        }
+        if d.confirmed > 0 {
+            self.hub.refresh_awards();
+            self.hub.emit(json!({"type": "qso_logged", "log_id": null, "call": "", "source": "lotw-credit", "added": false}));
+        }
         d
     }
 

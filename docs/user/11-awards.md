@@ -34,7 +34,14 @@ Tick the sources that count under **Confirmed by**:
 
 ## Verified
 
-**V** is a step above **C**: LoTW has granted award credit for that QSO. It comes from the QSO's **CREDIT_GRANTED** field, which LoTW writes in its award-credit ADIF exports (for example `DXCC,DXCC_BAND`). Import such a file in the usual way, or let a LoTW confirmation download fill it in when LoTW includes it. A QSO credited for DXCC shows V on every DXCC cell it fills; the same goes for WAS, WAZ, WPX, WAC, ITU, VUCC, IOTA and Counties. Verified cells also count as confirmed, and the top right adds a verified total once you have any. Credit is shown whichever sources are ticked under **Confirmed by**.
+**V** is a step above **C**: LoTW has granted award credit for that QSO. It is optional. Turn it on under **Settings…**, **Awards**, **Show V (verified)**; until then every LoTW confirmation shows as C.
+
+Credit comes from the QSO's **CREDIT_GRANTED** field. Two ways to fill it:
+
+- With the option on, **QSL**, **LoTW** gets a **Download verified credit** button. It asks LoTW for the DXCC credit granted on your LoTW DXCC award account and stores it on the matching QSOs. This needs your LoTW website login and a DXCC award account linked to your DXCC record, and it covers DXCC only: LoTW does not offer other awards' credit this way.
+- Import an ADIF file that already has CREDIT_GRANTED (for example from another logger). QSOs already in your log are skipped by an import, so use this for new QSOs.
+
+Each cell is V when a credited QSO falls in that cell (Mixed, mode or band); a cell with only plain confirmations stays C. Verified cells count as confirmed, and the top right adds a verified total. Credit is shown whichever sources are ticked under **Confirmed by**.
 
 ## Finding what you need
 

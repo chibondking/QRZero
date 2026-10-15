@@ -19,7 +19,7 @@ import { MODES } from "../modes";
 import { NEED_NAME, type NeedRank } from "../needed";
 import { setNeededConfig, useNeededConfig } from "../neededPrefs";
 import { SETTING_ENTRIES, type SettingEntry } from "../settingsIndex";
-import { AWARD_LIST, setAwardEnabled, setAwardsOff, useAwardsOff } from "../awardsPref";
+import { AWARD_LIST, setAwardEnabled, setAwardsOff, setTrackVerified, useAwardsOff, useTrackVerified } from "../awardsPref";
 
 export interface GeneralPrefs { units: "km" | "mi" }
 
@@ -696,6 +696,7 @@ function ClusterTab({ onClose }: { onClose: () => void }) {
 
 function AwardsTab() {
   const off = useAwardsOff();
+  const verified = useTrackVerified();
   const group = (g: "main" | "cw") => AWARD_LIST.filter((a) => a.group === g);
   return (
     <div className="general-tab">
@@ -716,6 +717,13 @@ function AwardsTab() {
           </label>
         ))}
         <p className="small muted">If you don't operate CW, untick these. The SKCC, NAQCC, FISTS and CWops boxes in the entry fields are set separately, under Entry fields.</p>
+      </fieldset>
+      <fieldset>
+        <legend>Verified credit</legend>
+        <label className="check">
+          <input type="checkbox" checked={verified} onChange={(e) => setTrackVerified(e.target.checked)} /> Show <b>V</b> (verified) for QSOs LoTW granted award credit
+        </label>
+        <p className="small muted">Off, every LoTW confirmation shows as C. On, QSOs with credit show V. LoTW sends credit in its own report: under QSL, LoTW, a Download verified credit button then appears.</p>
       </fieldset>
       <div className="row">
         <button onClick={() => setAwardsOff([])}>Select all</button>
