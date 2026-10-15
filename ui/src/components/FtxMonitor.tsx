@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { api } from "../api";
 import { onLive, useInstances } from "../live";
 import { localGet, localSet } from "../prefs";
@@ -34,8 +34,8 @@ interface Filters {
   pinMe?: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
-  /** Line view order: by time, or grouped by country or flag, or by audio frequency. */
-  sort: "time" | "country" | "flags" | "freq";
+  /** Line view order: by time, DXCC entity, flag, or audio frequency. */
+  sort: "time" | "dxcc" | "flags" | "freq";
 }
 
 const DEFAULTS: Filters = { cq: false, needed: false, instance: "", cycles: false, view: "lines", sort: "time" };
@@ -53,27 +53,16 @@ function cyclesOf(list: FtxDecode[]): Cycle[] {
   return out;
 }
 
-/** One row of the line view: a group heading, or a decode. */
-type Item = { head: string } | { d: FtxDecode };
-
-/** Orders the list (newest first on entry) by country, flag or frequency, with headings for the first two. */
-function arrange(list: FtxDecode[], sort: Filters["sort"], cfg: FtxAlertConfig): Item[] {
-  if (sort === "freq") return [...list].sort((a, b) => a.df - b.df).map((d) => ({ d }));
-  const flag = (d: FtxDecode) => {
+/** Orders the list (newest first on entry) by DXCC entity, flag or frequency; ties stay newest first. */
+function arrange(list: FtxDecode[], sort: Filters["sort"], cfg: FtxAlertConfig): FtxDecode[] {
+  if (sort === "freq") return [...list].sort((a, b) => a.df - b.df);
+  const rank = (d: FtxDecode) => {
+    if (d.tx) return -1;
     const main = mainAlert(activeAlerts(d, cfg));
-    return main ? { name: ALERT[main].name, rank: ALERTS.findIndex((a) => a.kind === main) } : isWorked(d) ? { name: "Worked", rank: 50 } : { name: "No flag", rank: 40 };
+    return main ? ALERTS.findIndex((x) => x.kind === main) : isWorked(d) ? 50 : 40;
   };
-  const key = (d: FtxDecode) => (d.tx ? { name: "Sent", rank: -1 } : sort === "flags" ? flag(d) : { name: d.entity?.name ?? "Unknown", rank: 0 });
-  const keyed = list.map((d) => ({ d, k: key(d) }));
-  keyed.sort((a, b) => a.k.rank - b.k.rank || (a.k.rank === 0 ? a.k.name.localeCompare(b.k.name) : 0));
-  const out: Item[] = [];
-  let last = "";
-  for (const { d, k } of keyed) {
-    if (k.name !== last) out.push({ head: k.name });
-    last = k.name;
-    out.push({ d });
-  }
-  return out;
+  const dxcc = (d: FtxDecode) => (d.tx ? "" : d.entity?.name ?? "\uffff");
+  return [...list].sort((a, b) => (sort === "flags" ? rank(a) - rank(b) : dxcc(a).localeCompare(dxcc(b))));
 }
 
 const secs = (t: string) => Number(t.slice(0, 2)) * 3600 + Number(t.slice(2, 4)) * 60 + Number(t.slice(4, 6));
@@ -262,31 +251,9 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
           </label>
         )}
         <span className="spacer" />
-        <label>
-          View{" "}
-          <select value={filters.view} onChange={(e) => setFilter({ view: e.target.value as Filters["view"] })} title="Lines shows every decode; Call boxes shows each station heard, one box per call">
-            <option value="lines">Lines</option>
-            <option value="calls">Call boxes</option>
-          </select>
-        </label>
-        <label title="Order of the line view. Stations calling you stay at the top while Pin calling you is on.">
-          Sort{" "}
-          <select value={filters.sort} onChange={(e) => setFilter({ sort: e.target.value as Filters["sort"] })}>
-            <option value="time">Time</option>
-            <option value="country">Country</option>
-            <option value="flags">Flags</option>
-            <option value="freq">Frequency</option>
-          </select>
-        </label>
-        <label className="check" title="Draw a line with the time between decode periods (when sorted by time)">
-          <input type="checkbox" checked={filters.cycles} onChange={(e) => setFilter({ cycles: e.target.checked })} /> Period breaks
-        </label>
-        <label className="check" title="Keep decodes calling you in a group at the top of the list">
-          <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
-        </label>
         <label className="check"><input type="checkbox" checked={filters.cq} onChange={(e) => setFilter({ cq: e.target.checked })} /> CQ only</label>
         <label className="check"><input type="checkbox" checked={filters.needed} onChange={(e) => setFilter({ needed: e.target.checked })} /> Needed only</label>
-        <button onClick={() => setEditing(true)} title="Choose which stations stand out, their colours, and which to hide">Alerts and filters…</button>
+        <OptionsMenu filters={filters} setFilter={setFilter} onAlerts={() => setEditing(true)} />
         <button onClick={() => setDecodes([])}>Clear</button>
       </div>
       <FtxControls
@@ -319,7 +286,7 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
             </div>
           )}
           {filters.sort !== "time"
-            ? arranged.map((it) => ("head" in it ? <div key={`h${it.head}`} className="ftx-group sub">{it.head}</div> : row(it.d)))
+            ? arranged.map(row)
             : filters.cycles
             ? cycles.map((c) => {
                 const rows = below(c.decodes);
@@ -331,6 +298,57 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
                 );
               })
             : below(shown).map(row)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The monitor's less-used settings: view, sort, period breaks, the pinned group and the alert editor. */
+function OptionsMenu({ filters, setFilter, onAlerts }: { filters: Filters; setFilter: (f: Partial<Filters>) => void; onAlerts: () => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  const radio = <K extends "view" | "sort">(key: K, value: Filters[K], text: string, help?: string) => (
+    <label className="item" title={help}>
+      <input type="radio" name={`ftx-${key}`} checked={filters[key] === value} onChange={() => setFilter({ [key]: value } as Partial<Filters>)} /> {text}
+    </label>
+  );
+  return (
+    <div className="layout-menu ftx-opts" ref={box}>
+      <button onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" title="View, sort and alert settings for the FTx monitor">Options</button>
+      {open && (
+        <div className="layout-pop" role="menu">
+          <div className="head">View</div>
+          {radio("view", "lines", "Lines", "Every decode on its own line")}
+          {radio("view", "calls", "Call boxes", "Each station heard, one box per call")}
+          <hr />
+          <div className="head">Sort lines by</div>
+          {radio("sort", "time", "Time")}
+          {radio("sort", "dxcc", "DXCC")}
+          {radio("sort", "flags", "Flags")}
+          {radio("sort", "freq", "Frequency")}
+          <hr />
+          <label className="item" title="Draw a line with the time between decode periods (when sorted by time)">
+            <input type="checkbox" checked={filters.cycles} onChange={(e) => setFilter({ cycles: e.target.checked })} /> Period breaks
+          </label>
+          <label className="item" title="Keep decodes calling you in a group at the top of the list">
+            <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
+          </label>
+          <hr />
+          <button role="menuitem" className="item" onClick={() => { setOpen(false); onAlerts(); }} title="Choose which stations stand out, their colours, and which to hide">Alerts and filters…</button>
         </div>
       )}
     </div>

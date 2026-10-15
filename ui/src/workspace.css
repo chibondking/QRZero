@@ -73,3 +73,4 @@
 .grid-row.editing { box-shadow: inset 3px 0 0 var(--accent); }
 .grid-body:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .worked-pane tbody tr, .grid-row { user-select: none; }
+.layout-pop label.item input[type="radio"] { flex: none; width: auto; margin: 0; }

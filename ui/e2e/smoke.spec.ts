@@ -175,13 +175,19 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   // The two decodes calling us are grouped at the top, newest first, and not repeated below.
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row")).toHaveCount(2);
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row .msg").first()).toHaveText("N0CALL EA8AB R-10");
-  // Sorting: by frequency the lower offset comes first; by country each group gets a heading.
-  const sort = ftx.getByRole("combobox").filter({ hasText: "Frequency" });
-  await sort.selectOption("freq");
+  // The FTx options menu holds view, sort, period breaks and the pin; it stays open while choosing.
+  const opts = async () => {
+    const b = ftx.getByRole("button", { name: "Options" });
+    if ((await b.getAttribute("aria-expanded")) !== "true") await b.click();
+  };
+  // Sorting: by frequency the lower offset comes first; DXCC and flags reorder without headings.
+  await opts();
+  await ftx.getByLabel("Frequency").check();
   await expect(ftx.locator(".ftx-table .ftx-row .msg").nth(2)).toHaveText("CQ DL1ABC JO62");
-  await sort.selectOption("country");
-  await expect(ftx.locator(".ftx-group.sub").first()).toBeVisible();
-  await sort.selectOption("time");
+  await ftx.getByLabel("DXCC").check();
+  await expect(ftx.locator(".ftx-table .ftx-row:not(.head)")).toHaveCount(4);
+  await expect(ftx.locator(".ftx-group.sub")).toHaveCount(0);
+  await ftx.getByLabel("Time", { exact: true }).check();
   // Turning the pin off puts them back in time order.
   await ftx.getByLabel("Pin calling you").uncheck();
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" })).toHaveCount(0);
@@ -190,7 +196,7 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await ftx.getByLabel("Period breaks").check();
   await expect(ftx.locator(".ftx-break")).toHaveCount(2);
   await expect(ftx.locator(".ftx-break").first()).toContainText("00:01:00 2 decodes, 2 calls");
-  await ftx.getByRole("combobox").filter({ hasText: "Call boxes" }).selectOption("calls");
+  await ftx.getByLabel("Call boxes").check();
   const first = ftx.locator(".ftx-cycle").first().locator(".ftx-box");
   // With a country file (CI downloads one) DL1ABC is also a new DXCC.
   await expect(first).toHaveText([/^EA8ABME(DXCC)?-14$/, /^DL1ABC(DXCC)?-3$/]);
@@ -199,15 +205,18 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await first.nth(1).click();
   await expect(page.getByTestId("call")).toHaveValue("DL1ABC");
   // Alerts and filters: ignoring a call hides it; one calling you always shows.
-  await ftx.getByRole("button", { name: "Alerts and filters…" }).click();
+  await opts();
+  await ftx.getByRole("menuitem", { name: "Alerts and filters…" }).click();
   const alerts = page.getByRole("dialog", { name: "FTx alerts and filters" });
   await alerts.getByLabel("Calls to ignore").fill("DL1*, EA8AB");
   await expect(first).toHaveText([/^EA8ABME(DXCC)?-14$/]);
   await alerts.getByRole("button", { name: "Reset" }).click();
   await alerts.getByRole("button", { name: "Done" }).click();
   await expect(first).toHaveCount(2);
-  await ftx.getByRole("combobox").filter({ hasText: "Call boxes" }).selectOption("lines");
+  await opts();
+  await ftx.getByLabel("Lines", { exact: true }).check();
   await ftx.getByLabel("Period breaks").uncheck();
+  await page.keyboard.press("Escape");
 
   // The control strip: WSJT-X transmitting its R+report, sent from a socket that then hears
   // what QRZero sends back (requests go to the address the status came from).
@@ -234,9 +243,11 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     await expect(txRow).toHaveCount(1);
     await expect(txRow).toContainText("EA8AB N0CALL R-14");
     await expect(txRow).toContainText("1210");
-    await ftx.getByRole("combobox").filter({ hasText: "Call boxes" }).selectOption("calls");
+    await opts();
+    await ftx.getByLabel("Call boxes").check();
     await expect(ftx.locator(".ftx-txline")).toHaveText(/TX: EA8AB N0CALL R-14/);
-    await ftx.getByRole("combobox").filter({ hasText: "Call boxes" }).selectOption("lines");
+    await ftx.getByLabel("Lines", { exact: true }).check();
+    await page.keyboard.press("Escape");
 
     await strip.getByRole("button", { name: "Halt TX" }).click();
     await expect.poll(() => sentKind(8).length).toBe(1);
@@ -593,7 +604,7 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   const ftxTabs = await ftxGroup().allTextContents();
   const [popup] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "Pop out FTx monitor" }).click()]);
   // The WSJT-X fed in above may still be listed, so look for the monitor itself.
-  await expect(popup.getByLabel("Period breaks")).toBeVisible();
+  await expect(popup.getByRole("button", { name: "Options" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "FTx monitor" })).toHaveCount(0);
   // Only the desktop app can keep a window on top, so a browser pop-out has no such button.
   await expect(popup.getByRole("button", { name: "Always on top" })).toHaveCount(0);

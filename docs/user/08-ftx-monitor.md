@@ -30,15 +30,16 @@ Click the **FTx monitor** tab (next to the Log tab to start with). Drag the tab 
 | **New on band** | You've worked the station, but not on this band |
 | **Worked** | Already worked on this band |
 
-Decodes addressed to your callsign (any of your configured calls) are collected in a **Calling you** group pinned at the top of the list, newest first. They are not repeated further down. Untick **Pin calling you** in the toolbar to turn the group off, and they stay in the list in time order, still shaded; the choice is remembered. The rest of the list works as before. The group applies to the line view; in **Call boxes** your callers already come first in each period.
+Decodes addressed to your callsign (any of your configured calls) are collected in a **Calling you** group pinned at the top of the list, newest first. They are not repeated further down. Untick **Pin calling you** in **Options** to turn the group off, and they stay in the list in time order, still shaded; the choice is remembered. The rest of the list works as before. The group applies to the line view; in **Call boxes** your callers already come first in each period.
 
 Rows calling you are highlighted, and needed stations are shaded. Stations on your watch list (see **Watch list**) are marked **Watched**, with their call in colour in the message.
 
 - **Click** a decode to put the call, grid, band and mode into the QSO panel and look it up. Clicking never retunes a radio: the QSO panel switches to the radio (slice) that program is tied to, or to one already on that band, and just fills in the form.
 - **Double-click** to have that WSJT-X call the station, as if you'd double-clicked it in WSJT-X.
 - **CQ only** and **Needed only** narrow the list; the source box (**All sources**) shows one WSJT-X or JTDX at a time.
-- **Sort** orders the line view: **Time** (newest first, the default), **Country** (grouped under each DXCC entity, A to Z), **Flags** (grouped by the most important alert, in the order of the alert list, then worked stations) or **Frequency** (by audio offset, lowest first). Within a group the newest decode is first, and your own transmissions are grouped as **Sent**. While **Pin calling you** is on, stations calling you stay in the **Calling you** group on top whatever the sort. Call boxes are not affected. The choice is remembered.
-- **Period breaks** (when sorted by time) draws a line between decode periods (every 15 seconds for FT8), with the period's time and how many decodes and calls it had.
+- **Options** (in the toolbar) holds the settings you change less often: **View**, **Sort lines by**, **Period breaks**, **Pin calling you** and **Alerts and filters…**. Choices stay in the menu until you click elsewhere, and are remembered.
+- **Sort lines by** orders the line view: **Time** (newest first, the default), **DXCC** (by entity name, A to Z, with stations whose entity isn't known last), **Flags** (by the most important alert, in the order of the alert list, then worked stations) or **Frequency** (by audio offset, lowest first). Within a tie the newest decode is first, and your own transmissions come first. While **Pin calling you** is on, stations calling you stay in the **Calling you** group on top whatever the sort. Call boxes are not affected.
+- **Period breaks** (in Options, when sorted by time) draws a line between decode periods (every 15 seconds for FT8), with the period's time and how many decodes and calls it had.
 
 ### Running WSJT-X from the monitor
 
@@ -109,7 +110,7 @@ Each time a program transmits, the message is added to the list once for that pe
 
 ### Call boxes
 
-Set **View** to **Call boxes** to see the stations heard rather than every line, much like JTAlert's callsign list. Each period gets its own row of boxes, one per station, with its signal report. The newest period is at the top.
+Set **View** to **Call boxes** (in **Options**) to see the stations heard rather than every line, much like JTAlert's callsign list. Each period gets its own row of boxes, one per station, with its signal report. The newest period is at the top.
 
 - A box is coloured by its most important alert, with a short tag beside the call: **ME** calling you, **WL** on your watch list, **DXCC** new country, **BAND** country new on this band, **MODE** country new in this mode, **NEW** new call, **NB** call new on this band. The colours and which alerts are on are yours to choose (see below).
 - A line under the box means the station is calling CQ. A grey call is already worked on this band.
@@ -120,7 +121,7 @@ Both choices are remembered.
 
 ### Alerts and filters
 
-**Alerts and filters…** in the toolbar chooses which stations stand out and which are hidden. Changes apply straight away, in the main window and any popped-out monitor.
+**Alerts and filters…** in the **Options** menu chooses which stations stand out and which are hidden. Changes apply straight away, in the main window and any popped-out monitor.
 
 - **Alerts**: tick the ones you want and pick a colour for each. A station gets the colour of the first ticked alert that fits it, from the top of the list down. The same colours shade the rows in the line view and name the alerts in its Flags column. **Needed only** shows just the stations with a ticked alert. New call and New call on band are off to start with. New grid applies on 6 m and up only.
 - **Hide stations already worked on this band.**
