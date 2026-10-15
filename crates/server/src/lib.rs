@@ -484,8 +484,8 @@ struct LocationBody {
     fields: Fields,
 }
 
-async fn list_locations(State(s): State<Shared>, Path(id): Path<i64>) -> ApiResult<Vec<Location>> {
-    db(&s, move |st| st.list_locations(id)).await.map(Json)
+async fn list_locations(State(s): State<Shared>, Path(_log): Path<i64>) -> ApiResult<Vec<Location>> {
+    db(&s, move |st| st.list_locations()).await.map(Json)
 }
 
 async fn create_location(State(s): State<Shared>, Path(id): Path<i64>, Json(b): Json<LocationBody>) -> ApiResult<Location> {
@@ -513,8 +513,8 @@ struct EquipmentBody {
     fields: Fields,
 }
 
-async fn list_equipment(State(s): State<Shared>, Path(id): Path<i64>) -> ApiResult<Vec<Equipment>> {
-    db(&s, move |st| st.list_equipment(id)).await.map(Json)
+async fn list_equipment(State(s): State<Shared>, Path(_log): Path<i64>) -> ApiResult<Vec<Equipment>> {
+    db(&s, move |st| st.list_equipment()).await.map(Json)
 }
 
 async fn create_equipment(State(s): State<Shared>, Path(loc): Path<i64>, Json(b): Json<EquipmentBody>) -> ApiResult<Equipment> {

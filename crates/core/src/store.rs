@@ -20,7 +20,7 @@ use crate::cwclubs::ClubQso;
 use crate::worked::WorkedIndex;
 
 /// Migrations in order; migration N brings the schema to user_version N.
-const MIGRATIONS: &[&str] = &[SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7];
+const MIGRATIONS: &[&str] = &[SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8];
 /// The newest schema this build knows (`PRAGMA user_version`).
 pub const SCHEMA_VERSION: i32 = MIGRATIONS.len() as i32;
 
@@ -77,6 +77,32 @@ CREATE TABLE reply_list (
 /// that asking the service again beats holding a month of stale names and QTHs.
 const SCHEMA_V7: &str = r#"
 DROP TABLE IF EXISTS lookup_cache;
+"#;
+
+/// Locations (and the equipment under them) are shared by every log, so one station can be
+/// logged under several callsigns. `locations.log_id` stays as the log a location was made in.
+/// Identical locations that were built once per log are merged into one.
+const SCHEMA_V8: &str = r#"
+-- Equipment of a duplicate that the kept location doesn't already have moves across.
+UPDATE equipment SET location_id = (
+    SELECT MIN(k.id) FROM locations k JOIN locations d ON d.name = k.name AND d.fields = k.fields
+    WHERE d.id = equipment.location_id)
+WHERE location_id IN (SELECT d.id FROM locations d WHERE EXISTS (
+        SELECT 1 FROM locations k WHERE k.id < d.id AND k.name = d.name AND k.fields = d.fields))
+  AND NOT EXISTS (
+    SELECT 1 FROM equipment e2 WHERE e2.id < equipment.id AND e2.kind = equipment.kind AND e2.name = equipment.name
+      AND e2.fields = equipment.fields AND e2.location_id = (
+        SELECT MIN(k.id) FROM locations k JOIN locations d ON d.name = k.name AND d.fields = k.fields
+        WHERE d.id = equipment.location_id));
+UPDATE qsos SET location_id = (
+    SELECT MIN(k.id) FROM locations k JOIN locations d ON d.name = k.name AND d.fields = k.fields
+    WHERE d.id = qsos.location_id)
+WHERE location_id IN (SELECT d.id FROM locations d WHERE EXISTS (
+        SELECT 1 FROM locations k WHERE k.id < d.id AND k.name = d.name AND k.fields = d.fields));
+DELETE FROM locations WHERE EXISTS (
+    SELECT 1 FROM locations k WHERE k.id < locations.id AND k.name = locations.name AND k.fields = locations.fields);
+-- One default location overall.
+UPDATE locations SET is_default = IFNULL(id = (SELECT MIN(id) FROM locations WHERE is_default = 1), 0);
 "#;
 
 const SCHEMA_V1: &str = r#"
@@ -234,6 +260,12 @@ impl Store {
     }
 
     pub fn delete_log(&self, id: i64) -> Result<()> {
+        // Locations are shared, so they must outlive the log they were made in.
+        self.conn.execute(
+            "UPDATE locations SET log_id = (SELECT MIN(id) FROM logs WHERE id <> ?1)
+             WHERE log_id = ?1 AND EXISTS (SELECT 1 FROM logs WHERE id <> ?1)",
+            [id],
+        )?;
         self.expect_changed(self.conn.execute("DELETE FROM logs WHERE id = ?1", [id])?, "log")
     }
 
@@ -298,12 +330,12 @@ impl Store {
 
     // ---- locations -----------------------------------------------------
 
-    pub fn list_locations(&self, log_id: i64) -> Result<Vec<Location>> {
+    /// All locations; they are shared by every log.
+    pub fn list_locations(&self) -> Result<Vec<Location>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, log_id, name, is_default, fields FROM locations
-             WHERE log_id = ?1 ORDER BY is_default DESC, name",
+            "SELECT id, log_id, name, is_default, fields FROM locations ORDER BY is_default DESC, name",
         )?;
-        let rows = stmt.query_map([log_id], row_to_location)?;
+        let rows = stmt.query_map([], row_to_location)?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
@@ -318,13 +350,13 @@ impl Store {
             .ok_or_else(|| Error::NotFound(format!("location {id}")))
     }
 
-    /// Creates a location. The first location in a log becomes the default.
+    /// Creates a location. The first location becomes the default.
     pub fn create_location(&self, log_id: i64, name: &str, fields: &Fields) -> Result<Location> {
         let name = non_empty(name, "location name")?;
         let fields = clean_location_fields(fields);
         let has_default: bool = self.conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM locations WHERE log_id = ?1 AND is_default = 1)",
-            [log_id],
+            "SELECT EXISTS(SELECT 1 FROM locations WHERE is_default = 1)",
+            [],
             |r| r.get(0),
         )?;
         self.conn.execute(
@@ -348,7 +380,11 @@ impl Store {
     }
 
     pub fn set_default_location(&mut self, id: i64) -> Result<()> {
-        self.set_default("locations", id)
+        self.get_location(id)?;
+        let tx = self.conn.transaction()?;
+        tx.execute("UPDATE locations SET is_default = (id = ?1)", [id])?;
+        tx.commit()?;
+        Ok(())
     }
 
     pub fn delete_location(&self, id: i64) -> Result<()> {
@@ -934,13 +970,13 @@ impl Store {
     // ---- equipment -----------------------------------------------------
 
     /// All equipment at all locations of a log, grouped by location then kind.
-    pub fn list_equipment(&self, log_id: i64) -> Result<Vec<Equipment>> {
+    /// All equipment; it is shared by every log along with its location.
+    pub fn list_equipment(&self) -> Result<Vec<Equipment>> {
         let mut stmt = self.conn.prepare(
-            "SELECT e.id, e.location_id, e.kind, e.name, e.fields, e.sort FROM equipment e
-             JOIN locations l ON l.id = e.location_id WHERE l.log_id = ?1
-             ORDER BY e.location_id, e.kind, e.sort, e.id",
+            "SELECT id, location_id, kind, name, fields, sort FROM equipment
+             ORDER BY location_id, kind, sort, id",
         )?;
-        let rows = stmt.query_map([log_id], row_to_equipment)?;
+        let rows = stmt.query_map([], row_to_equipment)?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
@@ -1517,6 +1553,31 @@ fn non_empty(s: &str, what: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upgrade_merges_identical_locations_across_logs() {
+        let conn = Connection::open_in_memory().unwrap();
+        for sql in &MIGRATIONS[..7] {
+            conn.execute_batch(sql).unwrap();
+        }
+        conn.execute_batch(
+            "INSERT INTO logs (id, name, created_at) VALUES (1, 'Me', 0), (2, 'Club', 0);
+             INSERT INTO locations (id, log_id, name, is_default, fields) VALUES
+                (1, 1, 'Home', 1, '{\"MY_GRIDSQUARE\":\"EN34\"}'),
+                (2, 2, 'Home', 1, '{\"MY_GRIDSQUARE\":\"EN34\"}'),
+                (3, 2, 'Portable', 0, '{}');
+             INSERT INTO equipment (location_id, kind, name) VALUES (1, 'rig', 'K3'), (2, 'rig', 'K3'), (2, 'antenna', 'Hex');
+             INSERT INTO qsos (log_id, location_id, call, time_on, fields, created_at, updated_at)
+                VALUES (2, 2, 'W1AW', 0, '{}', 0, 0);",
+        )
+        .unwrap();
+        conn.execute_batch(SCHEMA_V8).unwrap();
+        let count = |sql: &str| conn.query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap();
+        assert_eq!(count("SELECT COUNT(*) FROM locations"), 2);
+        assert_eq!(count("SELECT location_id FROM qsos"), 1, "QSOs follow the kept location");
+        assert_eq!(count("SELECT COUNT(*) FROM equipment WHERE location_id = 1"), 2, "K3 once, Hex moved over");
+        assert_eq!(count("SELECT COUNT(*) FROM locations WHERE is_default = 1"), 1);
+    }
 
     #[test]
     fn upgrades_a_v1_database_in_place() {

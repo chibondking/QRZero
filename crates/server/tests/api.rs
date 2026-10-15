@@ -449,3 +449,17 @@ async fn logged_qsos_are_filled_in_from_qrz() {
     assert_eq!(f["QTH"], "Hartford", "a filled field is kept");
     assert_eq!(f["CALL"], "W1AW");
 }
+
+#[tokio::test]
+async fn a_second_log_sees_the_same_locations_and_equipment() {
+    let api = Api::new(String::new()).await;
+    let personal = api.get("/logs").await[0]["id"].as_i64().unwrap();
+    let club = api.post("/logs", json!({"name": "Club"})).await["id"].as_i64().unwrap();
+    let loc = api.post(&format!("/logs/{personal}/locations"), json!({"name": "Home", "fields": {}})).await["id"].as_i64().unwrap();
+    api.post(&format!("/locations/{loc}/equipment"), json!({"kind": "rig", "name": "K3", "fields": {}})).await;
+
+    let locs = api.get(&format!("/logs/{club}/locations")).await;
+    assert_eq!(locs[0]["name"], "Home");
+    let gear = api.get(&format!("/logs/{club}/equipment")).await;
+    assert_eq!(gear[0]["name"], "K3");
+}
