@@ -32,20 +32,20 @@ const isClub = (k: string): k is ClubKind => CLUBS.some((c) => c.key === k);
 /** Awards with a fixed list, so unworked rows are shown (the rest only list what you have worked). */
 const FIXED = new Set<AwardKind>(["dxcc", "was", "waz", "wac", "itu"]);
 
-/** The DXCC Challenge counts entity-band slots on these 10 bands; 5BDXCC wants 100 entities on these 5. */
+/** The DXCC Challenge counts entity-band slots on these 10 bands; 5BDXCC wants 100 entities confirmed on each of these 5. */
 const CHALLENGE_BANDS = ["160m", "80m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"];
 const FIVE_BANDS = ["80m", "40m", "20m", "15m", "10m"];
 
 function dxccSummary(t: AwardTable) {
   const slots = { worked: 0, confirmed: 0 };
-  let five = 0;
+  const five: Record<string, number> = Object.fromEntries(FIVE_BANDS.map((b) => [b, 0]));
   for (const r of t.rows) {
     for (const b of CHALLENGE_BANDS) {
       const c = r.cells[b];
       if (c) slots.worked++;
       if (c === "confirmed" || c === "verified") slots.confirmed++;
     }
-    if (FIVE_BANDS.every((b) => r.cells[b] === "confirmed" || r.cells[b] === "verified")) five++;
+    for (const b of FIVE_BANDS) if (r.cells[b] === "confirmed" || r.cells[b] === "verified") five[b]++;
   }
   return { slots, five };
 }
@@ -156,7 +156,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
       {summary && !club && (
         <div className="ftx-msg small">
           <b>DXCC Challenge:</b> {summary.slots.confirmed} confirmed, {summary.slots.worked} worked band slots (160 to 6 m; 1000 for the award).{" "}
-          <b>5BDXCC:</b> {summary.five} of 100 entities confirmed on 80, 40, 20, 15 and 10 m.
+          <b>5BDXCC</b> (100 entities confirmed on each band): {FIVE_BANDS.map((b) => `${b.replace("m", " m")} ${summary.five[b]}`).join(", ")}.
         </div>
       )}
       {err && <div className="ftx-msg small err">{err}</div>}

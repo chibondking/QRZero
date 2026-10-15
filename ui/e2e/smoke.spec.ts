@@ -758,6 +758,8 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.locator(".award-score")).toContainText("verified");
   await expect(page.locator(".award-table td.verified").first()).toHaveText("V");
   await expect(page.locator(".award-table td.confirmed").first()).toHaveText("C");
+  // 5BDXCC counts entities per band, as the award needs 100 on each.
+  await expect(page.locator(".ftx-msg", { hasText: "5BDXCC" })).toContainText(/80 m \d+, 40 m \d+, 20 m \d+, 15 m \d+, 10 m \d+/);
   await page.screenshot({ path: "e2e-results/awards-verified.png" });
   await page.getByRole("button", { name: "SKCC" }).click();
   const centurion = page.locator(".club-table tbody tr", { hasText: "Centurion" }).first();

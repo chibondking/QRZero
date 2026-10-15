@@ -243,8 +243,8 @@ fn updates() {
     ]);
     let today = chrono::Utc::now().format("%Y%m%d").to_string();
     let u = confirmation_updates(Service::Lotw, &rec);
-    assert_eq!(u.set, f(&[("LOTW_QSL_RCVD", "Y"), ("LOTW_QSL_SENT", "Y"), ("LOTW_QSLRDATE", "20261001")]));
-    assert_eq!(u.fill, f(&[("DXCC", "291"), ("STATE", "CT"), ("GRIDSQUARE", "FN31pr"), ("LOTW_QSLSDATE", &today)]));
+    assert_eq!(u.set, f(&[("LOTW_QSL_RCVD", "Y"), ("LOTW_QSL_SENT", "Y"), ("LOTW_QSLRDATE", "20261001"), ("DXCC", "291")]));
+    assert_eq!(u.fill, f(&[("STATE", "CT"), ("GRIDSQUARE", "FN31pr"), ("LOTW_QSLSDATE", &today)]));
 
     let u = confirmation_updates(Service::Eqsl, &rec);
     assert_eq!(u.set, f(&[("EQSL_QSL_RCVD", "Y"), ("EQSL_QSL_SENT", "Y"), ("EQSL_QSLRDATE", "20261001")]));
