@@ -317,7 +317,10 @@ export default function App() {
   const home = location ? positionOf(location.fields, "MY_") : null;
   const entryCall = entry.fields.CALL ?? "";
   const browsing = browse && browse.entryCall === entryCall && browse.lookup ? browse : null;
-  const paneLookup = browsing ? browsing.lookup : lookup;
+  // A lookup belongs to the call it was made for: while another call is being typed, the
+  // previous station isn't shown for it.
+  const typed = entryCall.trim().toUpperCase();
+  const paneLookup = browsing ? browsing.lookup : lookup && typed && lookup.call !== typed ? null : lookup;
   const paneEntry: EntryContext = browsing ? { ...entry, fields: { CALL: browsing.call } } : entry;
   const dxStation = paneLookup?.station ?? null;
   const dxEntity = paneLookup?.entity;
