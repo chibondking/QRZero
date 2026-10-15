@@ -86,23 +86,23 @@ pub fn credit_mask(credit: &str) -> u16 {
     let mut mask = 0;
     for part in credit.split(',') {
         let name = part.split(':').next().unwrap_or("").trim().to_ascii_uppercase();
-        let award = if name.starts_with("DXCC") {
+        let award = if name.contains("DXCC") {
             Award::Dxcc
-        } else if name.starts_with("WAS") {
+        } else if name.contains("WAS") {
             Award::Was
-        } else if name.starts_with("WAZ") || name.starts_with("CQ_WAZ") {
+        } else if name.contains("WAZ") || name.contains("CQ_WAZ") {
             Award::Waz
-        } else if name.starts_with("WPX") || name.starts_with("CQ_WPX") {
+        } else if name.contains("WPX") || name.contains("CQ_WPX") {
             Award::Wpx
-        } else if name.starts_with("WAC") {
+        } else if name.contains("WAC") {
             Award::Wac
-        } else if name.starts_with("ITUZ") {
+        } else if name.contains("ITUZ") {
             Award::Itu
-        } else if name.starts_with("VUCC") {
+        } else if name.contains("VUCC") {
             Award::Vucc
-        } else if name.starts_with("IOTA") {
+        } else if name.contains("IOTA") {
             Award::Iota
-        } else if name.starts_with("USACA") {
+        } else if name.contains("USACA") {
             Award::Counties
         } else {
             continue;
@@ -892,6 +892,7 @@ mod tests {
     fn credit_granted_makes_cells_verified() {
         assert_eq!(credit_mask("DXCC,DXCC_BAND:LOTW, WAS"), (1 << Award::Dxcc as usize) | (1 << Award::Was as usize));
         assert_eq!(credit_mask("CQDX"), 0);
+        assert_eq!(credit_mask("5BWAS, WAS_TRIPLE_PLAY"), 1 << Award::Was as usize);
         let mut t = Tally::new(Award::Dxcc, Counts { lotw: true, ..Counts::default() }, BTreeMap::new());
         t.add(&AwardQso { dxcc: Some(291), lotw: true, credit: credit_mask("DXCC"), ..q("K1ABC", "40m", "CW") });
         t.add(&AwardQso { dxcc: Some(291), lotw: true, ..q("K1ABC", "20m", "CW") });
