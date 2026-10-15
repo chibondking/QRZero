@@ -270,9 +270,10 @@ export interface QslOverview {
 export interface QslSecrets { qrz_keys?: Record<string, string>; clublog_password?: string; lotw_password?: string; eqsl_password?: string }
 
 export type AwardKind = "dxcc" | "was" | "waz" | "wpx" | "wac" | "itu" | "vucc" | "iota" | "counties";
-export type AwardStatus = "worked" | "confirmed";
+export type AwardStatus = "worked" | "confirmed" | "verified";
+export type HintStatus = "new" | "worked" | "confirmed";
 export interface AwardRow { key: string; name: string; cells: Record<string, AwardStatus> }
-export interface AwardColumn { key: string; worked: number; confirmed: number }
+export interface AwardColumn { key: string; worked: number; confirmed: number; verified: number }
 export interface AwardTable { award: AwardKind; columns: AwardColumn[]; rows: AwardRow[]; total: number }
 /** One CWT hour: QSOs logged, different call-and-band contacts (what counts), QSOs just outside the hour. */
 export interface CwtSession { date: string; hour: number; qsos: number; contacts: number; near: number; point: boolean }
@@ -305,10 +306,10 @@ export interface ClubAwards {
   cwt: { per_point: number; thresholds: [number, number, number]; years: CwtYear[] };
 }
 /** What a QSO would add to one award: its row and the cells it falls in (mixed, mode group, band). */
-export interface AwardHint { award: AwardKind; key: string; name: string; cells: { column: string; status: "new" | AwardStatus }[] }
+export interface AwardHint { award: AwardKind; key: string; name: string; cells: { column: string; status: HintStatus }[] }
 
 /** DXCC slots of one entity: per band (row), the status of CW, Phone and Digital. */
-export interface SlotGrid { bands: string[]; cells: ("new" | AwardStatus)[][] }
+export interface SlotGrid { bands: string[]; cells: HintStatus[][] }
 
 /** A station note, stored under the base call. Times are Unix seconds. */
 export interface Note {

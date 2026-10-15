@@ -73,8 +73,43 @@ pub struct AwardQso {
     pub paper: bool,
     /// EQSL_QSL_RCVD == Y (or V).
     pub eqsl: bool,
+    /// Awards this QSO was granted credit for (ADIF CREDIT_GRANTED, as written by LoTW):
+    /// bit `1 << award as usize` per [`Award`]. See [`credit_mask`].
+    pub credit: u16,
     /// QSO row id, so the UI can list QSOs for a cell.
     pub id: i64,
+}
+
+/// The awards named in an ADIF CREDIT_GRANTED value like `DXCC,DXCC_BAND:LOTW,WAS`, as a bit per [`Award`].
+/// Any DXCC variant (band, mode, challenge) credits the DXCC entity, and likewise for the others.
+pub fn credit_mask(credit: &str) -> u16 {
+    let mut mask = 0;
+    for part in credit.split(',') {
+        let name = part.split(':').next().unwrap_or("").trim().to_ascii_uppercase();
+        let award = if name.starts_with("DXCC") {
+            Award::Dxcc
+        } else if name.starts_with("WAS") {
+            Award::Was
+        } else if name.starts_with("WAZ") || name.starts_with("CQ_WAZ") {
+            Award::Waz
+        } else if name.starts_with("WPX") || name.starts_with("CQ_WPX") {
+            Award::Wpx
+        } else if name.starts_with("WAC") {
+            Award::Wac
+        } else if name.starts_with("ITUZ") {
+            Award::Itu
+        } else if name.starts_with("VUCC") {
+            Award::Vucc
+        } else if name.starts_with("IOTA") {
+            Award::Iota
+        } else if name.starts_with("USACA") {
+            Award::Counties
+        } else {
+            continue;
+        };
+        mask |= 1 << award as usize;
+    }
+    mask
 }
 
 impl AwardQso {
@@ -102,6 +137,7 @@ impl AwardQso {
             lotw: yes("LOTW_QSL_RCVD"),
             paper: yes("QSL_RCVD"),
             eqsl: yes("EQSL_QSL_RCVD"),
+            credit: get("CREDIT_GRANTED").map_or(0, credit_mask),
             id: 0,
             call,
         }
@@ -114,6 +150,8 @@ impl AwardQso {
 pub enum Status {
     Worked,
     Confirmed,
+    /// Confirmed, and LoTW granted award credit for it.
+    Verified,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -127,7 +165,9 @@ pub struct Row {
 pub struct Column {
     pub key: String,
     pub worked: usize,
+    /// Confirmed cells, including the verified ones.
     pub confirmed: usize,
+    pub verified: usize,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -436,7 +476,7 @@ pub fn in_cell(award: Award, q: &AwardQso, row: &str, column: &str) -> bool {
     in_column(q, column) && row_key(award, q).is_some_and(|k| k == row)
 }
 
-/// Cell values: 0 = nothing, 1 = worked, 2 = confirmed.
+/// Cell values: 0 = nothing, 1 = worked, 2 = confirmed, 3 = verified (award credit granted).
 type Cells = [u8; NCOLS];
 
 /// Accumulates QSOs into an award table.
@@ -466,7 +506,13 @@ impl Tally {
     pub fn add(&mut self, q: &AwardQso) {
         let Some(id) = row_id(self.award, q) else { return };
         let c = &self.counts;
-        let v = if (c.lotw && q.lotw) || (c.paper && q.paper) || (c.eqsl && q.eqsl) { 2 } else { 1 };
+        let v = if q.credit & (1 << self.award as usize) != 0 {
+            3
+        } else if (c.lotw && q.lotw) || (c.paper && q.paper) || (c.eqsl && q.eqsl) {
+            2
+        } else {
+            1
+        };
         let cells = match id {
             RowId::Num(n) => self.nums.entry(n).or_insert([0; NCOLS]),
             RowId::Text(s) => self.texts.entry(s).or_insert([0; NCOLS]),
@@ -510,6 +556,7 @@ impl Tally {
                 key: k.to_string(),
                 worked: 0,
                 confirmed: 0,
+                verified: 0,
             })
             .collect();
 
@@ -525,7 +572,12 @@ impl Tally {
                     columns[i].worked += 1;
                     let status = if v >= 2 {
                         columns[i].confirmed += 1;
-                        Status::Confirmed
+                        if v >= 3 {
+                            columns[i].verified += 1;
+                            Status::Verified
+                        } else {
+                            Status::Confirmed
+                        }
                     } else {
                         Status::Worked
                     };
@@ -834,6 +886,22 @@ mod tests {
             mode: Some(mode.into()),
             ..AwardQso::default()
         }
+    }
+
+    #[test]
+    fn credit_granted_makes_cells_verified() {
+        assert_eq!(credit_mask("DXCC,DXCC_BAND:LOTW, WAS"), (1 << Award::Dxcc as usize) | (1 << Award::Was as usize));
+        assert_eq!(credit_mask("CQDX"), 0);
+        let mut t = Tally::new(Award::Dxcc, Counts { lotw: true, ..Counts::default() }, BTreeMap::new());
+        t.add(&AwardQso { dxcc: Some(291), lotw: true, credit: credit_mask("DXCC"), ..q("K1ABC", "40m", "CW") });
+        t.add(&AwardQso { dxcc: Some(291), lotw: true, ..q("K1ABC", "20m", "CW") });
+        let tab = t.finish(false);
+        let col = |k: &str| tab.columns.iter().find(|c| c.key == k).unwrap();
+        assert_eq!((col("mixed").confirmed, col("mixed").verified), (1, 1));
+        assert_eq!((col("40m").confirmed, col("40m").verified), (1, 1));
+        assert_eq!((col("20m").confirmed, col("20m").verified), (1, 0));
+        assert_eq!(tab.rows[0].cells.get("40m"), Some(&Status::Verified));
+        assert_eq!(tab.rows[0].cells.get("20m"), Some(&Status::Confirmed));
     }
 
     fn all_counts() -> Counts {

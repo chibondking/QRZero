@@ -565,6 +565,7 @@ table.list th { text-align: left; font-size: 12px; font-weight: 600; padding: 2p
 .award-table tbody tr { cursor: pointer; }
 .award-table tbody tr:hover { background: var(--panel-2); }
 .award-table td.confirmed { color: var(--ok); font-weight: 700; }
+.award-table td.verified { color: var(--ok); font-weight: 700; background: color-mix(in srgb, var(--ok) 14%, transparent); }
 .award-table td.worked { color: var(--new); }
 .awards { display: flex; flex-direction: column; min-height: 0; }
 button.chip { white-space: nowrap; }

@@ -43,9 +43,9 @@ function dxccSummary(t: AwardTable) {
     for (const b of CHALLENGE_BANDS) {
       const c = r.cells[b];
       if (c) slots.worked++;
-      if (c === "confirmed") slots.confirmed++;
+      if (c === "confirmed" || c === "verified") slots.confirmed++;
     }
-    if (FIVE_BANDS.every((b) => r.cells[b] === "confirmed")) five++;
+    if (FIVE_BANDS.every((b) => r.cells[b] === "confirmed" || r.cells[b] === "verified")) five++;
   }
   return { slots, five };
 }
@@ -100,7 +100,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
   }, []);
 
   const club = isClub(current) ? current : null;
-  const rows = useMemo(() => (table ? (opts.needed ? table.rows.filter((r) => r.cells.mixed !== "confirmed") : table.rows) : []), [table, opts.needed]);
+  const rows = useMemo(() => (table ? (opts.needed ? table.rows.filter((r) => r.cells.mixed !== "confirmed" && r.cells.mixed !== "verified") : table.rows) : []), [table, opts.needed]);
   const award = AWARDS.find((a) => a.key === current) ?? AWARDS[0];
   const summary = useMemo(() => (table && current === "dxcc" ? dxccSummary(table) : null), [table, current]);
   const mixed = club ? undefined : table?.columns.find((c) => c.key === "mixed");
@@ -148,7 +148,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         <span className="spacer" />
         {mixed && (
           <span className="award-score">
-            <b>{mixed.worked}</b> worked, <b>{mixed.confirmed}</b> confirmed{table && table.total > 0 ? ` of ${table.total}` : ""} {award.what}
+            <b>{mixed.worked}</b> worked, <b>{mixed.confirmed}</b> confirmed{mixed.verified > 0 ? <>, <b>{mixed.verified}</b> verified</> : null}{table && table.total > 0 ? ` of ${table.total}` : ""} {award.what}
           </span>
         )}
       </div>
@@ -188,7 +188,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
                     const st = r.cells[c.key];
                     return (
                       <td key={c.key} className={`${st ?? ""} ${c.key === "digital" || c.key === "mixed" ? "sep" : ""}`}>
-                        {st === "confirmed" ? "C" : st === "worked" ? "W" : ""}
+                        {st === "verified" ? "V" : st === "confirmed" ? "C" : st === "worked" ? "W" : ""}
                       </td>
                     );
                   })}
@@ -202,7 +202,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         </div>
       )}
       {!club && <div className="ftx-msg small muted">
-        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
+        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}V verified (LoTW granted award credit), C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
       </div>}
     </div>
   );

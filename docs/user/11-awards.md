@@ -16,7 +16,7 @@ The **Awards** pane, a tab next to the log to start with, shows how far you are 
 
 On the **DXCC** tab a line under the toolbar also shows the **DXCC Challenge** (confirmed and worked entity-band slots on 160 to 6 m, 1000 needed) and **5BDXCC** (entities confirmed on 80, 40, 20, 15 and 10 m, 100 needed).
 
-Each row is an entity, state, zone, prefix and so on. The columns are **Mixed**, then **CW**, **Phone** and **Digital**, then each band from 160 m to 6 m, plus 2 m and 70 cm. A green **C** means confirmed and an amber **W** means worked but not yet confirmed. The second header row shows confirmed and worked totals for each column, and the top right shows the overall total.
+Each row is an entity, state, zone, prefix and so on. The columns are **Mixed**, then **CW**, **Phone** and **Digital**, then each band from 160 m to 6 m, plus 2 m and 70 cm. A green **V** on a shaded cell means verified, a green **C** means confirmed and an amber **W** means worked but not yet confirmed. The second header row shows confirmed and worked totals for each column, and the top right shows the overall total.
 
 ## Choosing which awards to show
 
@@ -31,6 +31,10 @@ Tick the sources that count under **Confirmed by**:
 - **LoTW**: QSOs with **LoTW R** = Y. Download them in QSL, LoTW, **Download confirmations**. The page then lists what the download newly confirmed toward your awards.
 - **Cards**: QSOs with **QSL rcvd** = Y, from paper cards you've marked as received.
 - **eQSL**: QSOs with **eQSL R** = Y. ARRL's DXCC and WAS don't accept eQSL, so it's off by default.
+
+## Verified
+
+**V** is a step above **C**: LoTW has granted award credit for that QSO. It comes from the QSO's **CREDIT_GRANTED** field, which LoTW writes in its award-credit ADIF exports (for example `DXCC,DXCC_BAND`). Import such a file in the usual way, or let a LoTW confirmation download fill it in when LoTW includes it. A QSO credited for DXCC shows V on every DXCC cell it fills; the same goes for WAS, WAZ, WPX, WAC, ITU, VUCC, IOTA and Counties. Verified cells also count as confirmed, and the top right adds a verified total once you have any. Credit is shown whichever sources are ticked under **Confirmed by**.
 
 ## Finding what you need
 

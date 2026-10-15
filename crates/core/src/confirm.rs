@@ -517,6 +517,12 @@ pub fn confirmation_updates(service: Service, rec: &Fields) -> ConfirmUpdate {
     set.insert(sent, "Y".into());
     set.insert(rcvd.into(), "Y".into());
     set.insert(date_key.into(), date_field(rec, date_sources).unwrap_or_else(today));
+    // LoTW says which awards it credited the QSO toward, when the report carries that.
+    if service == Service::Lotw {
+        if let Some(c) = nonempty(rec, "CREDIT_GRANTED") {
+            set.insert("CREDIT_GRANTED".into(), c.to_string());
+        }
+    }
     let mut fill: Fields = fill_keys.iter().filter_map(|k| nonempty(rec, k).map(|v| (k.to_string(), v.to_string()))).collect();
     fill.insert(sent_date, today());
     ConfirmUpdate { set, fill }
