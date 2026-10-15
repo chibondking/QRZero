@@ -251,6 +251,7 @@ fn router(state: Shared, loopback_only: bool) -> Router {
         .route("/logs/{id}/paper-queue", get(paper_queue))
         .route("/logs/{id}/awards/{award}", get(award))
         .route("/logs/{id}/club-awards", get(club_awards))
+        .route("/logs/{id}/stats", get(log_stats))
         .route("/logs/{id}/cwt-extra", put(put_cwt_extra))
         .route("/logs/{id}/lookup/{call}", get(lookup))
         .route("/logs/{id}/award-hints", get(award_hints))
@@ -715,6 +716,30 @@ async fn award(State(s): State<Shared>, Path((id, award)): Path<(i64, Award)>, Q
     })
     .await?;
     Ok(Json(table.as_ref().clone()))
+}
+
+#[derive(Deserialize)]
+struct StatsQuery {
+    /// Comma-separated station callsigns; empty means all.
+    #[serde(default)]
+    calls: String,
+}
+
+/// The log's statistics, counted when asked for (nothing runs in the background).
+async fn log_stats(State(s): State<Shared>, Path(id): Path<i64>, Query(q): Query<StatsQuery>) -> ApiResult<qrzero_core::stats::Stats> {
+    let cty = s.hub.cty();
+    let calls: Vec<String> = q.calls.split(',').map(|c| c.trim().to_ascii_uppercase()).filter(|c| !c.is_empty()).collect();
+    let names: std::collections::BTreeMap<u32, String> = cty
+        .as_ref()
+        .map(|c| c.entities().iter().filter_map(|e| e.dxcc.map(|d| (d, e.name.clone()))).collect())
+        .unwrap_or_default();
+    let out = db(&s, move |st| {
+        let mut tally = qrzero_core::stats::StatsTally::default();
+        st.for_each_stats_qso(id, &calls, |c| cty_facts(cty.as_deref(), c).dxcc, |qso| tally.add(qso))?;
+        Ok(tally.finish(&names))
+    })
+    .await?;
+    Ok(Json(out))
 }
 
 #[derive(Deserialize)]

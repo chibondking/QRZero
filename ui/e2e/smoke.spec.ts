@@ -330,6 +330,15 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
     radio.close();
   }
   await page.getByRole("tab", { name: "Log", exact: true }).click();
+  // Statistics summarises the log as copyable text.
+  await fromMenu(page, "Statistics…");
+  const stats = page.getByRole("dialog", { name: "Statistics" });
+  await expect(stats.getByLabel("Statistics summary")).toContainText("DXCC progress by year");
+  await expect(stats.getByLabel("Statistics summary")).toContainText("Confirmation rates");
+  await expect(stats.getByLabel("Statistics summary")).toContainText("K1ABC");
+  await stats.screenshot({ path: "e2e-results/stats.png" });
+  await stats.getByRole("button", { name: "Close", exact: true }).last().click();
+  await expect(stats).toHaveCount(0);
   // About names the installed version and links to the project.
   await fromMenu(page, "About QRZero");
   const about = page.getByRole("dialog", { name: "About QRZero" });

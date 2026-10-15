@@ -19,6 +19,7 @@ import ExportDialog from "./components/ExportDialog";
 import SettingsDialog, { type GeneralPrefs } from "./components/SettingsDialog";
 import HelpView from "./components/HelpView";
 import AboutDialog from "./components/AboutDialog";
+import StatsDialog from "./components/StatsDialog";
 import SharedPane, { type PaneActions } from "./components/SharedPanes";
 import Workspace from "./components/Workspace";
 import LayoutMenu from "./components/LayoutMenu";
@@ -29,7 +30,7 @@ import NeededAlerts from "./components/NeededAlerts";
 import SetupWizard from "./components/SetupWizard";
 import { useShortcut } from "./shortcuts";
 
-type Dialog = "import" | "export" | "settings" | "help" | "wizard" | "qsl" | "qslqueue" | "about" | null;
+type Dialog = "import" | "export" | "settings" | "help" | "wizard" | "qsl" | "qslqueue" | "stats" | "about" | null;
 
 /** Where a pane goes back to when its window closes. */
 const HOME: Partial<Record<PaneId, [PaneId, Zone]>> = {
@@ -631,6 +632,7 @@ export default function App() {
         />
       )}
       {(dialog === "qsl" || dialog === "qslqueue") && logId !== null && <QslDialog tab={dialog === "qsl" ? "online" : "queue"} logId={logId} callsigns={activeCalls} locations={locations} onClose={() => setDialog(null)} />}
+      {dialog === "stats" && logId !== null && <StatsDialog logId={logId} onClose={() => setDialog(null)} />}
       {dialog === "help" && <HelpView onClose={() => setDialog(null)} />}
       {dialog === "about" && <AboutDialog onClose={() => setDialog(null)} />}
     </div>

@@ -77,6 +77,7 @@ Choose **QSL** from the **☰** menu, then the **Online services** tab. Enter yo
 | Check what I still need for DXCC, WAS and other awards | The **Awards** tab; [Awards](11-awards) |
 | Send or answer paper QSL cards | Queue them in the Log tab, then **QSL Queue…** in the ☰ menu, or Alt+Q |
 | Send confirmations | **QSL** in the ☰ menu |
+| See my totals, DXCC progress by year, confirmation rates and most-worked stations | **Statistics…** in the ☰ menu; [Statistics](19-statistics) |
 | Back up or restore my log | **Settings → Backups** |
 | Search this guide | The search box at the top of the Help window |
 | See which version I have, or find the website (qrzero.app), project page, releases and issue tracker | **About QRZero** in the ☰ menu |
