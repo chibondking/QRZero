@@ -681,6 +681,7 @@ pre.udp-sent { font: 11px var(--mono); background: var(--panel-2); border: 1px s
 
 /* "Saved." stays about 2 seconds, then fades out. */
 .fades { animation: fade-out 0.6s ease 2s forwards; }
+.fades-logged { animation: fade-out 0.6s ease 3.4s forwards; }
 @keyframes fade-out { to { opacity: 0; visibility: hidden; } }
 
 .queue-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--line); margin-bottom: 6px; }

@@ -748,6 +748,12 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.getByRole("button", { name: "FISTS" })).toBeVisible();
   await page.getByRole("tab", { name: "Log", exact: true }).click();
 
+  // The "Logged" confirmation goes away by itself after a few seconds.
+  await call.fill("N9FADE");
+  await call.press("Enter");
+  await expect(page.getByText(/^Logged N9FADE on /)).toBeVisible();
+  await expect(page.getByText(/^Logged N9FADE on /)).toHaveCount(0, { timeout: 8000 });
+
   // The user guide opens from the top bar.
   await fromMenu(page, /^Help/);
   await expect(page.getByRole("heading", { name: "Getting started" })).toBeVisible();
