@@ -1174,7 +1174,11 @@ fn record_is_for(record: &Fields, asked: &str, base: Option<&str>) -> bool {
     let Some(got) = record.get("CALL").map(|c| c.trim()).filter(|c| !c.is_empty()) else {
         return true;
     };
-    got.eq_ignore_ascii_case(asked) || base.is_some_and(|b| got.eq_ignore_ascii_case(b))
+    let ok = got.eq_ignore_ascii_case(asked) || base.is_some_and(|b| got.eq_ignore_ascii_case(b));
+    if !ok {
+        tracing::info!("lookup for {asked} came back as {got}; ignored");
+    }
+    ok
 }
 
 /// How much of the chain to use.
