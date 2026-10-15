@@ -30,7 +30,7 @@ Click the **FTx monitor** tab (next to the Log tab to start with). Drag the tab 
 | **New on band** | You've worked the station, but not on this band |
 | **Worked** | Already worked on this band |
 
-Decodes addressed to your callsign (any of your configured calls) are collected in a **Calling you** group pinned at the top of the list, newest first. They are not repeated further down. Untick **Pin calling you** in **Options** to turn the group off, and they stay in the list in time order, still shaded; the choice is remembered. The rest of the list works as before. The group applies to the line view; in **Call boxes** your callers already come first in each period.
+Decodes addressed to your callsign (any of your configured calls) from the latest decode period are collected in a **Calling you** group pinned at the top of the list, newest first, and are not repeated further down. When the next period starts they move on down the list in their normal place, still shaded, and only the new period's callers are pinned. Untick **Pin calling you** in **Options** to turn the group off, and they stay in the list in their normal place, still shaded; the choice is remembered. The rest of the list works as before. The group applies to the line view; in **Call boxes** your callers already come first in each period.
 
 Rows calling you are highlighted, and needed stations are shaded. Stations on your watch list (see **Watch list**) are marked **Watched**, with their call in colour in the message.
 
@@ -38,7 +38,7 @@ Rows calling you are highlighted, and needed stations are shaded. Stations on yo
 - **Double-click** to have that WSJT-X call the station, as if you'd double-clicked it in WSJT-X.
 - **CQ only** and **Needed only** narrow the list; the source box (**All sources**) shows one WSJT-X or JTDX at a time.
 - **Options** (in the toolbar) holds the settings you change less often: **View**, **Sort lines by**, **Period breaks**, **Pin calling you** and **Alerts and filters…**. Choices stay in the menu until you click elsewhere, and are remembered.
-- **Sort lines by** orders the line view: **Time** (newest first, the default), **DXCC** (by entity name, A to Z, with stations whose entity isn't known last), **Flags** (by the most important alert, in the order of the alert list, then worked stations) or **Frequency** (by audio offset, lowest first). Within a tie the newest decode is first, and your own transmissions come first. While **Pin calling you** is on, stations calling you stay in the **Calling you** group on top whatever the sort. Call boxes are not affected.
+- **Sort lines by** orders the line view: **Time** (newest first, the default), **DXCC** (by entity name, A to Z, with stations whose entity isn't known last), **Flags** (by the most important alert, in the order of the alert list, then worked stations) or **Frequency** (by audio offset, lowest first). Within a tie the newest decode is first, and your own transmissions come first. While **Pin calling you** is on, stations that called you in the latest period stay in the **Calling you** group on top whatever the sort. Call boxes are not affected.
 - **Period breaks** (in Options, when sorted by time) draws a line between decode periods (every 15 seconds for FT8), with the period's time and how many decodes and calls it had.
 
 ### Running WSJT-X from the monitor

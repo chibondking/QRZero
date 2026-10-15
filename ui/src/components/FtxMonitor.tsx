@@ -182,11 +182,18 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
   };
 
   const cycles = useMemo(() => cyclesOf(shown), [shown]);
-  // Decodes addressed to us sit in a group above the rest, newest first, and are not repeated below.
+  // Decodes addressed to us in a source's latest period sit in a group above the rest and are not
+  // repeated below. When that source's next period starts they fall back into the list, still shaded.
   const pin = filters.pinMe !== false;
-  const calling = useMemo(() => (pin ? shown.filter((d) => d.to_me && !d.tx) : []), [shown, pin]);
-  const below = (list: FtxDecode[]) => (pin ? list.filter((d) => !(d.to_me && !d.tx)) : list);
-  const arranged = useMemo(() => arrange(below(shown), filters.sort, cfg), [shown, filters.sort, cfg, pin]);
+  const calling = useMemo(() => {
+    if (!pin) return [];
+    const newest = new Map<string, string>();
+    for (const d of shown) if (!d.tx && !newest.has(d.instance)) newest.set(d.instance, d.time);
+    return shown.filter((d) => d.to_me && !d.tx && d.time === newest.get(d.instance));
+  }, [shown, pin]);
+  const pinned = useMemo(() => new Set(calling.map((d) => d.seq)), [calling]);
+  const below = (list: FtxDecode[]) => list.filter((d) => !pinned.has(d.seq));
+  const arranged = useMemo(() => arrange(below(shown), filters.sort, cfg), [shown, filters.sort, cfg, pinned]);
 
   const row = (d: FtxDecode) => {
     if (d.tx) {

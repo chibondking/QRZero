@@ -172,8 +172,9 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(ftx.locator(".ftx-row:not(.head)")).toHaveCount(4);
   // The radio's VFO shows in the top bar.
   await expect(page.locator(".topbar").getByTestId("vfo")).toContainText(/14\.074\.000\s*20m\s*FT8\s*RX/);
-  // The two decodes calling us are grouped at the top, newest first, and not repeated below.
-  await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row")).toHaveCount(2);
+  // The decode calling us in the latest period is grouped at the top and not repeated below; the
+  // one from the period before has moved on down the list.
+  await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row")).toHaveCount(1);
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row .msg").first()).toHaveText("N0CALL EA8AB R-10");
   // The FTx options menu holds view, sort, period breaks and the pin; it stays open while choosing.
   const opts = async () => {
@@ -183,7 +184,7 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   // Sorting: by frequency the lower offset comes first; DXCC and flags reorder without headings.
   await opts();
   await ftx.getByLabel("Frequency").check();
-  await expect(ftx.locator(".ftx-table .ftx-row .msg").nth(2)).toHaveText("CQ DL1ABC JO62");
+  await expect(ftx.locator(".ftx-table .ftx-row .msg").nth(1)).toHaveText("CQ DL1ABC JO62");
   await ftx.getByLabel("DXCC").check();
   await expect(ftx.locator(".ftx-table .ftx-row:not(.head)")).toHaveCount(4);
   await expect(ftx.locator(".ftx-group.sub")).toHaveCount(0);
