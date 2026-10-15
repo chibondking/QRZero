@@ -14,7 +14,7 @@ The **Awards** pane, a tab next to the log to start with, shows how far you are 
 
 - **SKCC** and **CWops**: the CW club awards, described under **CW club awards** below. They have their own buttons next to the others.
 
-On the **DXCC** tab a line under the toolbar also shows the **DXCC Challenge** (confirmed and worked entity-band slots on 160 to 6 m, 1000 needed) and **5BDXCC** (entities confirmed on 80, 40, 20, 15 and 10 m, 100 needed).
+On the **DXCC** tab a line under the toolbar also shows the **DXCC Challenge** (confirmed and worked entity-band slots on 160 to 6 m, 1000 needed) and **5BDXCC** (the entities confirmed on each of 80, 40, 20, 15 and 10 m, listed band by band; the award needs 100 on every one of the five).
 
 Each row is an entity, state, zone, prefix and so on. The columns are **Mixed**, then **CW**, **Phone** and **Digital**, then each band from 160 m to 6 m, plus 2 m and 70 cm. A green **V** on a shaded cell means verified, a green **C** means confirmed and an amber **W** means worked but not yet confirmed. The second header row shows confirmed and worked totals for each column, and the top right shows the overall total.
 
@@ -100,6 +100,6 @@ When none of that applies, it says *Nothing new for awards, all confirmed*. The 
 
 ## Where the data comes from
 
-DXCC uses each QSO's DXCC field, or the country file if it has none. WAS uses the STATE field. QSOs with Alaska or Hawaii count for AK and HI even without a state. WAZ uses the CQZ field. WAC and ITU use the CONT and ITUZ fields, or the country file when they are blank. VUCC uses GRIDSQUARE, IOTA uses IOTA and Counties uses CNTY. Downloading LoTW confirmations fills in a blank state and zones from LoTW's records, which helps WAS and WAZ.
+DXCC uses each QSO's DXCC field, or the country file if it has none. WAS uses the STATE field. QSOs with Alaska or Hawaii count for AK and HI even without a state. WAZ uses the CQZ field. WAC and ITU use the CONT and ITUZ fields, or the country file when they are blank. VUCC uses GRIDSQUARE, IOTA uses IOTA and Counties uses CNTY. Downloading LoTW confirmations fills in a blank state and zones from LoTW's records, which helps WAS and WAZ. LoTW's DXCC entity replaces the one in the log when a confirmation is downloaded, so award credit matches LoTW even where the country file had the call in another entity.
 
 The list of DXCC entities comes from the country file, so deleted entities don't appear.

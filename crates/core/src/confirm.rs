@@ -510,7 +510,7 @@ pub fn confirmation_updates(service: Service, rec: &Fields) -> ConfirmUpdate {
             "LOTW_QSL_RCVD",
             "LOTW_QSLRDATE",
             &["QSLRDATE"],
-            &["DXCC", "STATE", "CQZ", "ITUZ", "GRIDSQUARE", "CNTY", "IOTA", "PFX"],
+            &["STATE", "CQZ", "ITUZ", "GRIDSQUARE", "CNTY", "IOTA", "PFX"],
         ),
         Service::Eqsl => ("EQSL_QSL_RCVD", "EQSL_QSLRDATE", &["QSLRDATE", "EQSL_QSLRDATE", "RCVD_DATE"], &["GRIDSQUARE"]),
         Service::Qrz => ("QRZCOM_QSO_DOWNLOAD_STATUS", "QRZCOM_QSO_DOWNLOAD_DATE", &["QRZCOM_QSO_DOWNLOAD_DATE"], &["GRIDSQUARE", "STATE", "CQZ", "ITUZ"]),
@@ -529,6 +529,12 @@ pub fn confirmation_updates(service: Service, rec: &Fields) -> ConfirmUpdate {
     // LoTW says which awards it credited the QSO toward, when the report carries that.
     if service == Service::Lotw {
         set.extend(report_credit(rec).unwrap_or_default());
+        // LoTW's entity is the one that counts for DXCC, so it replaces what the country file gave the QSO.
+        for k in ["DXCC", "COUNTRY"] {
+            if let Some(v) = nonempty(rec, k) {
+                set.insert(k.to_string(), v.to_string());
+            }
+        }
     }
     let mut fill: Fields = fill_keys.iter().filter_map(|k| nonempty(rec, k).map(|v| (k.to_string(), v.to_string()))).collect();
     fill.insert(sent_date, today());

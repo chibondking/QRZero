@@ -277,6 +277,12 @@ impl CtyDb {
                 .filter(|&n| base.is_char_boundary(n))
                 .find_map(|n| self.prefixes.get(&base[..n]))
         })?;
+        // Norway's 3Y calls are Bouvet or Peter I, never Antarctica, though the country file lists
+        // the bare prefix "3Y" there. Which of the two a new call is can't be told from the call, so
+        // leave it unresolved (a lookup or the LoTW confirmation fills it) unless an exact entry names it.
+        if base.starts_with("3Y") && !self.exact.contains_key(base) && self.entities[hit.ent].dxcc == Some(13) {
+            return None;
+        }
         // Guantanamo Bay is only KG4 with a two-letter suffix (KG4AA..KG4ZZ). KG4 calls with
         // one or three letters, like KG4OJT, are ordinary US calls.
         if self.entities[hit.ent].prefix == "KG4" && !self.exact.contains_key(base) {
@@ -350,6 +356,18 @@ Vienna Intl Ctr:          15:  28:  EU:   48.20:   -16.30:    -1.0:  *4U1V:
 
     fn name(db: &CtyDb, call: &str) -> Option<String> {
         db.lookup(call).map(|e| e.name)
+    }
+
+    #[test]
+    fn norwegian_3y_calls_are_not_antarctica() {
+        let db = CtyDb::parse_csv(
+            "3Y/b,Bouvet,24,AF,38,67,-54.42,-3.38,-1.0,=3Y/LB5SH;\n3Y/p,Peter 1 Island,199,SA,12,72,-68.77,90.58,4.0,=3Y0X;\nCE9,Antarctica,13,SA,13,74,-90.00,0.00,0.0,3Y[73] AX0(39)[69] VK0(39)[69];\n",
+        )
+        .unwrap();
+        assert_eq!(name(&db, "3Y0K"), None);
+        assert_eq!(name(&db, "3Y0K/P"), None);
+        assert_eq!(name(&db, "3Y0X").as_deref(), Some("Peter 1 Island"));
+        assert_eq!(name(&db, "VK0AA").as_deref(), Some("Antarctica"));
     }
 
     #[test]
