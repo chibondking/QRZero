@@ -157,12 +157,21 @@ kbd { font: 11px var(--mono); opacity: 0.75; margin-left: 4px; }
 /* Top bar */
 .topbar {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
   padding: 4px 8px;
   background: var(--title);
   border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
+}
+.topbar-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; row-gap: 4px; flex-wrap: wrap; min-height: 26px; }
+.tb-location { max-width: 18em; }
+/* On a narrow screen the bar drops its word labels (still read out) and the QSO count before it wraps. */
+@media (max-width: 1500px) {
+  .topbar-main { gap: 10px; }
+  .tb-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .tb-location { max-width: 12em; }
+}
+@media (max-width: 1250px) {
+  .tb-count { display: none; }
 }
 .topbar label { display: flex; align-items: center; gap: 5px; color: var(--muted); }
 .topbar select { color: var(--text); }
@@ -202,6 +211,8 @@ kbd { font: 11px var(--mono); opacity: 0.75; margin-left: 4px; }
 
 /* Minimize, maximize and close when QRZero draws the title bar (desktop app, frameless). */
 .caption-buttons { display: flex; align-self: stretch; margin: -4px -8px -4px 0; }
+/* In the main bar the buttons keep the height of one row when the rest wraps. */
+.topbar > .caption-buttons { flex: none; align-self: flex-start; height: 34px; margin-left: 8px; }
 .popout-bar .caption-buttons { margin: -2px -8px -2px 0; }
 button.caption { display: flex; align-items: center; justify-content: center; width: 44px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--text); }
 button.caption:hover:not(:disabled) { background: var(--line); }

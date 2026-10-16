@@ -479,22 +479,24 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar" onMouseDown={barMouseDown}>
+        {/* Everything but the window buttons, which stay at the top right when the rest wraps. */}
+        <div className="topbar-main">
         <span className="brand">QRZero</span>
         <label>
-          Log
+          <span className="tb-lbl">Log</span>
           <select value={logId} onChange={(e) => setLogId(Number(e.target.value))}>
             {logs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </label>
         <label>
-          Station
+          <span className="tb-lbl">Station</span>
           <select value={stationCall} onChange={(e) => setStationCall(e.target.value)} disabled={!activeCalls.length}>
             {activeCalls.map((c) => <option key={c.id} value={c.callsign}>{c.callsign}</option>)}
           </select>
         </label>
         <label>
-          Location
-          <select value={locationId ?? ""} onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : null)}>
+          <span className="tb-lbl">Location</span>
+          <select className="tb-location" value={locationId ?? ""} onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : null)}>
             <option value="">(none)</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>{l.name}{l.fields.MY_GRIDSQUARE ? ` (${l.fields.MY_GRIDSQUARE})` : ""}</option>
@@ -505,10 +507,11 @@ export default function App() {
         <span className="spacer" />
         <UpdateNotice />
         {notice && <span className="notice" role="status">{notice}</span>}
-        <span className="muted">{currentLog?.qso_count.toLocaleString() ?? 0} QSOs</span>
+        <span className="muted tb-count">{currentLog?.qso_count.toLocaleString() ?? 0} QSOs</span>
         <Clock localTime={display.localTime} />
         <LayoutMenu ws={ws} columns={columns} widths={colWidths} onColumns={(c, w) => { setColumns(c); setColWidths(w); }} onChange={setWs} onShow={(id) => setWs({ ...wsRef.current, root: dockBack(wsRef.current.root, id) })} onFocusWindow={focusWindow} />
         <MainMenu onPick={setDialog} />
+        </div>
         <WindowControls onClose={closeWindow} closeTitle="Close QRZero" />
       </header>
 
