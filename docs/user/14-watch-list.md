@@ -40,6 +40,8 @@ New hits are shown in bold and counted next to **Recent hits** (and in the windo
 
 Tick **Sound** for a short beep with every new hit. It is off to start with, and only beeps while the Watch list pane is open somewhere.
 
+A hit stays on the list for an hour after the station was last spotted or decoded. If it turns up again, even during the 10 minutes when it doesn't alert, the hit stays and its time is updated; a station that isn't heard again drops off after the hour. The **UTC** column shows when the station was last seen.
+
 The hits list lives in memory and starts empty each time QRZero starts.
 
 DXpeditions that would be new for you also show up here as hits; see **DXpeditions**.
