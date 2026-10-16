@@ -52,7 +52,7 @@ After a lookup the panel shows:
 - **Station details** from the lookup service (when lookups are on), or from your last QSO with that call. Notes and club numbers (see below) carry over from that QSO; the Comment, serial numbers and reports do not, because they belong to one contact.
 - **Note**: your station note for the call, if you have written one (see **Station notes**).
 - **Flags**: *First QSO with this call*, or *Already worked on …* when this would be a duplicate on the same band and mode.
-- **DXCC slots**: a small grid for the entity of the call, with the bands across and CW, Phone and Digital down. **W** means worked, **C** means confirmed (by the sources set in the Awards pane), and a blank cell is a slot you still need. The band and mode set in the entry panel are marked with a box and bold labels, so you can see at once whether this QSO fills a blank. It follows the DXCC number in the entry form, or the entity from the country file.
+- **DXCC slots**: a small grid for the entity of the call, with the bands across and CW, Phone and Digital down. **W** means worked, **C** means confirmed (by the sources set in the Awards pane), and a blank cell is a slot you still need. The band and mode set in the entry panel are marked with a box and bold labels, so you can see at once whether this QSO fills a blank. It follows the DXCC number in the entry form, or the entity from the country file. Click a **W** or **C** cell to list every QSO in that slot, with any station, in the Worked before pane (see below). To keep the grid in view on its own, show the **DXCC slots** pane from **Layout** and pop it out to a small window.
 - **Awards on (band) (mode)**: one line for each award this QSO would move, for the band and mode set in the entry panel. For example *DXCC* **new country** *Japan*, *WAS OH Ohio:* **new band** *20m*, *WAZ zone 5:* **new mode** *CW*, or *WPX* **new prefix** *K1*. Slots you have worked but not had confirmed are listed after *not confirmed:*. When the QSO adds nothing, the block says so in one grey line. It follows the band and mode as you change them.
 
 The entity and CQ zone come from the lookup, or from the country file when lookups are off. The state comes from the lookup or the **State** box, so WAS lines only appear when a state is known. What counts as confirmed is set in the Awards pane (see **Awards**). Your full history with the call is in the Worked before pane.
@@ -77,6 +77,12 @@ Working with the rows:
 - Right-click a row for more: *Edit QSO*, *Copy name and QTH to entry*, *Show all with CALL in log* (filters the log grid to that call), *Mark card received* (sets the paper card as received today) and *Queue a card* (adds the QSO to the paper QSL queue, see the QSL chapter). Press <kbd>Esc</kbd> or click elsewhere to close the menu.
 
 The line under the list sums up the station: the bands and modes you have worked it on, the date of your first QSO, and which band and mode slots are confirmed.
+
+### Everyone in a DXCC slot
+
+Click a **W** or **C** cell in a DXCC slots grid (in the Station pane or the DXCC slots pane) and Worked before lists every QSO you have in that slot instead: for example all your 30 m Digital QSOs with Ecuador, whoever the station was. A **Call** column shows who each QSO was with; the call in the entry panel is highlighted. The title names the entity, band and mode, and the line under the list counts the stations and how many of them have confirmed. The clicked cell stays shaded in the grid.
+
+Click the cell again, or **Back to CALL** in the title bar, to go back to the history with the call in the entry. Typing another call does the same. In this view the rows have no **Copy** button, since they are other stations.
 
 The pane updates by itself when you log or edit a QSO.
 

@@ -43,6 +43,8 @@
 .wb-table td.wb-text { max-width: 14em; overflow: hidden; text-overflow: ellipsis; font-family: var(--ui); }
 .wb-table td.wb-wide { max-width: 24em; width: 100%; }
 .wb-as { color: var(--muted); margin-right: 6px; font-family: var(--mono); }
+.wb-table td.wb-call { font-weight: 600; }
+.wb-table td.wb-this { color: var(--accent); }
 
 /* Edit and Copy appear on hover (and on the selected row), pinned to the right edge. */
 .wb-table .wb-act { position: sticky; right: 0; padding: 0 2px; width: 1px; }

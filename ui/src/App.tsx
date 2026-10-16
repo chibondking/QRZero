@@ -5,7 +5,7 @@ import WindowControls from "./components/WindowControls";
 import { barMouseDown } from "./frame";
 import VfoBar from "./components/VfoBar";
 import UpdateNotice from "./components/UpdateNotice";
-import type { Equipment, Fields, Location, Log, LookupResult, Qso, QsoFilter, StationCallsign } from "./types";
+import type { Equipment, Fields, Location, Log, LookupResult, Qso, QsoFilter, SlotPick, StationCallsign } from "./types";
 import { localClock, utcClock } from "./util";
 import { useDisplay } from "./display";
 import { DEFAULT_COLUMNS, DEFAULT_LAYOUT, type EntryLayout, type ModeLayouts } from "./fields";
@@ -37,6 +37,7 @@ type Dialog = "import" | "export" | "settings" | "help" | "wizard" | "qsl" | "qs
 /** Where a pane goes back to when its window closes. */
 const HOME: Partial<Record<PaneId, [PaneId, Zone]>> = {
   lookup: ["entry", "right"],
+  slots: ["lookup", "bottom"],
   worked: ["entry", "bottom"],
   map: ["lookup", "right"],
   ftx: ["log", "center"],
@@ -112,6 +113,8 @@ export default function App() {
   const [entry, setEntry] = useState<EntryContext>({ band: "", mode: "", fields: {} });
   // A station picked in the Log: the Station and Worked Before panes show it until the entry's call changes.
   const [browse, setBrowse] = useState<{ call: string; entryCall: string; lookup: LookupResult | null } | null>(null);
+  // A DXCC slot clicked in a slots grid: Worked before lists its QSOs until the station changes.
+  const [slot, setSlot] = useState<SlotPick | null>(null);
   const [filter, setFilter] = useState<QsoFilter>({});
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
@@ -334,6 +337,8 @@ export default function App() {
   const typed = entryCall.trim().toUpperCase();
   const paneLookup = browsing ? browsing.lookup : lookup && typed && lookup.call !== typed ? null : lookup;
   const paneEntry: EntryContext = browsing ? { ...entry, fields: { CALL: browsing.call } } : entry;
+  const paneCall = paneEntry.fields.CALL ?? "";
+  useEffect(() => setSlot(null), [paneCall, logId]);
   const dxStation = paneLookup?.station ?? null;
   const dxEntity = paneLookup?.entity;
   const dx =
@@ -347,6 +352,12 @@ export default function App() {
     onEdit: openEditor,
     onCopy: (fields) => setCopy({ nonce: Date.now(), fields }),
     onShowQsos: showQsos,
+    onSlot: (s) => {
+      setSlot(s);
+      // Bring Worked before to the front so the list is seen.
+      const cur = wsRef.current;
+      if (s && !cur.popped.includes("worked")) setWs({ ...cur, root: showPane(cur.root, "worked") });
+    },
     onSettings: (tab) => {
       setSettingsTab(tab);
       setDialog("settings");
@@ -368,6 +379,7 @@ export default function App() {
           units: general.units,
           refreshKey,
           editingId: editing?.id ?? null,
+          slot,
           radioKey,
           entryHost: { location, layout, modeLayouts, equipment: equipment.filter((e) => e.location_id === location?.id), prefill, copy },
         };
@@ -403,6 +415,7 @@ export default function App() {
     if (m.t === "edit") openEditor(m.qso);
     if (m.t === "copy") actions.onCopy(m.fields);
     if (m.t === "show-qsos") showQsos(m.filter);
+    if (m.t === "slot") actions.onSlot(m.slot);
     if (m.t === "settings") actions.onSettings(m.tab);
     if (m.t === "radio") chooseRadio(m.key);
     if (m.t === "logged") refreshGrid();

@@ -274,6 +274,10 @@ button.caption svg { fill: none; stroke: currentColor; stroke-width: 1; shape-re
 .dxcc-slots td.worked { color: var(--muted); }
 .dxcc-slots td.confirmed { font-weight: 700; }
 .dxcc-slots td.cur { outline: 2px solid var(--new); outline-offset: -2px; }
+.dxcc-slots td.pick { cursor: pointer; }
+.dxcc-slots td.pick:hover { background: var(--panel-2); }
+.dxcc-slots td.picked { background: var(--row-sel); }
+.slots-pane .dxcc-slots { margin-top: 0; border-top: 0; padding-top: 0; }
 
 /* Map */
 .map-box { flex: 1; min-height: 150px; position: relative; overflow: hidden; }

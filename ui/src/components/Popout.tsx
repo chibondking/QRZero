@@ -51,6 +51,7 @@ export default function Popout({ pane }: { pane: PaneId }) {
     onEdit: (qso) => post({ t: "edit", qso }),
     onCopy: (fields) => post({ t: "copy", fields }),
     onShowQsos: (filter) => post({ t: "show-qsos", filter }),
+    onSlot: (slot) => post({ t: "slot", slot }),
     onSettings: (tab) => post({ t: "settings", tab }),
   };
 

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
-import { BANDS, modeLabel } from "../modes";
+import { BANDS, modeLabel, slotGroup } from "../modes";
 import { localGet, localSet } from "../prefs";
-import type { Fields, LookupResult, Qso } from "../types";
+import type { Fields, LookupResult, Qso, SlotPick } from "../types";
 import { adifDateTime, fmtDate, fmtTime } from "../util";
 import type { EntryContext } from "./EntryPanel";
 import { useDisplay } from "../display";
@@ -15,6 +15,8 @@ export interface WorkedPaneProps {
   entry: EntryContext;               // from ./EntryPanel: current band, mode, fields
   refreshKey: number;                // bumps when QSOs are logged or edited: reload
   selectedId?: number | null;        // QSO open in the editor, highlight it
+  slot?: SlotPick | null;            // a DXCC slot picked in a slots grid: list every QSO in it instead
+  onSlotClear?: () => void;          // back to the call's history
   onEdit: (q: Qso) => void;          // open the QSO in the editor
   onCopy: (fields: Fields) => void;  // copy NAME, QTH, GRIDSQUARE, STATE, CNTY etc. into the entry panel
   onShowInLog: (call: string) => void;
@@ -58,9 +60,11 @@ function QslCell({ v }: { v: Qsl }) {
 
 interface Menu { x: number; y: number; q: Qso }
 
-export default function WorkedPane({ logId, call, lookup, entry, refreshKey, selectedId, onEdit, onCopy, onShowInLog }: WorkedPaneProps) {
+export default function WorkedPane({ logId, call, lookup, entry, refreshKey, selectedId, slot, onSlotClear, onEdit, onCopy, onShowInLog }: WorkedPaneProps) {
   useDisplay();
-  const target = call.trim().toUpperCase();
+  const entryCall = call.trim().toUpperCase();
+  // What is listed: the call's history, or every QSO in the picked slot.
+  const target = slot ? `${slot.dxcc} ${slot.band} ${slot.group}` : entryCall;
   const [rows, setRows] = useState<Qso[] | null>(null);
   const [loadedFor, setLoadedFor] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -81,19 +85,21 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
     let live = true;
     const timer = setTimeout(() => {
       api
-        .search(logId, { exact_call: target }, 0, LIMIT, "newest")
+        .search(logId, slot ? { dxcc: slot.dxcc, bands: [slot.band] } : { exact_call: target }, 0, LIMIT, "newest")
         .then((r) => {
           if (!live) return;
-          setRows(r.rows);
+          setRows(slot ? r.rows.filter((q) => slotGroup(modeLabel(q.fields)) === slot.group) : r.rows);
           setLoadedFor(target);
           setError(null);
         })
         .catch((e) => live && setError(String(e.message ?? e)));
-    }, 200);
+    }, slot ? 0 : 200);
     return () => {
       live = false;
       clearTimeout(timer);
     };
+    // The slot is in `target`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logId, target, refreshKey, reload]);
 
   useEffect(() => setSel(selectedId ?? null), [selectedId]);
@@ -108,24 +114,25 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
   // While the full list loads, the lookup's recent QSOs (same call) stand in.
   const all = useMemo<Qso[]>(() => {
     if (loadedFor === target && rows) return rows;
+    if (slot) return [];
     const recent = lookup?.worked.recent ?? [];
     return recent.length && recent[0].fields.CALL?.toUpperCase() === target ? recent : [];
-  }, [rows, loadedFor, target, lookup]);
+  }, [rows, loadedFor, target, lookup, slot]);
   const loading = !!target && loadedFor !== target && !error;
 
   const band = entry.band.toLowerCase();
   const mode = entry.mode.toUpperCase();
-  const isSlot = (f: Fields) => !!band && !!mode && bandOf(f) === band && modeLabel(f).toUpperCase() === mode;
+  const isSlot = (f: Fields) => !slot && !!band && !!mode && bandOf(f) === band && modeLabel(f).toUpperCase() === mode;
 
   const shown = useMemo(
     () =>
       all.filter(
         (q) =>
-          (!toggles.band || !band || bandOf(q.fields) === band) &&
-          (!toggles.mode || !mode || modeLabel(q.fields).toUpperCase() === mode) &&
+          (!!slot || !toggles.band || !band || bandOf(q.fields) === band) &&
+          (!!slot || !toggles.mode || !mode || modeLabel(q.fields).toUpperCase() === mode) &&
           (!toggles.unconfirmed || !confirmed(q.fields)),
       ),
-    [all, toggles, band, mode],
+    [all, toggles, band, mode, slot],
   );
 
   const summary = useMemo(() => {
@@ -135,7 +142,10 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
     for (const q of all) if (confirmed(q.fields) && bandOf(q.fields)) slots.add(`${bandOf(q.fields)} ${modeLabel(q.fields)}`.trim());
     const conf = [...slots].sort((a, b) => bandRank(a.split(" ")[0]) - bandRank(b.split(" ")[0]) || a.localeCompare(b));
     const first = all.length ? fmtDate(all[all.length - 1].fields) : "";
-    return { bands, modes, conf, first };
+    const callOf = (q: Qso) => (q.fields.CALL ?? "").toUpperCase();
+    const calls = new Set(all.map(callOf)).size;
+    const confCalls = new Set(all.filter((q) => confirmed(q.fields)).map(callOf)).size;
+    return { bands, modes, conf, first, calls, confCalls };
   }, [all]);
 
   // Keep the selected row in view when moving with the keyboard.
@@ -189,20 +199,25 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
     }
   };
 
-  const title = target ? `Worked before: ${target}${loadedFor === target ? ` (${all.length})` : ""}` : "Worked before";
+  const count = loadedFor === target ? ` (${all.length})` : "";
+  const title = slot ? `Worked before: ${slot.name} ${slot.band} ${slot.group}${count}` : target ? `Worked before: ${target}${count}` : "Worked before";
   const filtered = shown.length !== all.length;
+
+  // In a slot the rows are other stations: the menu acts on the row's call.
+  const menuCall = menu ? (slot ? (menu.q.fields.CALL ?? "").toUpperCase() : target) : "";
 
   let body: React.ReactNode;
   if (!target) body = <div className="wb-empty muted">Type a call to see your history with it.</div>;
   else if (error && !all.length) body = <div className="wb-empty err">Could not load the history: {error}</div>;
-  else if (!all.length) body = <div className="wb-empty muted">{loading ? "Loading..." : `No previous QSOs with ${target}.`}</div>;
+  else if (!all.length) body = <div className="wb-empty muted">{loading ? "Loading..." : slot ? `No QSOs with ${slot.name} on ${slot.band} ${slot.group}.` : `No previous QSOs with ${target}.`}</div>;
   else
     body = (
       <>
-        <div className="wb-scroll" ref={bodyRef} tabIndex={0} onKeyDown={onKeyDown} aria-label={`QSOs with ${target}`}>
+        <div className="wb-scroll" ref={bodyRef} tabIndex={0} onKeyDown={onKeyDown} aria-label={slot ? `QSOs in ${slot.name} ${slot.band} ${slot.group}` : `QSOs with ${target}`}>
           <table className="wb-table">
             <thead>
               <tr>
+                {slot && <th>Call</th>}
                 <th>Date</th>
                 <th>UTC</th>
                 <th>Band</th>
@@ -236,6 +251,7 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
                       setMenu({ x: e.clientX, y: e.clientY, q });
                     }}
                   >
+                    {slot && <td className={f.CALL?.toUpperCase() === entryCall ? "wb-call wb-this" : "wb-call"}>{f.CALL}</td>}
                     <td>{fmtDate(f)}</td>
                     <td>{fmtTime(f)}</td>
                     <td>{f.BAND}</td>
@@ -247,13 +263,13 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
                     <QslCell v={eqsl(f)} />
                     <td className="wb-text" title={f.NAME}>{f.NAME}</td>
                     <td className="wb-text wb-wide" title={f.COMMENT}>
-                      {f.CALL && f.CALL.toUpperCase() !== target && <span className="wb-as">as {f.CALL}</span>}
+                      {!slot && f.CALL && f.CALL.toUpperCase() !== target && <span className="wb-as">as {f.CALL}</span>}
                       {f.COMMENT}
                     </td>
                     <td className="wb-act">
                       <span className="wb-btns">
                         <button type="button" className="tiny" onClick={(e) => { e.stopPropagation(); onEdit(q); }}>Edit</button>
-                        <button type="button" className="tiny" title="Copy name, QTH, grid, state, county and QSL via into the entry" onClick={(e) => { e.stopPropagation(); onCopy(copyFields(f)); }}>Copy</button>
+                        {!slot && <button type="button" className="tiny" title="Copy name, QTH, grid, state, county and QSL via into the entry" onClick={(e) => { e.stopPropagation(); onCopy(copyFields(f)); }}>Copy</button>}
                       </span>
                     </td>
                   </tr>
@@ -261,19 +277,28 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
               })}
               {!shown.length && (
                 <tr className="wb-none">
-                  <td colSpan={12} className="muted">No QSOs match the filters.</td>
+                  <td colSpan={slot ? 13 : 12} className="muted">No QSOs match the filters.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        <div className="wb-summary">
-          <span><b>Bands</b> {summary.bands.join(" ") || "none"}</span>
-          <span><b>Modes</b> {summary.modes.join(" ") || "none"}</span>
-          <span><b>First QSO</b> {summary.first || "unknown"}</span>
-          <span><b>Confirmed</b> {summary.conf.length ? <span className="wb-conf">{summary.conf.join(", ")}</span> : "none"}</span>
-          {error && <span className="err">{error}</span>}
-        </div>
+        {slot ? (
+          <div className="wb-summary">
+            <span><b>Calls</b> {summary.calls}</span>
+            <span><b>Confirmed</b> {summary.confCalls ? <span className="wb-conf">{summary.confCalls} {summary.confCalls === 1 ? "call" : "calls"}</span> : "none"}</span>
+            <span><b>First QSO</b> {summary.first || "unknown"}</span>
+            {error && <span className="err">{error}</span>}
+          </div>
+        ) : (
+          <div className="wb-summary">
+            <span><b>Bands</b> {summary.bands.join(" ") || "none"}</span>
+            <span><b>Modes</b> {summary.modes.join(" ") || "none"}</span>
+            <span><b>First QSO</b> {summary.first || "unknown"}</span>
+            <span><b>Confirmed</b> {summary.conf.length ? <span className="wb-conf">{summary.conf.join(", ")}</span> : "none"}</span>
+            {error && <span className="err">{error}</span>}
+          </div>
+        )}
       </>
     );
 
@@ -284,10 +309,15 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
         {filtered && <span className="small muted">showing {shown.length}</span>}
         <span className="spacer" />
         <span className="wb-toggles" role="group" aria-label="Filter">
-          <button type="button" className={`tiny${toggles.band ? " on" : ""}`} aria-pressed={toggles.band} disabled={!entry.band}
-            title={entry.band ? `Only QSOs on ${entry.band}` : "No band in the entry"} onClick={() => setToggle("band")}>This band</button>
-          <button type="button" className={`tiny${toggles.mode ? " on" : ""}`} aria-pressed={toggles.mode} disabled={!entry.mode}
-            title={entry.mode ? `Only QSOs in ${entry.mode}` : "No mode in the entry"} onClick={() => setToggle("mode")}>This mode</button>
+          {slot && (
+            <button type="button" className="tiny" title="Go back to the history with the call in the entry" onClick={onSlotClear}>
+              {entryCall ? `Back to ${entryCall}` : "Back"}
+            </button>
+          )}
+          {!slot && <button type="button" className={`tiny${toggles.band ? " on" : ""}`} aria-pressed={toggles.band} disabled={!entry.band}
+            title={entry.band ? `Only QSOs on ${entry.band}` : "No band in the entry"} onClick={() => setToggle("band")}>This band</button>}
+          {!slot && <button type="button" className={`tiny${toggles.mode ? " on" : ""}`} aria-pressed={toggles.mode} disabled={!entry.mode}
+            title={entry.mode ? `Only QSOs in ${entry.mode}` : "No mode in the entry"} onClick={() => setToggle("mode")}>This mode</button>}
           <button type="button" className={`tiny${toggles.unconfirmed ? " on" : ""}`} aria-pressed={toggles.unconfirmed}
             title="Only QSOs not confirmed by LoTW, card or eQSL" onClick={() => setToggle("unconfirmed")}>Unconfirmed</button>
         </span>
@@ -301,8 +331,8 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
           onContextMenu={(e) => e.preventDefault()}
         >
           <button type="button" role="menuitem" autoFocus onClick={() => { setMenu(null); onEdit(menu.q); }}>Edit QSO</button>
-          <button type="button" role="menuitem" onClick={() => { setMenu(null); onCopy(copyFields(menu.q.fields)); }}>Copy name and QTH to entry</button>
-          <button type="button" role="menuitem" onClick={() => { setMenu(null); onShowInLog(target); }}>Show all with {target} in log</button>
+          {!slot && <button type="button" role="menuitem" onClick={() => { setMenu(null); onCopy(copyFields(menu.q.fields)); }}>Copy name and QTH to entry</button>}
+          <button type="button" role="menuitem" onClick={() => { setMenu(null); onShowInLog(menuCall); }}>Show all with {menuCall} in log</button>
           <hr />
           <button type="button" role="menuitem" disabled={yes(menu.q.fields.QSL_RCVD)}
             onClick={() => mark(menu.q, { QSL_RCVD: "Y", QSLRDATE: adifDateTime(new Date()).date })}>Mark card received</button>

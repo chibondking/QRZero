@@ -88,7 +88,7 @@ The member must have had a FISTS number when you worked them; QRZero cannot chec
 
 ## While you log
 
-The **Station** pane also shows a **DXCC slots** grid for the entity of the call you are working: bands across, CW, Phone and Digital down, **W** for worked, **C** for confirmed and blank for slots still needed. It uses the same confirmation sources as this pane. The band-by-mode grid covers 160 m to 6 m, 60 m included.
+The **Station** pane also shows a **DXCC slots** grid for the entity of the call you are working: bands across, CW, Phone and Digital down, **W** for worked, **C** for confirmed and blank for slots still needed. It uses the same confirmation sources as this pane. The band-by-mode grid covers 160 m to 6 m, 60 m included. Click a worked or confirmed cell to list every QSO in that slot in the Worked before pane. The same grid is also its own **DXCC slots** pane (shown from **Layout**), which can pop out to a small window of its own.
 
 You don't need to open this pane to see what a QSO would be worth. After a lookup, the **Station** pane has a short **Awards on 20m CW** block (with the band and mode from the entry panel). It has one line per award that the QSO would move:
 

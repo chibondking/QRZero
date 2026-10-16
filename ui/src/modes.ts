@@ -57,3 +57,14 @@ export function modeGroup(mode: string): ModeGroup | "" {
 }
 
 export const MODE_GROUP_NAME: Record<ModeGroup, string> = { cw: "CW", phone: "Phone", digital: "Digital" };
+
+/** The rows of an award slot grid, in order. */
+export const SLOT_GROUPS = ["CW", "Phone", "Digital"] as const;
+export type SlotGroup = (typeof SLOT_GROUPS)[number];
+const SLOT_PHONE = ["SSB", "USB", "LSB", "AM", "FM", "DIGITALVOICE", "C4FM", "DSTAR", "DMR"];
+
+/** The award slot row a mode counts in, as the server groups it (every other mode is Digital); "" when there is no mode. */
+export function slotGroup(mode: string): SlotGroup | "" {
+  const m = mode.trim().toUpperCase();
+  return !m ? "" : m === "CW" ? "CW" : SLOT_PHONE.includes(m) ? "Phone" : "Digital";
+}

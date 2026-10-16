@@ -2,17 +2,28 @@ import { Fragment, useEffect, useState } from "react";
 import { api } from "../api";
 import { localGet } from "../prefs";
 import { useAwardsOff } from "../awardsPref";
-import type { AwardHint, AwardKind, LookupResult, SlotGrid } from "../types";
+import { SLOT_GROUPS, slotGroup } from "../modes";
+import type { AwardHint, AwardKind, LookupResult, SlotGrid, SlotPick } from "../types";
 import type { EntryContext } from "./EntryPanel";
 import { useLiveNote } from "../notes";
 import "../notes.css";
 
-export default function LookupPanel({ logId, result, entry, refreshKey }: { logId: number; result: LookupResult | null; entry: EntryContext; refreshKey?: number }) {
+interface StationProps {
+  logId: number;
+  result: LookupResult | null;
+  entry: EntryContext;
+  refreshKey?: number;
+  /** The slot listed in Worked before, marked in the grid. */
+  slot?: SlotPick | null;
+  /** A worked slot was clicked (null: the picked one again). */
+  onSlot?: (s: SlotPick | null) => void;
+}
+
+export default function LookupPanel({ logId, result, entry, refreshKey, slot, onSlot }: StationProps) {
   const note = useLiveNote(entry.fields.CALL ?? "", result?.note ?? null);
   const off = useAwardsOff();
   const hints = useAwardHints(logId, result, entry, refreshKey)?.filter((h) => !off.includes(h.award)) ?? null;
-  const slotsDxcc = String(entry.fields.DXCC ?? result?.station?.DXCC ?? result?.entity?.dxcc ?? "").trim();
-  const slots = useDxccSlots(logId, result ? slotsDxcc : "", refreshKey);
+  const slots = useStationSlots(logId, result, entry, refreshKey);
   if (!result) {
     return (
       <section className="panel lookup">
@@ -62,7 +73,7 @@ export default function LookupPanel({ logId, result, entry, refreshKey }: { logI
         ))}
       </div>
       {hints && hints.length > 0 && <AwardHints hints={hints} band={entry.band} mode={entry.mode} />}
-      {slots && !off.includes("dxcc") && <DxccSlots grid={slots} name={result.entity?.name ?? s?.COUNTRY ?? `DXCC ${slotsDxcc}`} band={entry.band} mode={entry.mode} />}
+      {slots && !off.includes("dxcc") && <DxccSlots {...slots} band={entry.band} mode={entry.mode} picked={slot} onSlot={onSlot} />}
       </div>
     </section>
   );
@@ -170,6 +181,31 @@ function AwardHints({ hints, band, mode }: { hints: AwardHint[]; band: string; m
   );
 }
 
+/** The DXCC slots grid on its own, small enough to keep in view in its own window. */
+export function SlotsPane({ logId, result, entry, refreshKey, slot, onSlot }: StationProps) {
+  const slots = useStationSlots(logId, result, entry, refreshKey);
+  return (
+    <section className="panel lookup slots-pane">
+      <div className="panel-title"><span>DXCC slots</span>{result && <span className="small muted">{result.call}</span>}</div>
+      <div className="panel-body">
+        {slots ? (
+          <DxccSlots {...slots} band={entry.band} mode={entry.mode} picked={slot} onSlot={onSlot} />
+        ) : (
+          <p className="muted">{result ? "No DXCC entity for this call." : "Type a call and leave the field to see its entity's slots."}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** The slots of the looked-up station's entity: the entry form's DXCC wins, then the lookup's. */
+function useStationSlots(logId: number, result: LookupResult | null, entry: EntryContext, refreshKey?: number) {
+  const dxcc = String(entry.fields.DXCC ?? result?.station?.DXCC ?? result?.entity?.dxcc ?? "").trim();
+  const grid = useDxccSlots(logId, result ? dxcc : "", refreshKey);
+  if (!grid || !result) return null;
+  return { grid, dxcc: Number(dxcc), name: result.entity?.name ?? result.station?.COUNTRY ?? `DXCC ${dxcc}` };
+}
+
 /** The band-by-mode slots of the entity, refetched when the entity or the log changes. */
 function useDxccSlots(logId: number, dxcc: string, refreshKey?: number): SlotGrid | null {
   const [grid, setGrid] = useState<SlotGrid | null>(null);
@@ -191,18 +227,23 @@ function useDxccSlots(logId: number, dxcc: string, refreshKey?: number): SlotGri
   return grid;
 }
 
-const SLOT_MODES = ["CW", "Phone", "Digital"];
-const PHONE_MODES = ["SSB", "USB", "LSB", "AM", "FM", "DIGITALVOICE", "C4FM", "DSTAR", "DMR"];
-function modeGroupIndex(mode: string): number {
-  const m = mode.trim().toUpperCase();
-  return !m ? -1 : m === "CW" ? 0 : PHONE_MODES.includes(m) ? 1 : 2;
+interface SlotsProps {
+  grid: SlotGrid;
+  dxcc: number;
+  name: string;
+  band: string;
+  mode: string;
+  picked?: SlotPick | null;
+  onSlot?: (s: SlotPick | null) => void;
 }
 
-/** DXCC slots for the entity: W = worked, C = confirmed, blank = still needed. */
-function DxccSlots({ grid, name, band, mode }: { grid: SlotGrid; name: string; band: string; mode: string }) {
-  const mi = modeGroupIndex(mode);
+/** DXCC slots for the entity: W = worked, C = confirmed, blank = still needed. A worked slot can be clicked to list its QSOs. */
+function DxccSlots({ grid, dxcc, name, band, mode, picked, onSlot }: SlotsProps) {
+  const g = slotGroup(mode);
+  const mi = g ? SLOT_GROUPS.indexOf(g) : -1;
   const bi = grid.bands.indexOf(band);
   const mark = { new: "", worked: "W", confirmed: "C" } as const;
+  const isPicked = (b: string, m: string) => picked?.dxcc === dxcc && picked.band === b && picked.group === m;
   return (
     <div className="dxcc-slots" aria-label="DXCC slots">
       <div className="ah-title">{name} slots (W worked, C confirmed, blank needed)</div>
@@ -216,13 +257,17 @@ function DxccSlots({ grid, name, band, mode }: { grid: SlotGrid; name: string; b
           </tr>
         </thead>
         <tbody>
-          {SLOT_MODES.map((m, j) => (
+          {SLOT_GROUPS.map((m, j) => (
             <tr key={m}>
               <th className={j === mi ? "cur" : ""}>{m}</th>
               {grid.bands.map((b, i) => {
                 const st = grid.cells[i][j];
+                const on = isPicked(b, m);
+                const pick = onSlot && st !== "new" ? () => onSlot(on ? null : { dxcc, name, band: b, group: m }) : undefined;
+                const cls = [st, i === bi && j === mi && "cur", on && "picked", pick && "pick"].filter(Boolean).join(" ");
+                const tip = `${b} ${m}: ${st === "new" ? "needed" : st}${pick ? (on ? " (click to go back to the call's history)" : " (click to list every QSO in this slot)") : ""}`;
                 return (
-                  <td key={b} className={`${st}${i === bi && j === mi ? " cur" : ""}`} title={`${b} ${m}: ${st === "new" ? "needed" : st}`}>{mark[st]}</td>
+                  <td key={b} className={cls} title={tip} onClick={pick}>{mark[st]}</td>
                 );
               })}
             </tr>

@@ -566,6 +566,15 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.getByLabel("Award hints", { exact: true })).toContainText("WPX");
   // The DXCC slot grid shows when the call resolves to an entity (needs the country file).
   if (await page.getByLabel("DXCC slots", { exact: true }).count()) await expect(page.getByLabel("DXCC slots", { exact: true })).toContainText("CW");
+  // Clicking a worked slot lists every QSO in it in Worked before, with a Call column; Back returns to the call.
+  const slotCell = page.locator(".lookup .dxcc-slots td.pick").first();
+  if (await slotCell.count()) {
+    await slotCell.click();
+    await expect(page.locator(".worked-pane .wb-title")).toHaveText(/^Worked before: .+ \d+m (CW|Phone|Digital)/);
+    await expect(page.locator(".worked-pane thead")).toContainText("Call");
+    await page.getByRole("button", { name: "Back to K1XYZ" }).click();
+    await expect(page.locator(".worked-pane .wb-title")).toHaveText(/^Worked before: K1XYZ/);
+  }
   // Typing another call doesn't leave the last station's details showing for it.
   await call.fill("K1XYZZ");
   await expect(page.locator(".lookup-note")).toHaveCount(0);
