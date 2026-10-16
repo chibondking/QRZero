@@ -78,7 +78,7 @@ pub struct AwardQso {
     pub credit: u16,
     /// For DXCC credit, the columns the credit was granted for (bit per [`COLUMNS`] entry), when
     /// LoTW said (Mixed, a mode group or a band). `None`: every column the QSO fills.
-    pub credit_cols: Option<u16>,
+    pub credit_cols: Option<u32>,
     /// QSO row id, so the UI can list QSOs for a cell.
     pub id: i64,
 }
@@ -91,8 +91,8 @@ pub fn dxcc_credit_cols(
     app_credit: &str,
     mode: Option<&str>,
     band: Option<&str>,
-) -> Option<u16> {
-    let (mut found, mut cols) = (false, 0u16);
+) -> Option<u32> {
+    let (mut found, mut cols) = (false, 0u32);
     let mut add = |c: Option<usize>| {
         found = true;
         if let Some(c) = c {
@@ -244,14 +244,14 @@ pub struct AwardTable {
 }
 
 /// Bands that get their own column, in display order.
-pub const AWARD_BANDS: &[&str] = &["160m", "80m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"];
+pub const AWARD_BANDS: &[&str] = &["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"];
 
 /// All column keys, in display order.
 pub const COLUMNS: &[&str] = &[
-    "mixed", "cw", "phone", "digital", "160m", "80m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "2m", "70cm",
+    "mixed", "cw", "phone", "digital", "160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "2m", "70cm",
 ];
 
-const NCOLS: usize = 16;
+const NCOLS: usize = 17;
 const COL_CW: usize = 1;
 const COL_PHONE: usize = 2;
 const COL_DIGITAL: usize = 3;
@@ -991,7 +991,7 @@ mod tests {
 
     #[test]
     fn dxcc_credit_names_the_verified_columns() {
-        let bit = |c: &str| 1u16 << COLUMNS.iter().position(|x| *x == c).unwrap();
+        let bit = |c: &str| 1u32 << COLUMNS.iter().position(|x| *x == c).unwrap();
         assert_eq!(
             dxcc_credit_cols("DXCC", "DXCC-M", None, None),
             Some(bit("mixed"))
@@ -1004,6 +1004,7 @@ mod tests {
             dxcc_credit_cols("", "DXCC-CW-HR,DXCC-40,DXCC-CHAL", None, None),
             Some(bit("cw") | bit("40m"))
         );
+        assert_eq!(dxcc_credit_cols("", "DXCC-60", None, None), Some(bit("60m")));
         assert_eq!(dxcc_credit_cols("WAS", "", Some("CW"), Some("20m")), None);
         // Only the credited columns are verified; the rest of the QSO's cells are plain confirmations.
         let mut t = Tally::new(
@@ -1491,11 +1492,13 @@ mod tests {
         idx.add(&AwardQso { dxcc: Some(230), lotw: true, ..q("DL1ABC", "20m", "CW") });
         idx.add(&AwardQso { dxcc: Some(230), ..q("DL2XYZ", "40m", "USB") });
         idx.add(&AwardQso { dxcc: Some(230), ..q("DL2XYZ", "2m", "FT8") });
+        idx.add(&AwardQso { dxcc: Some(230), ..q("DL3QRP", "60m", "FT8") });
         idx.add(&AwardQso { dxcc: Some(291), ..q("W1AW", "20m", "CW") });
         let g = idx.dxcc_slots(230, lotw_only());
         let row = |b: &str| g.cells[g.bands.iter().position(|x| *x == b).unwrap()];
         assert_eq!(row("20m"), [Confirmed, New, New]);
         assert_eq!(row("40m"), [New, Worked, New]);
+        assert_eq!(row("60m"), [New, New, Worked]);
         assert_eq!(row("10m"), [New, New, New]);
         assert_eq!(idx.dxcc_slots(5, lotw_only()).cells[0], [New, New, New], "unworked entity");
     }
