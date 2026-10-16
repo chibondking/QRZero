@@ -72,29 +72,29 @@
 <h2 id="digital">5. WSJT-X, JTDX and N1MM+</h2>
 <p>QRZero listens over UDP. In WSJT-X or JTDX open <b>File &rarr; Settings &rarr; Reporting</b>, set the UDP Server to <code>127.0.0.1</code> port <code>2237</code> and tick <b>Accept UDP requests</b>. Logged QSOs then arrive in your log and decodes appear in the <b>FTx monitor</b> pane, coloured by what you need.</p>
 <p>For N1MM Logger+ open <b>Config &rarr; Configure Ports, Mode Control, Winkey, etc &rarr; Broadcast Data</b>, tick <b>Contacts</b> and <b>Radio</b>, and use the address <code>127.0.0.1:12060</code>. QSOs you log, edit or delete in N1MM are followed by QRZero.</p>
-<figure><img src="img/ftx-monitor.webp" alt="FTx monitor" loading="lazy" width="1200" height="560"><figcaption>The FTx monitor. Stations calling you are pinned at the top.</figcaption></figure>
+<figure><img src="img/ftx-monitor.webp" alt="FTx monitor" loading="lazy" width="1600" height="400"><figcaption>The FTx monitor. Stations calling you are pinned at the top.</figcaption></figure>
 
 <h2 id="spots">6. Spots and alerts</h2>
-<p>Connect to a DX cluster in <b>Settings &rarr; DX cluster</b>. Spots that would be new for you are flagged, and the <b>Needed now</b> pane can play a sound or pop up an alert. Click a spot to tune the radio; for split spots the radio is set up in split too. The <b>Band map</b> and <b>Watch list</b> keep the stations you care about in view.</p>
+<p>Connect to a DX cluster in <b>Settings &rarr; DX cluster</b>. Spots that would be new for you are flagged, and the <b>Needed now</b> pane can play a sound or pop up an alert. Click a spot to tune the radio; for split spots the radio is set up in split too. <b>Needed now</b> puts the most wanted entities first, using Club Log's Most Wanted ranking. The <b>Band map</b> and <b>Watch list</b> keep the stations you care about in view.</p>
 <p>To spot a station you just worked, use <b>Spot&hellip;</b> in the entry panel. It shows the exact line that will go to the cluster and sends nothing until you click <b>Send spot</b>.</p>
-<figure><img src="img/cluster.webp" alt="Cluster pane" loading="lazy" width="1592" height="498"><figcaption>The cluster pane with spot flags.</figcaption></figure>
+<figure><img src="img/cluster.webp" alt="Cluster pane" loading="lazy" width="1600" height="410"><figcaption>The cluster pane with spot flags.</figcaption></figure>
 
 <h2 id="awards">7. Awards</h2>
-<p>The <b>Awards</b> tab tracks DXCC, WAS, WAZ and WPX as you log, plus SKCC, CWops, NAQCC and FISTS for CW operators. Worked and confirmed are shown separately. Use <b>Settings &rarr; Awards</b> to hide the ones you do not chase.</p>
-<figure><img src="img/awards.webp" alt="Awards pane" loading="lazy" width="1592" height="498"><figcaption>Awards summary.</figcaption></figure>
+<p>The <b>Awards</b> tab tracks DXCC, WAS, WAZ and WPX as you log, plus SKCC, CWops, NAQCC and FISTS for CW operators. Worked and confirmed are shown separately. Use <b>Settings &rarr; Awards</b> to hide the ones you do not chase, or to switch on <b>V</b> for DXCC credit granted by LoTW. DXCC also shows 5BDXCC band by band.</p>
+<figure><img src="img/awards.webp" alt="Awards pane" loading="lazy" width="1600" height="503"><figcaption>Awards summary.</figcaption></figure>
 
 <h2 id="qsl">8. QSLs and uploads</h2>
 <p>Open the <b>QSL</b> window from the &#9776; menu. Each service (LoTW, Club Log, QRZ Logbook, eQSL) can upload new QSOs automatically a couple of minutes after you log, or in bulk for a date range after a preview. Confirmations can be downloaded back so your Awards stay current. For paper cards, mark a card received or queue one to send, review the queue with full QSO and contact details, print labels, and mark them sent.</p>
-<figure><img src="img/qsl-online.webp" alt="Online QSL settings" loading="lazy" width="940" height="362"><figcaption>Online services in the QSL window.</figcaption></figure>
+<figure><img src="img/qsl-online.webp" alt="Online QSL settings" loading="lazy" width="940" height="632"><figcaption>Online services in the QSL window.</figcaption></figure>
 
 <h2 id="import">9. Import and export</h2>
-<p>Choose <b>Import ADIF&hellip;</b> from the &#9776; menu, pick the file and the location those QSOs were made from. Leave <b>Skip duplicates</b> on, so importing the same file twice is safe. Fields another program added for itself are kept and come back out on a <b>Full</b> export. QRZero makes daily backups automatically; restore one from <b>Settings &rarr; Backups</b>.</p>
+<p>Choose <b>Import ADIF&hellip;</b> from the &#9776; menu, pick the file and the location those QSOs were made from. Leave <b>Skip duplicates</b> on, so importing the same file twice is safe. Fields another program added for itself are kept and come back out on a <b>Full</b> export. QRZero makes daily backups automatically; restore one from <b>Settings &rarr; Backups</b>. <b>Statistics&hellip;</b> in the &#9776; menu sums up the log: DXCC progress by year, confirmation rates and your most worked entities and calls.</p>
 
 <h2 id="layout">10. Arrange the window</h2>
 <p>Panes can be dragged into tab groups, resized, hidden or popped out to another screen. Use the <b>Layout</b> button in the top bar to show or hide panes and to save and recall layouts.</p>
 
 <h2 id="browser">11. Browser mode</h2>
-<p>The same screens run in a web browser. Run the headless server on a shack PC and open it from your laptop or phone. The desktop app and the server cannot run at the same time against the same log.</p>
+<p>The same screens run in a web browser. The server is not in the release downloads: build it from the source (<code>cargo run --release -p qrzero-server</code>, see the README on GitHub), point it at your log folder and open the link it prints. The desktop app and the server cannot run at the same time against the same log.</p>
 
 <h2 id="help">12. Help</h2>
 <ul>

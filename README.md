@@ -2,13 +2,13 @@
 
 A fast, reliable amateur radio logger for Windows, macOS (Apple Silicon) and Linux.
 
-QRZero keeps your log in one SQLite file, stays quick with hundreds of thousands of QSOs, and talks to the programs and radios in a ham shack: WSJT-X, JTDX, N1MM Logger+, Hamlib, TCI, serial CAT, rotators, the DX cluster, QRZ.com, LoTW, Club Log and eQSL. It is built with DX chasing and CW in mind: spots that would be new for you raise an alert, awards from DXCC to the CW club awards are tracked as you log, and QSL cards, labels and online uploads are handled in one window.
+QRZero keeps your log in one SQLite file, stays quick with hundreds of thousands of QSOs, and talks to the programs and radios in a ham shack: WSJT-X, JTDX, N1MM Logger+, Hamlib, TCI, serial CAT, rotators, the DX cluster, QRZ.com, LoTW, Club Log and eQSL. It is built with DX chasing and CW in mind: spots that would be new for you raise an alert, awards from DXCC to the CW club awards are tracked as you log, and QSL cards, labels and online uploads are handled in one window, and a statistics window sums up your log.
 
 ![QRZero main window](docs/screenshots/main-window.png)
 
 *Every screenshot in this file uses a made-up demo log for the placeholder call N0CALL. The country list, spots, contest calendar, decodes and confirmations are sample data.*
 
-**Contents:** [Install](#install) · [First run](#first-run) · [Logging](#logging-qsos) · [Radios and rotator](#radios-and-rotator) · [WSJT-X, JTDX and N1MM](#wsjt-x-jtdx-and-n1mm) · [DX cluster and band map](#dx-cluster-band-map-and-watch-list) · [Awards](#awards) · [QSL and online services](#qsl-and-online-services) · [ADIF](#adif-import-and-export) · [UDP connections](#udp-connections-and-startup-programs) · [Layout](#arranging-the-window) · [Settings, shortcuts and backups](#settings-keyboard-shortcuts-and-backups) · [Browser mode](#using-a-browser) · [Build from source](#building-from-source) · [Status](#status)
+**Contents:** [Install](#install) · [First run](#first-run) · [Logging](#logging-qsos) · [Radios and rotator](#radios-and-rotator) · [WSJT-X, JTDX and N1MM](#wsjt-x-jtdx-and-n1mm) · [DX cluster and band map](#dx-cluster-band-map-and-watch-list) · [Awards](#awards) · [QSL and online services](#qsl-and-online-services) · [Statistics](#statistics) · [ADIF](#adif-import-and-export) · [UDP connections](#udp-connections-and-startup-programs) · [Layout](#arranging-the-window) · [Settings, shortcuts and backups](#settings-keyboard-shortcuts-and-backups) · [Browser mode](#using-a-browser) · [Build from source](#building-from-source) · [Status](#status)
 
 ## Why QRZero
 
@@ -19,6 +19,18 @@ QRZero keeps your log in one SQLite file, stays quick with hundreds of thousands
 - **Plain and classic.** A dense desktop-logger layout with panes you can move, tab, resize and pop out to a second screen. No wizard to fight, no cloud account.
 - **Local first.** Your log lives on your computer. QRZero only talks to the internet for the services you switch on. Passwords go in Windows Credential Manager (the macOS Keychain, or the Linux desktop keyring), never in the log file.
 
+## What it does
+
+- **Logging.** One-key entry with QRZ.com and HamQTH lookups, customisable entry fields per mode, worked-before list, duplicate warnings, a Station pane that says what a contact is worth for every award, notes per callsign, a map with grey line and beam headings, and a fast log grid with a full QSO editor.
+- **Radios.** Hamlib, TCI, Kenwood/Elecraft/Flex, Yaesu and Icom CI-V control with split, several radios at once (SO2R, Flex slices) and rotator control.
+- **Digital and contest programs.** WSJT-X, JTDX and N1MM Logger+ over UDP, with an FTx monitor that flags every decode against your log.
+- **Chasing DX.** DX cluster with filters, a **Needed now** list ranked by Club Log's Most Wanted list with sound and popup alerts, band map, watch list, DXpedition calendar, contest calendar, propagation and a band forecast.
+- **Awards.** DXCC (with Challenge, 5BDXCC and optional verified credit), WAS, WAZ, WPX, WAC, ITU zones, VUCC, IOTA, US counties, and SKCC, CWops, NAQCC and FISTS with CWT medals.
+- **QSLs.** LoTW, QRZ Logbook, Club Log and eQSL uploads and confirmation downloads, plus a paper-card queue with label printing for bureau and direct mailings.
+- **Your data.** ADIF import and export with every field kept, several logs and callsigns, archived callsigns, locations and equipment shared between logs, daily backups, and a **Statistics** summary.
+- **Your window.** Dockable, tabbed, pop-out panes (with Always on top) saved as named layouts, light and dark, remappable keys, and a settings search.
+- **Elsewhere.** The same screens run in a web browser, and UDP connections feed anything else in the shack.
+
 ## Install
 
 Download the files for the newest version from the [Releases page](https://github.com/nreed97/QRZero/releases).
@@ -28,9 +40,8 @@ Download the files for the newest version from the [Releases page](https://githu
 | Windows | `QRZero_<version>_x64-setup.exe` | Normal installer. |
 | Windows | `QRZero_<version>_x64_en-US.msi` | The same app as an MSI, for managed installs. |
 | Windows | `QRZero_<version>_portable.exe` | Nothing to install: copy it anywhere and run it. Needs the WebView2 runtime that ships with Windows 10 and 11. |
-| macOS (Apple Silicon) | `QRZero_<version>_aarch64.dmg` | Open it and drag QRZero to Applications. The app is unsigned, so the first launch needs Control-click → **Open** (or **System Settings → Privacy & Security → Open Anyway**, or `xattr -dr com.apple.quarantine /Applications/QRZero.app`). macOS 11 or later, M1 or newer. |
+| macOS (Apple Silicon) | `QRZero_<version>_aarch64.dmg` | Open it and drag QRZero to Applications. The app is not signed with an Apple Developer account, so the first launch needs Control-click → **Open** (or **System Settings → Privacy & Security → Open Anyway**, or `xattr -dr com.apple.quarantine /Applications/QRZero.app`). macOS 11 or later, M1 or newer. |
 | Linux | `.deb`, `.rpm` or `.AppImage` | Debian/Ubuntu, Fedora/openSUSE, or any distribution. Make the AppImage executable and run it. |
-| Linux, headless | `QRZero-server_<version>_linux-x86_64.tar.gz` | The server without a window, for a shack PC or Raspberry Pi-class machine you reach from a browser. See [Using a browser](#using-a-browser). |
 
 Windows is the main platform and gets the most testing. Your log is stored in `%APPDATA%\QRZero\qrzero.db` on Windows, `~/Library/Application Support/QRZero/qrzero.db` on a Mac and `~/.local/share/QRZero/qrzero.db` on Linux.
 
@@ -74,7 +85,7 @@ Type the call, press <kbd>Tab</kbd> or <kbd>Space</kbd>, and QRZero looks it up 
 - **Spot a station you worked.** The **Spot…** button in the entry panel, or **Spot … to the cluster…** in the log's right-click menu, shows the exact line that will go to the cluster, with the frequency and a comment you can edit, and sends nothing until you click **Send spot**. Only QSOs from the last 10 minutes can be spotted (changeable in **Settings → DX cluster**), so an old contact is never spotted by mistake. A QSO logged in split is spotted on the frequency you listened on.
 
   ![Spot dialog](docs/screenshots/spot-dialog.png)
-- **Locations, callsigns and logs.** Several logs, several station callsigns per log, and any number of operating locations (home, a holiday QTH, a park) whose details go into each QSO as the ADIF `MY_…` fields.
+- **Locations, callsigns and logs.** Several logs, several station callsigns per log, and any number of operating locations (home, a holiday QTH, a park) whose details go into each QSO as the ADIF `MY_…` fields. Locations and equipment are shared by every log, and a callsign you no longer hold can be **archived**: it drops out of the pickers and automatic uploads, while its QSOs, awards and confirmations stay.
 
 ### Worked before, the Station pane and notes
 
@@ -151,6 +162,7 @@ The **FTx monitor** collects the decodes from every running WSJT-X and JTDX in o
 ![FTx monitor](docs/screenshots/ftx-monitor.png)
 
 - **Click** a decode to fill in the QSO panel and look the call up. It never retunes a radio. **Double-click** to have WSJT-X call the station.
+- Decodes are always listed newest period first. The sort and view options (and the other extras) are in the toolbar's **Options** menu; sorting by DXCC, flags or offset only orders the decodes inside each period, so the newest period is never buried.
 - Every decode carries a tag and colour for the program, slice or radio it came from, so two copies on two slices or bands stay apart.
 - A one-line control strip for each WSJT-X or JTDX shows whether it is transmitting, what it is sending, and where the QSO has got to, with **Halt TX**, **Stop after this**, **Call CQ** and a **More controls** line (free text, DX call, Rx offset, FT8/FT4, configuration switch, replay, clear).
 - **Call boxes** view shows each station heard as a box, a row per period, much like JTAlert's callsign list, coloured by its most important alert.
@@ -170,7 +182,7 @@ Add nodes under **Settings → DX cluster**; QRZero connects to the first and mo
 
 ### Needed now
 
-The **Needed now** pane lists only the spots on the air that would be new for your log, best first: a **new entity**, then a **new band** for an entity you have worked, then a **new mode**. It uses the same flags as the Cluster pane, lists each call, band and mode once however many people spot it, ranks CW, phone and digital together and drops spots after the time you choose (30 minutes to start with). Click a spot to fill in the QSO panel and tune the radio.
+The **Needed now** pane lists only the spots on the air that would be new for your log, best first: a **new entity**, then a **new band** for an entity you have worked, then a **new mode**. Within each group the most wanted entity comes first: a **Wanted** column shows the entity's rank on Club Log's public Most Wanted list (fetched at most once a day, no Club Log login needed). It uses the same flags as the Cluster pane, lists each call, band and mode once however many people spot it, ranks CW, phone and digital together and drops spots after the time you choose (30 minutes to start with). Click a spot to fill in the QSO panel and tune the radio.
 
 ![Needed now](docs/screenshots/needed-now.png)
 
@@ -212,7 +224,7 @@ Once you type a call or pick an entity, the pane ends with a **Band forecast**: 
 
 ## Awards
 
-The **Awards** pane tracks **DXCC**, **WAS**, **WAZ**, **WPX**, **WAC**, **ITU zones**, **VUCC** (grids on 6 m and up), **IOTA** and **US counties**, with the **DXCC Challenge** and **5BDXCC** totals, plus the CW club awards below. Each row shows Mixed, CW, Phone and Digital plus every band from 160 m to 70 cm, a green **C** for confirmed and an amber **W** for worked. You choose what counts as confirmed (LoTW, cards, eQSL), can limit it to one callsign, hide what is already confirmed, and click a row to see its QSOs in the log. The QSO panel shows what the call you are typing would be worth for each award, and a download of confirmations lists what it newly confirmed (see [QSL and online services](#qsl-and-online-services)).
+The **Awards** pane tracks **DXCC**, **WAS**, **WAZ**, **WPX**, **WAC**, **ITU zones**, **VUCC** (grids on 6 m and up), **IOTA** and **US counties**, with the **DXCC Challenge** and **5BDXCC** (counted band by band, 100 needed on each of 80, 40, 20, 15 and 10 m), plus the CW club awards below. Each row shows Mixed, CW, Phone and Digital plus every band from 160 m to 70 cm, a green **C** for confirmed and an amber **W** for worked. You choose what counts as confirmed (LoTW, cards, eQSL), can limit it to one callsign, hide what is already confirmed, and click a row to see its QSOs in the log. An optional **V** (verified) marks DXCC cells where LoTW has granted award credit; turn it on in **Settings → Awards** and run **Download verified credit** once on the LoTW page. When LoTW confirms a QSO, its DXCC entity replaces the one stored or taken from the country file. The QSO panel shows what the call you are typing would be worth for each award, and a download of confirmations lists what it newly confirmed (see [QSL and online services](#qsl-and-online-services)).
 
 ![Awards](docs/screenshots/awards.png)
 
@@ -263,6 +275,10 @@ Paper cards go through one **Queue**. In the Log tab, select QSOs and use **Pape
 
 The **Queue** tab shows each queued card with the station's contact information (name, address, QSL manager, email, grid, zones, cards sent so far) and every field of that QSO. Tick the ones to print and pick the labels: Avery 5160/L7160 or 5163/L7163, or Brother QL-700 labels sent straight to the printer with no print dialog (or saved as PNG images) for the confirmation block on the back of a card. The default is a 50 mm by 4 inch DK-22223 label that reads "CONFIRMING QSO WITH", the call in large type, then date, UTC, MHz, mode and RST for up to four QSOs, newest first, with an optional bottom line for your power or rig. **Group by Bureau** sorts the queue into one pile per country for your outgoing bureau. Then mark the cards **Sent via bureau** or **Sent direct** and they leave the queue.
 
+## Statistics
+
+**Statistics…** in the ☰ menu opens a plain-text summary of the log, counted when the window opens (about half a second on 200,000 QSOs) with nothing running in the background: totals, DXCC progress by year (new entities and running total), confirmation rates for LoTW, paper, QRZ, Club Log and eQSL, and your ten most worked entities and callsigns. **Copy** puts it on the clipboard.
+
 ## ADIF import and export
 
 QRZero reads and writes ADIF `.adi` files, including older Windows-1252 files with accents.
@@ -288,7 +304,7 @@ For everything QRZero does not know by name (an antenna switch, a band decoder, 
 
 ## Arranging the window
 
-Everything is a pane: New QSO, Station, Worked before, Map, Log, FTx monitor, Cluster, Needed now, Awards, Band map, Watch list, DXpeditions, Contests, Propagation, Rotator, Notes and MyClubs. Some start as tabs behind others (Needed now beside Cluster, Contests beside DXpeditions); open or hide any of them from the **Layout** menu. Drag a tab to dock a pane beside another or stack it as a tab, drag the bars to resize, hide panes you don't use, and pop any pane except New QSO and the Log out to its own window for a second screen. Save arrangements by name (a laptop layout, a two-screen shack layout, an FT8 evening) and switch between them; **Lock panes** stops accidents. Layouts live in the log database, so they survive restarts and come back with a restored backup.
+Everything is a pane: New QSO, Station, Worked before, Map, Log, FTx monitor, Cluster, Needed now, Awards, Band map, Watch list, DXpeditions, Contests, Propagation, Rotator, Notes and MyClubs. Some start as tabs behind others (Needed now beside Cluster, Contests beside DXpeditions); open or hide any of them from the **Layout** menu. Drag a tab to dock a pane beside another or stack it as a tab, drag the bars to resize, hide panes you don't use, and pop any pane except New QSO and the Log out to its own window for a second screen (in the desktop app a pop-out can be kept **Always on top**). Save arrangements by name (a laptop layout, a two-screen shack layout, an FT8 evening) and switch between them; **Lock panes** stops accidents. Layouts live in the log database, so they survive restarts and come back with a restored backup.
 
 | | |
 | --- | --- |
@@ -316,10 +332,10 @@ Colours can follow Windows or be always light or dark, and text size runs from 1
 
 ## Using a browser
 
-The desktop app is a window onto a small local web server. You can run the server on its own and use any browser. It is a separate release download (`QRZero-server_<version>_windows-x86_64.exe`, or the Linux `.tar.gz`), not part of the installer, and it is not on your PATH, so give its full path. Close the desktop app first (both would use the same log and UDP ports), and point `--data-dir` at your log folder (`%APPDATA%\QRZero` for the desktop app):
+The desktop app is a window onto a small local web server, and the same screens can be opened in any browser. The server is not part of the release downloads; build it from source (see [Building from source](#building-from-source)) and run it, giving the full path to the log folder (`%APPDATA%\QRZero` for the desktop app). Close the desktop app first, because both would use the same log and UDP ports:
 
 ```sh
-C:\QRZero\qrzero-server.exe --data-dir "C:\path\to\data" --bind 127.0.0.1:8073
+cargo run --release -p qrzero-server -- --data-dir "C:\path\to\data" --bind 127.0.0.1:8073
 ```
 
 It prints a link that includes a session token; open it. The token keeps other programs on the computer from reading your log. The server only listens on this computer unless you tell it otherwise, so don't bind it to your network until network sign-in exists.
@@ -346,6 +362,7 @@ The full user guide is in [docs/user](docs/user/01-getting-started.md) and is bu
 16. [UDP connections and startup programs](docs/user/16-udp-and-startup.md)
 17. [DXpeditions](docs/user/17-dxpeditions.md)
 18. [Contests](docs/user/18-contests.md)
+19. [Statistics](docs/user/19-statistics.md)
 
 | | |
 | --- | --- |
@@ -399,7 +416,7 @@ The UI talks to the server only over `/api` with an `x-qrzero-token` header, so 
 
 ### Releases
 
-Pushing a tag builds the Windows, macOS and Linux packages and attaches them to that tag's GitHub Release (creating a pre-release if none exists). For a tag that already exists, run **Actions → Release → Run workflow** and enter the tag name. The version comes from the tag: `QRZero-Alpha-v0.12` builds version 0.12.0, and every file name carries it (use plain numbers, up to three parts; a tag with no number builds 0.1.0). Each release gets the MSI, the setup `.exe` and `QRZero_<version>_portable.exe`, a macOS `QRZero_<version>_aarch64.dmg` (unsigned), plus for Linux a `.deb`, an `.rpm`, an `.AppImage` and `QRZero-server_<version>_linux-x86_64.tar.gz`.
+Pushing a tag builds the Windows, macOS and Linux packages and attaches them to that tag's GitHub Release (creating a pre-release if none exists). For a tag that already exists, run **Actions → Release → Run workflow** and enter the tag name. The version comes from the tag: `QRZero-Alpha-v0.12` builds version 0.12.0, and every file name carries it (use plain numbers, up to three parts; a tag with no number builds 0.1.0). Each release gets the MSI, the setup `.exe` and `QRZero_<version>_portable.exe`, a macOS `QRZero_<version>_aarch64.dmg` (unsigned), plus for Linux a `.deb`, an `.rpm` and an `.AppImage`.
 
 ## Status
 
