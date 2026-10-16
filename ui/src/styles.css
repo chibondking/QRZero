@@ -178,6 +178,10 @@ kbd { font: 11px var(--mono); opacity: 0.75; margin-left: 4px; }
 @media (max-width: 1100px) {
   .topbar .vfo .vfo-name, .topbar > .tb-count { display: none; }
 }
+/* Narrower than any real desktop window: wrap rather than scroll the page sideways. */
+@media (max-width: 900px) {
+  .topbar { flex-wrap: wrap; row-gap: 4px; }
+}
 .brand { font-weight: 700; letter-spacing: 0.3px; }
 .clock { font: 600 14px var(--mono); white-space: nowrap; }
 /* UTC with the computer's time under it. */
