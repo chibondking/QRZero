@@ -482,19 +482,19 @@ export default function App() {
         {/* Everything but the window buttons, which stay at the top right when the rest wraps. */}
         <div className="topbar-main">
         <span className="brand">QRZero</span>
-        <label>
+        <label title="Log">
           <span className="tb-lbl">Log</span>
           <select value={logId} onChange={(e) => setLogId(Number(e.target.value))}>
             {logs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </label>
-        <label>
+        <label title="Station callsign">
           <span className="tb-lbl">Station</span>
           <select value={stationCall} onChange={(e) => setStationCall(e.target.value)} disabled={!activeCalls.length}>
             {activeCalls.map((c) => <option key={c.id} value={c.callsign}>{c.callsign}</option>)}
           </select>
         </label>
-        <label>
+        <label title="Location">
           <span className="tb-lbl">Location</span>
           <select className="tb-location" value={locationId ?? ""} onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : null)}>
             <option value="">(none)</option>
