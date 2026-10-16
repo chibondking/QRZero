@@ -1,9 +1,9 @@
 import { shell, useFrame } from "../frame";
 
-/** Minimize, maximize and close for a frameless window. Nothing in a browser or with the system frame. */
+/** Minimize, maximize and close for a frameless window. Nothing in a browser, with the system frame, or on macOS (which keeps its own). */
 export default function WindowControls({ onClose, closeTitle = "Close", closeLabel = closeTitle }: { onClose: () => void; closeTitle?: string; closeLabel?: string }) {
   const frame = useFrame();
-  if (!frame.on) return null;
+  if (!frame.on || frame.os === "macos") return null;
   return (
     <div className="caption-buttons">
       <button className="caption" onClick={() => shell("min")} title="Minimize" aria-label="Minimize">

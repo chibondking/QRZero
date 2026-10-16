@@ -54,6 +54,7 @@ export const SETTING_ENTRIES: SettingEntry[] = [
   E("keyboard", "Reset shortcuts to defaults", "keys hotkey default", "Reset all"),
   E("general", "Colours", "colors theme dark light"),
   E("general", "Text size", "font zoom"),
+  E("general", "Frameless windows", "title bar frame border window minimize maximize caption"),
   E("general", "Distances", "units km miles"),
   E("general", "Dates in the log", "format date"),
   E("general", "Frequencies in the log", "format mhz khz"),

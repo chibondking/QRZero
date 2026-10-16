@@ -409,7 +409,7 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
         </span>
         <span className="spacer" />
         {dirty && <span className="qe-changes">{changeCount === 1 ? "1 change" : `${changeCount} changes`}</span>}
-        {frame.on ? (
+        {frame.on && frame.os !== "macos" ? (
           <WindowControls onClose={requestClose} closeTitle="Close (Esc)" closeLabel="Close editor" />
         ) : (
           <button className="ghost qe-close" aria-label="Close editor" title="Close (Esc)" onClick={requestClose}>&#10005;</button>

@@ -45,7 +45,7 @@ export default function MainMenu({ onPick }: { onPick: (a: MenuAction) => void }
             <>
               <hr />
               <label className="item" title="Draw QRZero's own title bar instead of the system window frame">
-                <input type="checkbox" checked={frame.on} onChange={() => { setOpen(false); setFrameless(!frame.on); }} />
+                <input type="checkbox" checked={frame.saved} onChange={() => { setOpen(false); setFrameless(!frame.saved); }} />
                 Frameless windows
               </label>
             </>

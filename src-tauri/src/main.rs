@@ -7,12 +7,13 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use tauri::webview::{NewWindowResponse, PageLoadEvent, PageLoadPayload};
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-/// Frameless windows (QRZero draws its own title bar) are offered on Windows only.
-const FRAMELESS_SUPPORTED: bool = cfg!(windows);
-/// Whether windows are frameless now. Off when the user chose the system frame.
-static FRAMELESS: AtomicBool = AtomicBool::new(false);
+/// Whether windows are frameless (QRZero draws its own title bar). Off when the user chose the system frame.
+/// On macOS the change waits for the next start, since a window's title can't be hidden after it opens.
+static FRAMELESS: AtomicBool = AtomicBool::new(true);
+/// The platform, so the page knows which window buttons to draw (macOS keeps its own).
+const OS: &str = std::env::consts::OS;
 /// Windows currently maximized, so the page hears only when that changes.
 static MAXIMIZED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
@@ -25,19 +26,36 @@ fn frameless() -> bool {
     FRAMELESS.load(Ordering::Relaxed)
 }
 
+/// The page's view of its frame, as a JS object: now, and as chosen for the next start.
+fn frame_js() -> String {
+    format!("{{ supported: true, on: {}, saved: {}, os: '{OS}' }}", frameless(), !system_frame_marker().exists())
+}
+
 /// What every page learns at start: that it runs in the desktop app, and how its window is framed.
 fn init_script() -> String {
-    format!("window.__qrzeroDesktop = true; window.__qrzeroFrame = {{ supported: {FRAMELESS_SUPPORTED}, on: {} }};", frameless())
+    format!("window.__qrzeroDesktop = true; window.__qrzeroFrame = {};", frame_js())
 }
 
 /// Tells a page its frame and maximized state (after a reload, or a change).
 fn tell_frame(w: &WebviewWindow) {
     let max = w.is_maximized().unwrap_or(false);
-    let _ = w.eval(format!(
-        "window.__qrzeroFrame = {{ supported: {FRAMELESS_SUPPORTED}, on: {} }}; window.dispatchEvent(new CustomEvent('qrzero-frame', {{ detail: {{ on: {}, max: {max} }} }}))",
-        frameless(),
-        frameless()
-    ));
+    let frame = frame_js();
+    let _ = w.eval(format!("window.__qrzeroFrame = {frame}; window.dispatchEvent(new CustomEvent('qrzero-frame', {{ detail: {{ ...window.__qrzeroFrame, max: {max} }} }}))"));
+}
+
+/// Opens a window frameless or with the system frame. macOS keeps its traffic lights over QRZero's bar.
+#[cfg(target_os = "macos")]
+fn with_frame<'a, R: Runtime, M: Manager<R>>(b: WebviewWindowBuilder<'a, R, M>) -> WebviewWindowBuilder<'a, R, M> {
+    if frameless() {
+        b.title_bar_style(tauri::TitleBarStyle::Overlay).hidden_title(true)
+    } else {
+        b
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn with_frame<'a, R: Runtime, M: Manager<R>>(b: WebviewWindowBuilder<'a, R, M>) -> WebviewWindowBuilder<'a, R, M> {
+    b.decorations(!frameless())
 }
 
 fn page_loaded(w: WebviewWindow, p: PageLoadPayload<'_>) {
@@ -72,13 +90,18 @@ fn title_changed(w: WebviewWindow, title: String) {
         Some("max") => {
             let _ = if w.is_maximized().unwrap_or(false) { w.unmaximize() } else { w.maximize() };
         }
-        Some("frame") if FRAMELESS_SUPPORTED => {
+        Some("frame") => {
             let on = arg(parts.next());
-            FRAMELESS.store(on, Ordering::Relaxed);
             let marker = system_frame_marker();
             let _ = if on { std::fs::remove_file(&marker) } else { std::fs::write(&marker, b"") };
+            // macOS applies it at the next start; elsewhere every window changes now.
+            if !cfg!(target_os = "macos") {
+                FRAMELESS.store(on, Ordering::Relaxed);
+            }
             for (_, win) in w.app_handle().webview_windows() {
-                let _ = win.set_decorations(!on);
+                if !cfg!(target_os = "macos") {
+                    let _ = win.set_decorations(!on);
+                }
                 tell_frame(&win);
             }
         }
@@ -104,10 +127,9 @@ fn popout_handler(app: AppHandle, home: String) -> impl Fn(tauri::Url, tauri::we
             .map(|(_, v)| v.chars().filter(char::is_ascii_alphanumeric).collect())
             .unwrap_or_default();
         let label = format!("pane-{}-{pane}", NEXT.fetch_add(1, Ordering::Relaxed));
-        let mut builder = WebviewWindowBuilder::new(&app, label, WebviewUrl::External("about:blank".parse().unwrap()))
+        let mut builder = with_frame(WebviewWindowBuilder::new(&app, label, WebviewUrl::External("about:blank".parse().unwrap())))
             .window_features(features)
             .title("QRZero")
-            .decorations(!frameless())
             .min_inner_size(320.0, 200.0)
             .disable_drag_drop_handler()
             .on_document_title_changed(title_changed)
@@ -123,7 +145,7 @@ fn popout_handler(app: AppHandle, home: String) -> impl Fn(tauri::Url, tauri::we
 }
 
 fn main() {
-    FRAMELESS.store(FRAMELESS_SUPPORTED && !system_frame_marker().exists(), Ordering::Relaxed);
+    FRAMELESS.store(!system_frame_marker().exists(), Ordering::Relaxed);
     tauri::Builder::default()
         // A second launch focuses the existing window instead of opening another.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -167,11 +189,13 @@ fn main() {
         .setup(|app| {
             let config = qrzero_server::Config::local(qrzero_server::default_data_dir());
             let running = tauri::async_runtime::block_on(qrzero_server::start(config))?;
-            let url: tauri::Url = running.url().parse()?;
+            let mut url: tauri::Url = running.url().parse()?;
+            url.query_pairs_mut()
+                .append_pair("desktop", if frameless() { "frameless" } else { "framed" })
+                .append_pair("os", OS);
             let home = url.origin().ascii_serialization();
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+            with_frame(WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url)))
                 .title("QRZero")
-                .decorations(!frameless())
                 .on_new_window(popout_handler(app.handle().clone(), home))
                 .on_document_title_changed(title_changed)
                 .on_page_load(page_loaded)

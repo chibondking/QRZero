@@ -30,9 +30,9 @@ In a web browser, allow pop-ups for QRZero's page, or the window can't open.
 
 ## Frameless windows
 
-On Windows, the desktop app draws its own title bar: the top bar of the main window, and the bar along the top of each pop-out and of the QSO editor, take the place of the system frame. Drag an empty part of the bar to move the window, double-click it to maximize or restore, and drag any edge to resize. Minimize, maximize and close sit at the right end of the bar. Closing a pop-out this way docks its pane back, the same as **Dock back**.
+The desktop app draws its own title bar: the top bar of the main window, and the bar along the top of each pop-out and of the QSO editor, take the place of the system frame. Drag an empty part of the bar to move the window, double-click it to maximize or restore, and drag any edge to resize. On Windows and Linux, minimize, maximize and close sit at the right end of the bar; on macOS the usual window buttons stay at the top left. Closing a pop-out this way docks its pane back, the same as **Dock back**.
 
-To go back to the usual Windows frame, untick **Frameless windows** in the **☰** menu. The change applies to every open window at once and is remembered the next time QRZero starts. A browser tab always has the browser's own frame, so the option is not shown there.
+To go back to the system frame, untick **Frameless windows** in **Settings**, **General** (or in the **☰** menu). On Windows and Linux every open window changes at once; on macOS the change applies the next time QRZero starts. Either way it is remembered. A browser tab always has the browser's own frame, so the option is not shown there.
 
 ## Saved layouts
 

@@ -4,9 +4,33 @@
 import { useEffect, useState } from "react";
 import type React from "react";
 
-interface FrameInfo { supported: boolean; on: boolean }
+/** on: this window is frameless now; saved: the choice for the next start (macOS applies it then). */
+interface FrameInfo { supported: boolean; on: boolean; saved: boolean; os: string }
 
-const info = (): FrameInfo => (window as unknown as { __qrzeroFrame?: FrameInfo }).__qrzeroFrame ?? { supported: false, on: false };
+type Global = { __qrzeroFrame?: Partial<FrameInfo> };
+
+// The shell also puts the frame in the page address (?desktop=frameless|framed&os=...): its start-up
+// script can lose the race with the main window's first page load.
+const params = new URLSearchParams(window.location.search);
+const fromUrl: FrameInfo | null = ((d) => (d === "frameless" || d === "framed" ? { supported: true, on: d === "frameless", saved: d === "frameless", os: params.get("os") ?? "" } : null))(params.get("desktop"));
+
+function info(): FrameInfo {
+  const g = (window as unknown as Global).__qrzeroFrame;
+  const base = fromUrl ?? { supported: false, on: false, saved: false, os: "" };
+  return g ? { ...base, ...g, saved: g.saved ?? g.on ?? base.saved } : base;
+}
+
+/** macOS keeps its own window buttons over the bar; the bar leaves room for them. */
+function markRoot(f: FrameInfo) {
+  document.documentElement.dataset.frame = f.on ? (f.os === "macos" ? "macos" : "drawn") : "";
+}
+markRoot(info());
+
+/** The address parameters that give a new window this window's frame. */
+export function frameParams(): [string, string][] {
+  const f = info();
+  return f.supported ? [["desktop", f.on ? "frameless" : "framed"], ["os", f.os]] : [];
+}
 
 let shown = "";
 let seq = 0;
@@ -22,21 +46,26 @@ export function shell(cmd: string) {
   }, 100);
 }
 
-/** Whether this window draws its own title bar, whether the user can choose it, and whether the window is maximized. */
+/** This window's frame, and whether it is maximized. */
 export function useFrame() {
   const [state, setState] = useState(() => ({ ...info(), max: false }));
   useEffect(() => {
     const h = (e: Event) => {
-      const d = (e as CustomEvent<{ on: boolean; max: boolean }>).detail;
-      setState({ supported: info().supported, on: d.on, max: d.max });
+      const d = (e as CustomEvent<Partial<FrameInfo> & { max: boolean }>).detail;
+      (window as unknown as Global).__qrzeroFrame = { ...info(), ...d };
+      const f = info();
+      markRoot(f);
+      setState({ ...f, max: d.max });
     };
     window.addEventListener("qrzero-frame", h);
+    // The shell may have said so between the first render and now.
+    setState((s) => ({ ...s, ...info() }));
     return () => window.removeEventListener("qrzero-frame", h);
   }, []);
   return state;
 }
 
-/** Switches every window between QRZero's title bar and the system frame. */
+/** Switches between QRZero's title bar and the system frame. */
 export const setFrameless = (on: boolean) => shell(`frame:${on ? 1 : 0}`);
 
 /** On a title bar: drag moves the window, double-click maximizes or restores. Controls in the bar keep their clicks. */

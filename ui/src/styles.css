@@ -207,6 +207,8 @@ button.caption { display: flex; align-items: center; justify-content: center; wi
 button.caption:hover:not(:disabled) { background: var(--line); }
 button.caption.close:hover:not(:disabled) { background: #c42b1c; color: #fff; }
 button.caption svg { fill: none; stroke: currentColor; stroke-width: 1; shape-rendering: crispEdges; }
+/* macOS keeps its own window buttons at the top left of the bar. */
+:root[data-frame="macos"] .topbar, :root[data-frame="macos"] .popout-bar, :root[data-frame="macos"] .qe-head { padding-left: 78px; min-height: 28px; }
 
 /* Panels */
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; display: flex; flex-direction: column; min-width: 0; }
