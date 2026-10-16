@@ -2,12 +2,12 @@ import { useState } from "react";
 import type { PopContext } from "../bus";
 import { localGet, localSet } from "../prefs";
 import { useIntegrations, useRotator } from "../live";
-import type { Fields, Qso, QsoFilter } from "../types";
+import type { Fields, Qso, QsoFilter, SlotPick } from "../types";
 import type { PaneId } from "../workspace";
 import AwardsPane from "./AwardsPane";
 import ClusterPane from "./ClusterPane";
 import FtxMonitor, { type DecodePick } from "./FtxMonitor";
-import LookupPanel from "./LookupPanel";
+import LookupPanel, { SlotsPane } from "./LookupPanel";
 import MapPanel, { type MapView } from "./MapPanel";
 import WorkedPane from "./WorkedPane";
 import BandMapPane from "./BandMapPane";
@@ -26,6 +26,8 @@ export interface PaneActions {
   onEdit: (q: Qso) => void;
   onCopy: (f: Fields) => void;
   onShowQsos: (f: QsoFilter) => void;
+  /** Lists a DXCC slot's QSOs in Worked before (null goes back to the call's history). */
+  onSlot: (s: SlotPick | null) => void;
   onSettings: (tab: string) => void;
 }
 
@@ -40,7 +42,9 @@ export default function SharedPane({ id, ctx, act }: { id: PaneId; ctx: PopConte
     case "entry":
       return <EntryHost ctx={ctx} />;
     case "lookup":
-      return <LookupPanel logId={ctx.logId} result={ctx.lookup} entry={ctx.entry} refreshKey={ctx.refreshKey} />;
+      return <LookupPanel logId={ctx.logId} result={ctx.lookup} entry={ctx.entry} refreshKey={ctx.refreshKey} slot={ctx.slot} onSlot={act.onSlot} />;
+    case "slots":
+      return <SlotsPane logId={ctx.logId} result={ctx.lookup} entry={ctx.entry} refreshKey={ctx.refreshKey} slot={ctx.slot} onSlot={act.onSlot} />;
     case "worked":
       return (
         <WorkedPane
@@ -50,6 +54,8 @@ export default function SharedPane({ id, ctx, act }: { id: PaneId; ctx: PopConte
           entry={ctx.entry}
           refreshKey={ctx.refreshKey}
           selectedId={ctx.editingId}
+          slot={ctx.slot}
+          onSlotClear={() => act.onSlot(null)}
           onEdit={act.onEdit}
           onCopy={act.onCopy}
           onShowInLog={(call) => act.onShowQsos({ call })}

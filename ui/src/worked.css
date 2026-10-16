@@ -2,6 +2,7 @@
 .worked-pane { flex: 1 1 auto; height: 100%; min-height: 0; overflow: hidden; }
 .worked-pane .panel-title { flex: 0 0 auto; }
 .worked-pane .wb-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.worked-pane .wb-slot { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wb-toggles { display: flex; gap: 2px; }
 .wb-toggles button.tiny { padding: 0 6px; font-weight: 400; }
 .wb-toggles button.tiny.on { background: var(--panel); font-weight: 600; }
@@ -43,6 +44,8 @@
 .wb-table td.wb-text { max-width: 14em; overflow: hidden; text-overflow: ellipsis; font-family: var(--ui); }
 .wb-table td.wb-wide { max-width: 24em; width: 100%; }
 .wb-as { color: var(--muted); margin-right: 6px; font-family: var(--mono); }
+.wb-table td.wb-call { font-weight: 600; }
+.wb-table td.wb-this { color: var(--accent); }
 
 /* Edit and Copy appear on hover (and on the selected row), pinned to the right edge. */
 .wb-table .wb-act { position: sticky; right: 0; padding: 0 2px; width: 1px; }

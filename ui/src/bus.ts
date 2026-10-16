@@ -6,7 +6,7 @@ import { localGet, localSet } from "./prefs";
 import type { DecodePick } from "./components/FtxMonitor";
 import type { EntryContext, Prefill } from "./components/EntryPanel";
 import type { LatLon } from "./geo";
-import type { Equipment, Fields, Location, LookupResult, Qso, QsoFilter, StationCallsign } from "./types";
+import type { Equipment, Fields, Location, LookupResult, Qso, QsoFilter, SlotPick, StationCallsign } from "./types";
 import type { EntryLayout, ModeLayouts } from "./fields";
 import type { PaneId } from "./workspace";
 
@@ -23,6 +23,8 @@ export interface PopContext {
   units: "km" | "mi";
   refreshKey: number;
   editingId: number | null;
+  /** The DXCC slot picked in the slots grid, listed in Worked before. */
+  slot: SlotPick | null;
   /** The radio the entry panel follows ("" for none). */
   radioKey: string;
   /** What the New QSO pane needs when it is in its own window. */
@@ -56,6 +58,7 @@ export type BusMsg =
   | { t: "edit"; qso: Qso }
   | { t: "copy"; fields: Fields }
   | { t: "show-qsos"; filter: QsoFilter }
+  | { t: "slot"; slot: SlotPick | null }
   | { t: "settings"; tab: string }
   | { t: "radio"; key: string }
   | { t: "logged" }
@@ -91,6 +94,7 @@ const DEFAULT_SIZE: Partial<Record<WindowId, Geometry>> = {
   ftx: { w: 900, h: 560, x: null, y: null },
   map: { w: 700, h: 460, x: null, y: null },
   awards: { w: 900, h: 640, x: null, y: null },
+  slots: { w: 400, h: 190, x: null, y: null },
 };
 
 /** Opens (or focuses) the window for a pane, where it was last time. */

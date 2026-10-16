@@ -311,6 +311,9 @@ export interface AwardHint { award: AwardKind; key: string; name: string; cells:
 /** DXCC slots of one entity: per band (row), the status of CW, Phone and Digital. */
 export interface SlotGrid { bands: string[]; cells: HintStatus[][] }
 
+/** A DXCC slot clicked in the slots grid: Worked before lists every QSO in it, whatever the call. */
+export interface SlotPick { dxcc: number; name: string; band: string; group: "CW" | "Phone" | "Digital" }
+
 /** A station note, stored under the base call. Times are Unix seconds. */
 export interface Note {
   call: string;
