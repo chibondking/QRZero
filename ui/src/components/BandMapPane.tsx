@@ -101,7 +101,7 @@ interface Item {
   key: string;
   khz: number;
   h: number;
-  node: (style: React.CSSProperties) => JSX.Element;
+  node: (style: React.CSSProperties) => React.JSX.Element;
 }
 
 export default function BandMapPane({ ctx, act }: { ctx: PopContext; act: PaneActions }) {

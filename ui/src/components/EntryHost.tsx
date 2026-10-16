@@ -11,7 +11,7 @@ export default function EntryHost({ ctx }: { ctx: PopContext }) {
   // The main window resends everything on each change; keep unchanged parts the same object so the form isn't disturbed.
   const stable = <T,>(v: T): T => {
     const key = JSON.stringify(v);
-    const ref = useRef<{ key: string; v: T }>();
+    const ref = useRef<{ key: string; v: T } | undefined>(undefined);
     if (!ref.current || ref.current.key !== key) ref.current = { key, v };
     return ref.current.v;
   };
