@@ -23,6 +23,7 @@ Search tip: each Rust module starts with a `//!` doc comment saying what it is, 
 - QSO fields, bands and modes: `model.rs`, `band.rs`.
 - DXCC resolution from the country file: `cty.rs`. "Have I worked it?" sets: `worked.rs`.
 - Awards (DXCC, WAS, WAZ, WPX and the rest): `awards.rs`. CW club awards (SKCC, CWops, NAQCC, FISTS): `cwclubs.rs`.
+- Log statistics (the Statistics window's text summary): `stats.rs`.
 - QSL services: uploads in `qsl.rs`; confirmation downloads, eQSL and matching in `confirm.rs`.
 - Callsign lookup: `qrz.rs`, `hamqth.rs`.
 - Tests: `crates/core/tests` (`perf.rs` is the ignored large-log speed test).
@@ -47,7 +48,7 @@ Search tip: each Rust module starts with a `//!` doc comment saying what it is, 
 ## UI (`ui/src`)
 
 - App shell, docked and pop-out layout: `App.tsx`, `components/Workspace.tsx`, `components/Popout.tsx`, `workspace.ts`.
-- Panes and dialogs: `components/*.tsx`, named for what they show (for example `LogGrid`, `ClusterPane`, `BandMapPane`, `AwardsPane`, `QslDialog`, `SettingsDialog`). Header and radio readout: `MainMenu.tsx`, `VfoBar.tsx`.
+- Panes and dialogs: `components/*.tsx`, named for what they show (for example `LogGrid`, `ClusterPane`, `BandMapPane`, `AwardsPane`, `QslDialog`, `StatsDialog`, `SettingsDialog`). Header and radio readout: `MainMenu.tsx`, `VfoBar.tsx`.
 - Server calls: `api.ts` (everything goes over `/api`). Live events: `live.ts`. Shared types: `types.ts`.
 - Per-feature helpers and saved preferences sit beside the components as `*.ts` and `*.css`. Settings search index: `settingsIndex.ts`. Keyboard shortcuts: `shortcuts.ts`, `shortcutKeys.ts`.
 - End-to-end tests: `ui/e2e/*.spec.ts` (Playwright; `smoke.spec.ts` is the broad one, config in `ui/playwright.config.ts`).

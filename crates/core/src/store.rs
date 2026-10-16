@@ -672,6 +672,69 @@ impl Store {
         Ok(())
     }
 
+    /// Calls `f` with the statistics facts of every QSO in the log, optionally only for some
+    /// station callsigns. `resolve` supplies a DXCC entity for QSOs without one.
+    pub fn for_each_stats_qso(
+        &self,
+        log_id: i64,
+        callsigns: &[String],
+        resolve: impl Fn(&str) -> Option<u32>,
+        mut f: impl FnMut(&crate::stats::StatsQso),
+    ) -> Result<()> {
+        let marks = vec!["?"; callsigns.len()].join(", ");
+        let calls = if callsigns.is_empty() { String::new() } else { format!(" AND station_callsign IN ({marks})") };
+        let mut stmt = self.conn.prepare(&format!("SELECT call, time_on, dxcc, fields FROM qsos WHERE log_id = ?{calls}"))?;
+        let mut args: Vec<Value> = vec![log_id.into()];
+        args.extend(callsigns.iter().map(|c| Value::from(c.to_ascii_uppercase())));
+        let mut rows = stmt.query(params_from_iter(args))?;
+        #[derive(serde::Deserialize)]
+        #[allow(non_snake_case)]
+        struct Facts<'a> {
+            #[serde(borrow)]
+            LOTW_QSL_SENT: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            LOTW_QSL_RCVD: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            QSL_SENT: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            QSL_RCVD: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            QRZCOM_QSO_UPLOAD_STATUS: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            QRZCOM_QSO_DOWNLOAD_STATUS: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            CLUBLOG_QSO_UPLOAD_STATUS: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            APP_QRZERO_CLUBLOG_RCVD: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            EQSL_QSL_SENT: Option<std::borrow::Cow<'a, str>>,
+            #[serde(borrow)]
+            EQSL_QSL_RCVD: Option<std::borrow::Cow<'a, str>>,
+        }
+        let yes = |v: &Option<std::borrow::Cow<str>>| matches!(v.as_deref(), Some("Y") | Some("V"));
+        let mut q = crate::stats::StatsQso::default();
+        while let Some(r) = rows.next()? {
+            q.call = r.get(0)?;
+            q.time_on = r.get(1)?;
+            let dxcc: Option<i64> = r.get(2)?;
+            q.dxcc = dxcc.and_then(|d| u32::try_from(d).ok()).or_else(|| resolve(&q.call));
+            let raw = r.get_ref(3)?.as_str().map_err(rusqlite::Error::from)?;
+            let x: Facts = serde_json::from_str(raw)?;
+            q.lotw_sent = yes(&x.LOTW_QSL_SENT);
+            q.lotw = yes(&x.LOTW_QSL_RCVD);
+            q.paper_sent = yes(&x.QSL_SENT);
+            q.paper = yes(&x.QSL_RCVD);
+            q.qrz_sent = yes(&x.QRZCOM_QSO_UPLOAD_STATUS);
+            q.qrz = yes(&x.QRZCOM_QSO_DOWNLOAD_STATUS);
+            q.clublog_sent = yes(&x.CLUBLOG_QSO_UPLOAD_STATUS);
+            q.clublog = yes(&x.APP_QRZERO_CLUBLOG_RCVD);
+            q.eqsl_sent = yes(&x.EQSL_QSL_SENT);
+            q.eqsl = yes(&x.EQSL_QSL_RCVD);
+            f(&q);
+        }
+        Ok(())
+    }
+
     /// Calls `f` with the CW club facts of every CW QSO in the log (club
     /// numbers, time, band and place; `my_dxcc` gives the entity of a station callsign), optionally only for some station callsigns.
     pub fn for_each_club_qso(&self, log_id: i64, callsigns: &[String], my_dxcc: impl Fn(&str) -> Option<u32>, mut f: impl FnMut(&ClubQso)) -> Result<()> {

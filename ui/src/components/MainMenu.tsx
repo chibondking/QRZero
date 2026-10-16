@@ -2,13 +2,14 @@ import { Fragment } from "react";
 import { usePopup } from "./usePopup";
 import { show, useOverrides, SHORTCUTS, bindingFor } from "../shortcuts";
 
-export type MenuAction = "import" | "export" | "qsl" | "qslqueue" | "settings" | "help" | "about";
+export type MenuAction = "import" | "export" | "qsl" | "qslqueue" | "stats" | "settings" | "help" | "about";
 
 const ITEMS: { id: MenuAction; label: string }[] = [
   { id: "import", label: "Import ADIF…" },
   { id: "export", label: "Export ADIF…" },
   { id: "qsl", label: "QSL: LoTW, QRZ, Club Log…" },
   { id: "qslqueue", label: "QSL Queue…" },
+  { id: "stats", label: "Statistics…" },
   { id: "settings", label: "Settings…" },
   { id: "help", label: "Help" },
   { id: "about", label: "About QRZero" },
@@ -31,7 +32,7 @@ export default function MainMenu({ onPick }: { onPick: (a: MenuAction) => void }
         <div className="layout-pop" role="menu">
           {ITEMS.map((it, i) => (
             <Fragment key={it.id}>
-              {i === 4 && <hr />}
+              {i === 5 && <hr />}
               <button role="menuitem" className="item" onClick={() => { setOpen(false); onPick(it.id); }}>
                 {it.label}
                 {hintOf(it.id) && <span className="where">{hintOf(it.id)}</span>}
