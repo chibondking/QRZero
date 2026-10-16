@@ -185,8 +185,7 @@ function AwardHints({ hints, band, mode }: { hints: AwardHint[]; band: string; m
 export function SlotsPane({ logId, result, entry, refreshKey, slot, onSlot }: StationProps) {
   const slots = useStationSlots(logId, result, entry, refreshKey);
   return (
-    <section className="panel lookup slots-pane">
-      <div className="panel-title"><span>DXCC slots</span>{result && <span className="small muted">{result.call}</span>}</div>
+    <section className="panel lookup slots-pane" aria-label={result ? `DXCC slots for ${result.call}` : "DXCC slots"}>
       <div className="panel-body">
         {slots ? (
           <DxccSlots {...slots} band={entry.band} mode={entry.mode} picked={slot} onSlot={onSlot} />

@@ -69,19 +69,20 @@ export default function Popout({ pane }: { pane: PaneId }) {
         <span className="spacer" />
         {canStayOnTop() && (
           <button
-            className={`tiny${onTop ? " on" : ""}`}
+            className={`ws-tool${onTop ? " on" : ""}`}
             aria-pressed={onTop}
+            aria-label="Always on top"
             onClick={() => {
               setTop(!onTop);
               setOnTop(pane, !onTop);
             }}
-            title="Keep this window above other windows"
+            title={onTop ? "Always on top (on): click to let other windows cover this one" : "Always on top: keep this window above other windows"}
           >
-            Always on top
+            <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M4 1.5h4M5 1.5v4L3 7.5h6L7 5.5v-4M6 7.5v3.5" fill="none" stroke="currentColor" strokeWidth="1.2" /></svg>
           </button>
         )}
-        <button className="tiny" onClick={dockBack} title="Put this pane back in the main window">
-          Dock back
+        <button className="ws-tool" onClick={dockBack} aria-label="Dock back" title="Dock back: put this pane back in the main window">
+          <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M5 2H2v8h8V7M10 2 6 6M6 3v3h3" fill="none" stroke="currentColor" strokeWidth="1.2" /></svg>
         </button>
         <WindowControls onClose={dockBack} closeTitle="Close and put this pane back in the main window" />
       </div>

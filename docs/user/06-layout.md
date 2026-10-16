@@ -22,9 +22,9 @@ The **×** at the top right of a pane hides it. Show it again from **Layout** in
 
 The arrow button next to the **×** opens the pane in its own window (or right-click the pane's tab and pick **Pop out**), so you can put the FTx monitor, the cluster or the map on a second screen. Every pane except Log can pop out, including New QSO: put the entry form on one screen and the rest on another. The spots you click, the radio and the keyboard shortcuts work the same from the pop-out, and the QSOs you log show up in the main window. A QSO half-typed when you pop the form out or dock it back is cleared. Clicking a decode, a spot or a QSO in a popped-out pane works just as it does in the main window.
 
-Close the window, or click **Dock back**, to put the pane back where it was in the main window (in the same tab group, or on the same side of its neighbour). QRZero remembers where each window was and reopens it there next time. When you close QRZero, the popped-out windows close with it.
+Close the window, or click **Dock back** (the arrow-into-a-box icon in its title bar), to put the pane back where it was in the main window (in the same tab group, or on the same side of its neighbour). QRZero remembers where each window was and reopens it there next time. When you close QRZero, the popped-out windows close with it.
 
-In the desktop app, the **Always on top** button in a pop-out's title bar keeps that window above your other windows (handy for a logging form over a full-screen radio program). It affects only that window, and QRZero remembers the setting for each pane. A browser tab can't do this, so the button is not shown there.
+In the desktop app, the **Always on top** button (the pin icon) in a pop-out's title bar keeps that window above your other windows (handy for a logging form over a full-screen radio program). The pin is highlighted while it is on. It affects only that window, and QRZero remembers the setting for each pane. A browser tab can't do this, so the button is not shown there.
 
 In a web browser, allow pop-ups for QRZero's page, or the window can't open.
 

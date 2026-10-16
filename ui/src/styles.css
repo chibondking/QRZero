@@ -277,7 +277,13 @@ button.caption svg { fill: none; stroke: currentColor; stroke-width: 1; shape-re
 .dxcc-slots td.pick { cursor: pointer; }
 .dxcc-slots td.pick:hover { background: var(--panel-2); }
 .dxcc-slots td.picked { background: var(--row-sel); }
-.slots-pane .dxcc-slots { margin-top: 0; border-top: 0; padding-top: 0; }
+/* The DXCC slots pane: the grid fills the pane, its text growing with the space. */
+.slots-pane { flex: 1 1 auto; min-height: 0; }
+.slots-pane .panel-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; container-type: size; padding: 4px 6px; }
+.slots-pane .dxcc-slots { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 0; border-top: 0; padding-top: 0; }
+.slots-pane .dxcc-slots table { flex: 1 1 auto; width: 100%; height: 100%; table-layout: fixed; }
+.slots-pane .dxcc-slots th, .slots-pane .dxcc-slots td { font-size: clamp(12px, min(3.4cqw, 13cqh), 48px); }
+.slots-pane .dxcc-slots th:first-child { width: 4.6em; }
 
 /* Map */
 .map-box { flex: 1; min-height: 150px; position: relative; overflow: hidden; }
