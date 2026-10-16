@@ -93,7 +93,13 @@ function Clock({ localTime }: { localTime: boolean }) {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-  return <span className="clock" title={localTime ? "UTC, then your computer's time" : "UTC"}>{utcClock(now)}{localTime && <span className="muted"> ({localClock(now)} local)</span>}</span>;
+  // With local time on, it sits under the UTC time so the clock stays narrow.
+  return (
+    <span className={`clock${localTime ? " two" : ""}`} title={localTime ? "UTC, then your computer's time" : "UTC"}>
+      {utcClock(now)}
+      {localTime && <span className="muted local">{localClock(now)} local</span>}
+    </span>
+  );
 }
 
 export default function App() {
@@ -480,19 +486,19 @@ export default function App() {
     <div className="app">
       <header className="topbar" onMouseDown={barMouseDown}>
         <span className="brand">QRZero</span>
-        <label>
+        <label className="tb-log">
           Log
           <select value={logId} onChange={(e) => setLogId(Number(e.target.value))}>
             {logs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </label>
-        <label>
+        <label className="tb-station">
           Station
           <select value={stationCall} onChange={(e) => setStationCall(e.target.value)} disabled={!activeCalls.length}>
             {activeCalls.map((c) => <option key={c.id} value={c.callsign}>{c.callsign}</option>)}
           </select>
         </label>
-        <label>
+        <label className="tb-loc">
           Location
           <select value={locationId ?? ""} onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : null)}>
             <option value="">(none)</option>
@@ -505,7 +511,7 @@ export default function App() {
         <span className="spacer" />
         <UpdateNotice />
         {notice && <span className="notice" role="status">{notice}</span>}
-        <span className="muted">{currentLog?.qso_count.toLocaleString() ?? 0} QSOs</span>
+        <span className="muted tb-count" title="QSOs in this log">{currentLog?.qso_count.toLocaleString() ?? 0} QSOs</span>
         <Clock localTime={display.localTime} />
         <LayoutMenu ws={ws} columns={columns} widths={colWidths} onColumns={(c, w) => { setColumns(c); setColWidths(w); }} onChange={setWs} onShow={(id) => setWs({ ...wsRef.current, root: dockBack(wsRef.current.root, id) })} onFocusWindow={focusWindow} />
         <MainMenu onPick={setDialog} />

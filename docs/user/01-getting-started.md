@@ -90,7 +90,7 @@ The window is made of panes. Each pane has a tab at its top, and panes can share
 
 | Pane | What it's for |
 | --- | --- |
-| Top bar | Pick the log, the station callsign and the location you are logging from. The UTC clock and the **Layout** menu are on the right. |
+| Top bar | Pick the log, the station callsign and the location you are logging from. The radio readout follows, then the QSO count, the UTC clock and the **Layout** menu on the right. The bar stays on one row at any window width: on a small screen the location, log and radio names shorten (hover for the full name), and below about 1100 px wide the radio name and QSO count are left out. |
 | New QSO | Type the QSO and press <kbd>Enter</kbd> to log it. |
 | Worked before | Every earlier QSO with the call you are typing. |
 | Station | Details about the station you are working. |

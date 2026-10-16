@@ -158,20 +158,38 @@ kbd { font: 11px var(--mono); opacity: 0.75; margin-left: 4px; }
 .topbar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 9px;
   padding: 4px 8px;
   background: var(--title);
   border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
 }
-.topbar label { display: flex; align-items: center; gap: 5px; color: var(--muted); }
-.topbar select { color: var(--text); }
+/* One row at any width: the boxes that can give way (location, log, radio name) shrink, the rest keep their size. */
+.topbar > * { flex: none; }
+.topbar label { display: flex; align-items: center; gap: 5px; color: var(--muted); min-width: 0; }
+.topbar select { color: var(--text); min-width: 5em; flex: 1 1 auto; text-overflow: ellipsis; }
+.topbar > .spacer { flex: 1 1 0; }
+.topbar > .tb-loc { flex: 0 2 auto; min-width: 7em; }
+.topbar > .tb-log { flex: 0 0 auto; }
+.topbar > .tb-log select { max-width: 14em; }
+.topbar > .vfo-bar { flex: 0 4 auto; }
+.topbar > .tb-count { white-space: nowrap; }
+.topbar > .notice { flex: 0 1 auto; min-width: 0; }
+/* A very narrow window drops the radio's name and the QSO count (still in the tooltips) rather than push the menus off the bar. */
+@media (max-width: 1100px) {
+  .topbar .vfo .vfo-name, .topbar > .tb-count { display: none; }
+}
 .brand { font-weight: 700; letter-spacing: 0.3px; }
-.clock { font: 600 14px var(--mono); }
+.clock { font: 600 14px var(--mono); white-space: nowrap; }
+/* UTC with the computer's time under it. */
+.clock.two { display: flex; flex-direction: column; line-height: 1.1; }
+.clock.two .local { font-size: 11px; font-weight: 400; }
 .menu { display: flex; gap: 4px; }
 
 /* VFO readout in the top bar */
 .vfo-bar { display: flex; align-items: stretch; gap: 2px; }
+.vfo-bar > .vfo.followed { flex: 1 1 auto; }
+.vfo-bar > .vfo.followed > * { flex: none; }
+.vfo-bar > .vfo.followed > .vfo-name { flex: 0 1 auto; min-width: 0; }
 .vfo {
   display: flex;
   align-items: baseline;
@@ -183,7 +201,7 @@ kbd { font: 11px var(--mono); opacity: 0.75; margin-left: 4px; }
   font: 12px var(--mono);
   color: var(--muted);
 }
-.vfo .vfo-name { font-family: var(--ui); }
+.vfo .vfo-name { font-family: var(--ui); min-width: 0; max-width: 7.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
 .vfo .vfo-freq { font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: 0.5px; }
 .vfo.offline .vfo-freq { color: var(--muted); }
 .vfo .vfo-split { display: inline-flex; align-items: baseline; gap: 4px; }
