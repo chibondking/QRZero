@@ -306,6 +306,7 @@ export default function WorkedPane({ logId, call, lookup, entry, refreshKey, sel
     <section className="panel worked-pane">
       <div className="panel-title">
         <span className="wb-title">{title}</span>
+        {slot && <span className="wb-slot" title="Every QSO in this DXCC slot, with any station">{slot.name} {slot.band} {slot.group}{loadedFor === target ? `, ${all.length} QSOs` : ""}</span>}
         {filtered && <span className="small muted">showing {shown.length}</span>}
         <span className="spacer" />
         <span className="wb-toggles" role="group" aria-label="Filter">

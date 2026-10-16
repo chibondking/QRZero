@@ -2,6 +2,7 @@
 .worked-pane { flex: 1 1 auto; height: 100%; min-height: 0; overflow: hidden; }
 .worked-pane .panel-title { flex: 0 0 auto; }
 .worked-pane .wb-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.worked-pane .wb-slot { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wb-toggles { display: flex; gap: 2px; }
 .wb-toggles button.tiny { padding: 0 6px; font-weight: 400; }
 .wb-toggles button.tiny.on { background: var(--panel); font-weight: 600; }
