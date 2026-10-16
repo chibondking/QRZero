@@ -48,9 +48,12 @@ export default function WatchPane({ ctx, act }: { ctx: PopContext; act: PaneActi
     api.watch().then(setEntries).catch((e) => setErr((e as Error).message));
     api.watchHits().then(setHits).catch(() => {});
     loadEntities().then(setEntities);
-    return onLive((e) => {
+    // Hits expire an hour after the station was last seen, and a station seen again keeps its hit:
+    // the server holds the truth, so ask it once a minute while the pane is open.
+    const refresh = window.setInterval(() => api.watchHits().then(setHits).catch(() => {}), 60_000);
+    const off = onLive((e) => {
       if (e.type === "watch_hit") {
-        setHits((list) => [e.hit, ...list.filter((h) => !(h.seq === e.hit.seq && h.time === e.hit.time))].slice(0, KEEP_HITS));
+        setHits((list) => [e.hit, ...list.filter((h) => !(h.seq === e.hit.seq && h.time === e.hit.time) && !(h.entry_id === e.hit.entry_id && h.call === e.hit.call && h.band === e.hit.band))].slice(0, KEEP_HITS));
         if (soundRef.current) beep();
       }
       if (e.type === "cty") {
@@ -58,6 +61,10 @@ export default function WatchPane({ ctx, act }: { ctx: PopContext; act: PaneActi
         loadEntities().then(setEntities);
       }
     });
+    return () => {
+      window.clearInterval(refresh);
+      off();
+    };
   }, []);
 
   const unseen = useMemo(() => hits.filter((h) => h.time > seenAt).length, [hits, seenAt]);
@@ -255,7 +262,7 @@ export default function WatchPane({ ctx, act }: { ctx: PopContext; act: PaneActi
             <tbody>
               {hits.map((h) => (
                 <tr key={`${h.time}-${h.seq}`} className={h.time > seenAt ? "new" : ""} onClick={() => pick(h)} onDoubleClick={() => pick(h, true)} title={`Click to fill in ${h.call}; double-click to tune too`}>
-                  <td className="mono">{utc(h.time)}</td>
+                  <td className="mono">{utc(h.last_seen)}</td>
                   <td className="mono watch-call">{h.call}</td>
                   <td className="mono num">{(h.freq_hz / 1000).toFixed(1)}</td>
                   <td className="mono">{h.mode}</td>

@@ -338,6 +338,7 @@ export interface WatchHit {
   source: "cluster" | "ftx";
   detail: string;
   time: number;
+  last_seen: number;
 }
 export interface DxpedNeed { unknown: boolean; new_dxcc: boolean; bands: string[]; modes: string[] }
 export interface DxpedSpot { call: string; freq_hz: number; band: string | null; mode: string; comment: string; grid: string | null; time: number }

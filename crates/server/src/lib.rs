@@ -1848,7 +1848,7 @@ async fn dxped_refresh(State(s): State<Shared>) -> ApiResult<serde_json::Value> 
 }
 
 async fn watch_hits(State(s): State<Shared>) -> ApiResult<Vec<watch::WatchHit>> {
-    Ok(Json(s.hub.watch.hits()))
+    Ok(Json(s.hub.watch.hits(chrono::Utc::now().timestamp())))
 }
 
 // ---- cluster -------------------------------------------------------------

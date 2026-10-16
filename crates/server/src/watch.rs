@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 pub const SETTING_KEY: &str = "pref.watch";
 /// The same station on the same band alerts at most once in this many seconds.
 pub const REPEAT_SECS: i64 = 10 * 60;
+/// A hit drops off the list when its station hasn't been seen for this long.
+pub const HIT_TTL_SECS: i64 = 60 * 60;
 const MAX_HITS: usize = 200;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,8 +102,10 @@ pub struct WatchHit {
     pub country: Option<String>,
     pub source: &'static str,
     pub detail: String,
-    /// Unix seconds.
+    /// Unix seconds when the alert was raised.
     pub time: i64,
+    /// Unix seconds when the station was last spotted or decoded; the hit expires an hour after this.
+    pub last_seen: i64,
 }
 
 /// Enabled entries indexed for lookup.
@@ -246,13 +250,21 @@ impl Watch {
         let mut st = self.lock();
         let call = normalize(s.call);
         let key = (entry_id, call.clone(), s.band.unwrap_or("").to_string());
+        st.hits.retain(|h| now - h.last_seen < HIT_TTL_SECS);
         if st.last.get(&key).is_some_and(|t| now - t < REPEAT_SECS) {
+            // Seen again: no new alert, but the existing hit stays on the list.
+            let band = s.band.unwrap_or("");
+            if let Some(h) = st.hits.iter_mut().find(|h| h.entry_id == entry_id && h.call == call && h.band.as_deref().unwrap_or("") == band) {
+                h.last_seen = now;
+            }
             return None;
         }
         if st.last.len() > 2000 {
             st.last.retain(|_, t| now - *t < REPEAT_SECS);
         }
         st.last.insert(key, now);
+        let band = s.band.unwrap_or("");
+        st.hits.retain(|h| !(h.entry_id == entry_id && h.call == call && h.band.as_deref().unwrap_or("") == band));
         st.seq += 1;
         let hit = WatchHit {
             seq: st.seq,
@@ -268,6 +280,7 @@ impl Watch {
             source: s.source,
             detail: s.detail.to_string(),
             time: now,
+            last_seen: now,
         };
         st.hits.push_back(hit.clone());
         while st.hits.len() > MAX_HITS {
@@ -276,9 +289,11 @@ impl Watch {
         Some(hit)
     }
 
-    /// Recent alerts, newest first.
-    pub fn hits(&self) -> Vec<WatchHit> {
-        self.lock().hits.iter().rev().cloned().collect()
+    /// Alerts for stations seen in the last hour, most recently seen first.
+    pub fn hits(&self, now: i64) -> Vec<WatchHit> {
+        let mut v: Vec<WatchHit> = self.lock().hits.iter().filter(|h| now - h.last_seen < HIT_TTL_SECS).cloned().collect();
+        v.sort_by(|a, b| b.last_seen.cmp(&a.last_seen).then(b.seq.cmp(&a.seq)));
+        v
     }
 }
 
@@ -373,11 +388,25 @@ mod tests {
         assert!(w.record(1, &seen("VP8XYZ", "20m", "CW"), 1100).is_some(), "another call");
         let again = w.record(1, &s, 1000 + REPEAT_SECS).expect("ten minutes later");
         assert_eq!(again.seq, 4);
-        let hits = w.hits();
-        assert_eq!(hits.len(), 4);
+        let hits = w.hits(1000 + REPEAT_SECS);
+        assert_eq!(hits.len(), 3, "the same station and band replaces its older hit");
         assert_eq!(hits[0].seq, 4, "newest first");
         assert_eq!(hits[0].label, "VP8");
         assert!(w.record(99, &s, 5000).is_none(), "unknown entry");
+    }
+
+    #[test]
+    fn hits_expire_after_an_hour_unless_seen_again() {
+        let w = Watch::new(vec![entry(WatchKind::Prefix, "VP8")]);
+        let s = seen("VP8LP", "20m", "CW");
+        w.record(1, &s, 1000);
+        w.record(1, &seen("VP8XYZ", "20m", "CW"), 1000);
+        // Seen again 5 minutes later: no alert, but the hit is renewed.
+        assert!(w.record(1, &s, 1300).is_none());
+        let at = |t| w.hits(t).iter().map(|h| h.call.clone()).collect::<Vec<_>>();
+        assert_eq!(at(1000 + HIT_TTL_SECS - 1), ["VP8LP", "VP8XYZ"], "most recently seen first");
+        assert_eq!(at(1000 + HIT_TTL_SECS), ["VP8LP"], "the one not seen again has expired");
+        assert_eq!(at(1300 + HIT_TTL_SECS), Vec::<String>::new());
     }
 
     #[test]
