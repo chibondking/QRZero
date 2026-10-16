@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { geoAzimuthalEquidistant, geoCircle, geoEquirectangular, geoGraticule10, geoInterpolate, geoPath } from "d3-geo";
 import { api } from "../api";
 import { compass, destination, fmtDistance, pathInfo, subsolarPoint, type LatLon } from "../geo";
+import type { MouseEvent } from "react";
 
 import { land, borders } from "../mapData";
 import { fmtLocal, fmtUtc, greylineOverlap, sunTimes } from "../sun";
@@ -27,10 +28,41 @@ interface Props {
 export default function MapPanel({ home, homeLabel, dx, dxLabel, units, view, onView, shade, onShade, rotator }: Props) {
   const display = useDisplay();
   const [turnErr, setTurnErr] = useState("");
+  // Right-click the map to aim the antenna at that spot; `pick` is the open menu.
+  const [pick, setPick] = useState<{ x: number; y: number; az: number; label: string } | null>(null);
+  const [target, setTarget] = useState<number | null>(null);
   const turn = (az: number) => {
+    const a = ((Math.round(az) % 360) + 360) % 360;
     setTurnErr("");
-    api.rotate(az).catch((e) => setTurnErr((e as Error).message));
+    setTarget(a);
+    api.rotate(a).catch((e) => {
+      setTurnErr((e as Error).message);
+      setTarget(null);
+    });
   };
+  // The target line goes away once the beam arrives (or after 90 s).
+  useEffect(() => {
+    if (target === null) return;
+    if (typeof rotator === "number" && Math.abs((((rotator - target) % 360) + 540) % 360 - 180) <= 3) setTarget(null);
+  }, [rotator, target]);
+  useEffect(() => {
+    if (target === null) return;
+    const t = setTimeout(() => setTarget(null), 90_000);
+    return () => clearTimeout(t);
+  }, [target]);
+  useEffect(() => {
+    if (!pick) return;
+    const close = () => setPick(null);
+    const key = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", key);
+    window.addEventListener("blur", close);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("blur", close);
+    };
+  }, [pick]);
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 380, h: 210 });
   const [now, setNow] = useState(new Date());
@@ -50,13 +82,13 @@ export default function MapPanel({ home, homeLabel, dx, dxLabel, units, view, on
   }, []);
 
   const centre = home ?? { lat: 0, lon: 0 };
-  const { path, project } = useMemo(() => {
+  const { path, project, invert } = useMemo(() => {
     const p =
       view === "azimuthal"
         ? geoAzimuthalEquidistant().rotate([-centre.lon, -centre.lat]).clipAngle(179.9)
         : geoEquirectangular().rotate([-centre.lon, 0]);
     p.fitExtent([[2, 2], [size.w - 2, size.h - 2]], { type: "Sphere" });
-    return { path: geoPath(p), project: (ll: LatLon) => p([ll.lon, ll.lat]) };
+    return { path: geoPath(p), project: (ll: LatLon) => p([ll.lon, ll.lat]), invert: (x: number, y: number) => p.invert?.([x, y]) ?? null };
   }, [view, centre.lat, centre.lon, size.w, size.h]);
 
   const night = useMemo(() => {
@@ -84,6 +116,28 @@ export default function MapPanel({ home, homeLabel, dx, dxLabel, units, view, on
     beamPath = path({ type: "LineString", coordinates: coords }) ?? "";
   }
 
+  const onMapMenu = (e: MouseEvent<SVGSVGElement>) => {
+    if (rotator === undefined) return;
+    e.preventDefault();
+    if (!home) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const ll = invert(x, y);
+    if (!ll) return;
+    const pt: LatLon = { lon: ll[0], lat: ll[1] };
+    const az = pathInfo(home, pt).sp;
+    setPick({ x, y, az, label: `${Math.abs(Math.round(pt.lat))}${pt.lat < 0 ? "S" : "N"} ${Math.abs(Math.round(pt.lon))}${pt.lon < 0 ? "W" : "E"}` });
+  };
+  let targetPath = "";
+  if (home && target !== null) {
+    const coords: [number, number][] = [];
+    for (let d = 0; d <= 180; d += 2) {
+      const p = destination(home, target, d);
+      coords.push([p.lon, p.lat]);
+    }
+    targetPath = path({ type: "LineString", coordinates: coords }) ?? "";
+  }
+
   const marker = (ll: LatLon | null, label: string, cls: string) => {
     const pt = ll && project(ll);
     if (!pt) return null;
@@ -105,7 +159,7 @@ export default function MapPanel({ home, homeLabel, dx, dxLabel, units, view, on
         <button className={`tiny ${view === "azimuthal" ? "on" : ""}`} onClick={() => onView("azimuthal")} title="Azimuthal equidistant, centred on your location">Azimuthal</button>
       </div>
       <div className="map-box" ref={box}>
-        <svg width={size.w} height={size.h} role="img" aria-label="Map of the path between you and the other station">
+        <svg width={size.w} height={size.h} onContextMenu={onMapMenu} role="img" aria-label="Map of the path between you and the other station">
           <path className="sea" d={path({ type: "Sphere" }) ?? ""} />
           <path className="graticule" d={path(geoGraticule10()) ?? ""} />
           <path className="land" d={path(land) ?? ""} />
@@ -114,9 +168,23 @@ export default function MapPanel({ home, homeLabel, dx, dxLabel, units, view, on
           {longPath && <path className="long-path" d={longPath} />}
           {shortPath && <path className="short-path" d={shortPath} />}
           {beamPath && <path className="beam-path" d={beamPath} />}
+          {targetPath && <path className="target-path" d={targetPath} />}
           {marker(home, homeLabel, "home")}
           {marker(dx, dxLabel, "dx")}
         </svg>
+        {pick && (
+          <div className="map-menu" style={{ left: Math.min(pick.x, size.w - 170), top: Math.min(pick.y, size.h - 28) }} onMouseDown={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => {
+                turn(pick.az);
+                setPick(null);
+              }}
+              title={`Point on the map: ${pick.label}`}
+            >
+              Turn antenna to {Math.round(pick.az) % 360}°
+            </button>
+          </div>
+        )}
       </div>
       <div className="map-info">
         {!home ? (
@@ -135,7 +203,7 @@ export default function MapPanel({ home, homeLabel, dx, dxLabel, units, view, on
             )}
           </>
         )}
-        {rotator !== undefined && <span className="muted rot" title="Rotator heading (dotted line on the map)">Rot {rotator === null ? "?" : `${Math.round(rotator)}°`}</span>}
+        {rotator !== undefined && <span className="muted rot" title="Rotator heading (dotted line on the map). Right-click the map to turn the antenna to a spot.">Rot {rotator === null ? "?" : `${Math.round(rotator)}°`}{target !== null ? ` → ${target}°` : ""}</span>}
         {turnErr && <span className="err">{turnErr}</span>}
       </div>
       <SunInfo home={home} homeLabel={homeLabel} dx={dx} dxLabel={dxLabel} now={now} local={display.localTime} />
