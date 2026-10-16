@@ -67,7 +67,7 @@ The options people change most. They apply at once and are kept with your other 
 - **Frameless windows** (desktop app): QRZero draws its own title bar. Untick it for the system's usual window frame (on macOS, from the next start). See [Arranging the window](06-layout).
 - **Distances**: kilometres or miles.
 - **Dates in the log**: 2026-10-08, 08/10/2026 or 10/08/2026. Frequencies in the log can read in MHz (14.074) or kHz (14074). Stored QSOs are not changed, and exports stay ADIF.
-- **Local time**: show the computer's time next to the UTC clock in the top bar.
+- **Local time**: show the computer's time under the UTC clock in the top bar.
 - **Reports filled in for each mode**: change the report the QSO panel starts with for CW, SSB, FM, AM, RTTY, PSK31, FT8 or FT4 (for example 59 for CW). An empty box means the usual report.
 - **Ask before deleting** QSOs, notes, equipment and layouts. Turn it off if the prompts slow you down; deleting a whole log, restoring a backup and discarding edits always ask.
 - **Beep when a QSO is logged**.
