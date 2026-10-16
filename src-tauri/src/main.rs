@@ -1,10 +1,90 @@
 // The desktop app: starts the QRZero server on 127.0.0.1 and opens a window on it.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::{Mutex, OnceLock};
 
-use tauri::webview::NewWindowResponse;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::webview::{NewWindowResponse, PageLoadEvent, PageLoadPayload};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+
+/// Frameless windows (QRZero draws its own title bar) are offered on Windows only.
+const FRAMELESS_SUPPORTED: bool = cfg!(windows);
+/// Whether windows are frameless now. Off when the user chose the system frame.
+static FRAMELESS: AtomicBool = AtomicBool::new(false);
+/// Windows currently maximized, so the page hears only when that changes.
+static MAXIMIZED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+/// Present when the user turned frameless windows off.
+fn system_frame_marker() -> PathBuf {
+    qrzero_server::default_data_dir().join("system-frame")
+}
+
+fn frameless() -> bool {
+    FRAMELESS.load(Ordering::Relaxed)
+}
+
+/// What every page learns at start: that it runs in the desktop app, and how its window is framed.
+fn init_script() -> String {
+    format!("window.__qrzeroDesktop = true; window.__qrzeroFrame = {{ supported: {FRAMELESS_SUPPORTED}, on: {} }};", frameless())
+}
+
+/// Tells a page its frame and maximized state (after a reload, or a change).
+fn tell_frame(w: &WebviewWindow) {
+    let max = w.is_maximized().unwrap_or(false);
+    let _ = w.eval(format!(
+        "window.__qrzeroFrame = {{ supported: {FRAMELESS_SUPPORTED}, on: {} }}; window.dispatchEvent(new CustomEvent('qrzero-frame', {{ detail: {{ on: {}, max: {max} }} }}))",
+        frameless(),
+        frameless()
+    ));
+}
+
+fn page_loaded(w: WebviewWindow, p: PageLoadPayload<'_>) {
+    if matches!(p.event(), PageLoadEvent::Finished) {
+        tell_frame(&w);
+    }
+}
+
+/// The page asks the window for things by setting its title to `qrzero:<command>[:<arg>]...`
+/// (no IPC; the same UI runs in a browser). Any other title becomes the window's title.
+fn title_changed(w: WebviewWindow, title: String) {
+    let Some(cmd) = title.strip_prefix("qrzero:") else {
+        let _ = w.set_title(&title);
+        return;
+    };
+    let mut parts = cmd.split(':');
+    let arg = |p: Option<&str>| p == Some("1");
+    match parts.next() {
+        // window.close() is not reliable in these windows.
+        Some("close") => {
+            let _ = w.destroy();
+        }
+        Some("top") => {
+            let _ = w.set_always_on_top(arg(parts.next()));
+        }
+        Some("drag") => {
+            let _ = w.start_dragging();
+        }
+        Some("min") => {
+            let _ = w.minimize();
+        }
+        Some("max") => {
+            let _ = if w.is_maximized().unwrap_or(false) { w.unmaximize() } else { w.maximize() };
+        }
+        Some("frame") if FRAMELESS_SUPPORTED => {
+            let on = arg(parts.next());
+            FRAMELESS.store(on, Ordering::Relaxed);
+            let marker = system_frame_marker();
+            let _ = if on { std::fs::remove_file(&marker) } else { std::fs::write(&marker, b"") };
+            for (_, win) in w.app_handle().webview_windows() {
+                let _ = win.set_decorations(!on);
+                tell_frame(&win);
+            }
+        }
+        _ => {}
+    }
+}
 
 /// Panes popped out of the main window (window.open) become ordinary app windows.
 fn popout_handler(app: AppHandle, home: String) -> impl Fn(tauri::Url, tauri::webview::NewWindowFeatures) -> NewWindowResponse<tauri::Wry> + Send + 'static {
@@ -27,22 +107,12 @@ fn popout_handler(app: AppHandle, home: String) -> impl Fn(tauri::Url, tauri::we
         let mut builder = WebviewWindowBuilder::new(&app, label, WebviewUrl::External("about:blank".parse().unwrap()))
             .window_features(features)
             .title("QRZero")
+            .decorations(!frameless())
             .min_inner_size(320.0, 200.0)
             .disable_drag_drop_handler()
-            .on_document_title_changed(|w, title| {
-                // window.close() is not reliable in these windows; the page asks for a close by title.
-                if title == "qrzero:close" {
-                    let _ = w.destroy();
-                    return;
-                }
-                // The page asks to stay above other windows by title too (no IPC; the same UI runs in a browser).
-                if let Some(on) = title.strip_prefix("qrzero:top:") {
-                    let _ = w.set_always_on_top(on == "1");
-                    return;
-                }
-                let _ = w.set_title(&title);
-            })
-            .initialization_script("window.__qrzeroDesktop = true;")
+            .on_document_title_changed(title_changed)
+            .on_page_load(page_loaded)
+            .initialization_script(init_script())
             .on_new_window(popout_handler(app.clone(), home.clone()));
         builder = builder.focused(true);
         match builder.build() {
@@ -53,6 +123,7 @@ fn popout_handler(app: AppHandle, home: String) -> impl Fn(tauri::Url, tauri::we
 }
 
 fn main() {
+    FRAMELESS.store(FRAMELESS_SUPPORTED && !system_frame_marker().exists(), Ordering::Relaxed);
     tauri::Builder::default()
         // A second launch focuses the existing window instead of opening another.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -63,11 +134,27 @@ fn main() {
         }))
         // Closing the main window closes every popped-out window and quits the app.
         .on_window_event(|window, event| {
+            // A frameless window's own title bar shows maximize or restore, so it hears when that changes.
+            if let tauri::WindowEvent::Resized(_) = event {
+                let max = window.is_maximized().unwrap_or(false);
+                let changed = {
+                    let mut set = MAXIMIZED.get_or_init(Default::default).lock().unwrap();
+                    if max { set.insert(window.label().to_string()) } else { set.remove(window.label()) }
+                };
+                if changed {
+                    if let Some(w) = window.app_handle().get_webview_window(window.label()) {
+                        tell_frame(&w);
+                    }
+                }
+            }
             // A pop-out closed with its own close button goes back into the main window.
             if let (Some(pane), tauri::WindowEvent::Destroyed) = (window.label().strip_prefix("pane-").and_then(|l| l.split_once('-')).map(|(_, p)| p), event) {
                 if let Some(main) = window.app_handle().get_webview_window("main") {
                     let _ = main.eval(format!("window.dispatchEvent(new CustomEvent('qrzero-popout-closed',{{detail:'{pane}'}}))"));
                 }
+            }
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                MAXIMIZED.get_or_init(Default::default).lock().unwrap().remove(window.label());
             }
             if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
                 let app = window.app_handle();
@@ -84,7 +171,11 @@ fn main() {
             let home = url.origin().ascii_serialization();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
                 .title("QRZero")
+                .decorations(!frameless())
                 .on_new_window(popout_handler(app.handle().clone(), home))
+                .on_document_title_changed(title_changed)
+                .on_page_load(page_loaded)
+                .initialization_script(init_script())
                 // Tauri's file-drop handler swallows the page's own drag and drop on
                 // Windows, which stopped pane tabs from being dragged.
                 .disable_drag_drop_handler()

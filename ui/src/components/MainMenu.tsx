@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { usePopup } from "./usePopup";
 import { show, useOverrides, SHORTCUTS, bindingFor } from "../shortcuts";
+import { setFrameless, useFrame } from "../frame";
 
 export type MenuAction = "import" | "export" | "qsl" | "qslqueue" | "stats" | "settings" | "help" | "about";
 
@@ -19,6 +20,7 @@ const ITEMS: { id: MenuAction; label: string }[] = [
 export default function MainMenu({ onPick }: { onPick: (a: MenuAction) => void }) {
   const { open, setOpen, box } = usePopup<HTMLDivElement>();
   const keys = useOverrides();
+  const frame = useFrame();
   const hintOf = (id: string) => {
     const s = SHORTCUTS.find((x) => x.id === id);
     return s && bindingFor(s, keys) ? show(bindingFor(s, keys)) : undefined;
@@ -39,6 +41,15 @@ export default function MainMenu({ onPick }: { onPick: (a: MenuAction) => void }
               </button>
             </Fragment>
           ))}
+          {frame.supported && (
+            <>
+              <hr />
+              <label className="item" title="Draw QRZero's own title bar instead of the system window frame">
+                <input type="checkbox" checked={frame.on} onChange={() => { setOpen(false); setFrameless(!frame.on); }} />
+                Frameless windows
+              </label>
+            </>
+          )}
         </div>
       )}
     </div>

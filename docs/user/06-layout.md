@@ -28,6 +28,12 @@ In the desktop app, the **Always on top** button in a pop-out's title bar keeps 
 
 In a web browser, allow pop-ups for QRZero's page, or the window can't open.
 
+## Frameless windows
+
+On Windows, the desktop app draws its own title bar: the top bar of the main window, and the bar along the top of each pop-out and of the QSO editor, take the place of the system frame. Drag an empty part of the bar to move the window, double-click it to maximize or restore, and drag any edge to resize. Minimize, maximize and close sit at the right end of the bar. Closing a pop-out this way docks its pane back, the same as **Dock back**.
+
+To go back to the usual Windows frame, untick **Frameless windows** in the **☰** menu. The change applies to every open window at once and is remembered the next time QRZero starts. A browser tab always has the browser's own frame, so the option is not shown there.
+
 ## Saved layouts
 
 Save arrangements you switch between, such as **Laptop** and **Shack, 2 screens**, or one for an FT8 evening:

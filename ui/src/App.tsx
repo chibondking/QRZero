@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import MainMenu from "./components/MainMenu";
+import WindowControls from "./components/WindowControls";
+import { barMouseDown } from "./frame";
 import VfoBar from "./components/VfoBar";
 import UpdateNotice from "./components/UpdateNotice";
 import type { Equipment, Fields, Location, Log, LookupResult, Qso, QsoFilter, StationCallsign } from "./types";
@@ -23,7 +25,7 @@ import StatsDialog from "./components/StatsDialog";
 import SharedPane, { type PaneActions } from "./components/SharedPanes";
 import Workspace from "./components/Workspace";
 import LayoutMenu from "./components/LayoutMenu";
-import { listen, openPopout, post, type BusMsg, type PopContext, type WindowId } from "./bus";
+import { closeWindow, listen, openPopout, post, type BusMsg, type PopContext, type WindowId } from "./bus";
 import { DEFAULT_WORKSPACE, PANES, allPanes, canPopOut, findPane, nodeAt, removePane, sanitize, showPane, type PaneId, type Split, type Tabs, type Workspace as WS, type Zone } from "./workspace";
 import { newConfirmLines } from "./newConfirms";
 import NeededAlerts from "./components/NeededAlerts";
@@ -471,7 +473,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
+      <header className="topbar" onMouseDown={barMouseDown}>
         <span className="brand">QRZero</span>
         <label>
           Log
@@ -502,6 +504,7 @@ export default function App() {
         <Clock localTime={display.localTime} />
         <LayoutMenu ws={ws} columns={columns} widths={colWidths} onColumns={(c, w) => { setColumns(c); setColWidths(w); }} onChange={setWs} onShow={(id) => setWs({ ...wsRef.current, root: dockBack(wsRef.current.root, id) })} onFocusWindow={focusWindow} />
         <MainMenu onPick={setDialog} />
+        <WindowControls onClose={closeWindow} closeTitle="Close QRZero" />
       </header>
 
       <NeededAlerts onPick={pick} />

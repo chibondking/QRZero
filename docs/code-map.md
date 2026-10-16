@@ -48,6 +48,7 @@ Search tip: each Rust module starts with a `//!` doc comment saying what it is, 
 ## UI (`ui/src`)
 
 - App shell, docked and pop-out layout: `App.tsx`, `components/Workspace.tsx`, `components/Popout.tsx`, `workspace.ts`.
+- Frameless windows (QRZero's own title bar, and the title commands it sends the desktop shell): `frame.ts`, `components/WindowControls.tsx`.
 - Panes and dialogs: `components/*.tsx`, named for what they show (for example `LogGrid`, `ClusterPane`, `BandMapPane`, `AwardsPane`, `QslDialog`, `StatsDialog`, `SettingsDialog`). Header and radio readout: `MainMenu.tsx`, `VfoBar.tsx`.
 - Server calls: `api.ts` (everything goes over `/api`). Live events: `live.ts`. Shared types: `types.ts`.
 - Per-feature helpers and saved preferences sit beside the components as `*.ts` and `*.css`. Settings search index: `settingsIndex.ts`. Keyboard shortcuts: `shortcuts.ts`, `shortcutKeys.ts`.
@@ -55,5 +56,5 @@ Search tip: each Rust module starts with a `//!` doc comment saying what it is, 
 
 ## Desktop shell and release
 
-- `src-tauri`: window, icons, installer config (`tauri.conf.json`).
+- `src-tauri`: windows (frameless on Windows, driven by `qrzero:` page-title commands), icons, installer config (`tauri.conf.json`).
 - CI jobs (Linux tests plus e2e, Windows installer, macOS build) are in `.github/workflows/ci.yml`; tag-triggered release builds are in `.github/workflows/release.yml`; the website deploy is `.github/workflows/pages.yml`.
