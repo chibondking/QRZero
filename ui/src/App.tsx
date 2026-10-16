@@ -257,8 +257,8 @@ export default function App() {
     setWs({ ...cur, root: removePane(cur.root, id), popped: [...cur.popped.filter((p) => p !== id), id] });
   };
 
-  /** Puts a popped-out pane back in the main window. */
-  const dock = (id: PaneId) => {
+  /** Puts a popped-out pane back in the main window. With `forNow` the saved layout keeps it popped out, so it opens again next start. */
+  const dock = (id: PaneId, forNow = false) => {
     windows.current.delete(id);
     const cur = wsRef.current;
     if (!cur.popped.includes(id)) return;
@@ -268,7 +268,11 @@ export default function App() {
       setCopy(null);
     }
     const origin = loadOrigins()[id];
-    setWs({ ...cur, popped: cur.popped.filter((p) => p !== id), root: dockBack(cur.root, id, origin) });
+    const next = { ...cur, popped: cur.popped.filter((p) => p !== id), root: dockBack(cur.root, id, origin) };
+    if (forNow) {
+      wsRef.current = next;
+      setWsState(next);
+    } else setWs(next);
   };
 
   const focusWindow = (id: PaneId) => {
@@ -438,7 +442,7 @@ export default function App() {
       if (opened) windows.current.set(id, opened);
       else {
         setNotice("The window didn't open. Allow pop-ups for this page, then try again.");
-        dock(id);
+        dock(id, true);
       }
     }
     for (const [id, w] of windows.current) {
@@ -450,10 +454,11 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poppedKey]);
 
-  // Windows reopened at start that never answer (blocked, or closed meanwhile) go back in the main window.
+  // Windows reopened at start that never answer (blocked, or closed meanwhile) go back in the main window
+  // for this session only: a slow first start after an update must not undo the saved layout.
   useEffect(() => {
     const t = setTimeout(() => {
-      for (const id of wsRef.current.popped) if (!greeted.current.has(id)) dock(id);
+      for (const id of wsRef.current.popped) if (!greeted.current.has(id)) dock(id, true);
     }, 8000);
     const bye = () => post({ t: "close-all" });
     window.addEventListener("beforeunload", bye);
