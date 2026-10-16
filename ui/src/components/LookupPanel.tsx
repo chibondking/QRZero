@@ -150,7 +150,7 @@ function AwardHints({ hints, band, mode }: { hints: AwardHint[]; band: string; m
       );
     })
     .map((line, i) => (line ? { award: hints[i].award, line } : null))
-    .filter((x): x is { award: AwardKind; line: JSX.Element } => x !== null);
+    .filter((x): x is { award: AwardKind; line: React.JSX.Element } => x !== null);
 
   const slot = [band, mode].filter(Boolean).join(" ");
   return (
