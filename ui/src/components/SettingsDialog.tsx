@@ -19,6 +19,7 @@ import { MODES } from "../modes";
 import { NEED_NAME, type NeedRank } from "../needed";
 import { setNeededConfig, useNeededConfig } from "../neededPrefs";
 import { SETTING_ENTRIES, type SettingEntry } from "../settingsIndex";
+import { setFrameless, useFrame } from "../frame";
 import { AWARD_LIST, setAwardEnabled, setAwardsOff, setTrackVerified, useAwardsOff, useTrackVerified } from "../awardsPref";
 
 export interface GeneralPrefs { units: "km" | "mi" }
@@ -86,18 +87,20 @@ export default function SettingsDialog(props: Props) {
   const [jump, setJump] = useState<SettingEntry | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const q = query.trim().toLowerCase();
+  const frameSupported = useFrame().supported;
   const matches = useMemo(() => {
     if (!q) return [];
     const all: SettingEntry[] = [
       ...(Object.keys(TAB_NAMES) as Tab[]).map((t) => ({ tab: t, label: TAB_NAMES[t], words: "section" })),
-      ...SETTING_ENTRIES,
+      // The frame choice exists only in the desktop app.
+      ...SETTING_ENTRIES.filter((e) => frameSupported || e.label !== "Frameless windows"),
     ];
     const terms = q.split(/\s+/);
     return all.filter((e) => {
       const hay = `${e.label} ${e.words ?? ""} ${TAB_NAMES[e.tab as Tab]}`.toLowerCase();
       return terms.every((t) => hay.includes(t));
     }).slice(0, 30);
-  }, [q]);
+  }, [q, frameSupported]);
 
   const go = (e: SettingEntry) => {
     setTab(e.tab as Tab);
@@ -749,6 +752,7 @@ const RST_MODES = ["CW", "SSB", "FM", "AM", "RTTY", "PSK31", "FT8", "FT4"];
 
 function GeneralTab({ general, onGeneral, onWizard }: Pick<Props, "general" | "onGeneral" | "onWizard">) {
   const d = useDisplay();
+  const frame = useFrame();
   const [checkUpdates, setCheckUpdates] = useState<boolean | null>(null);
   useEffect(() => { api.updates().then((i) => setCheckUpdates(i.enabled)).catch(() => {}); }, []);
   const toggleUpdates = (on: boolean) => {
@@ -775,6 +779,12 @@ function GeneralTab({ general, onGeneral, onWizard }: Pick<Props, "general" | "o
             </select>
           </label>
         </div>
+        {frame.supported && (
+          <label className="check">
+            <input type="checkbox" checked={frame.saved} onChange={(e) => setFrameless(e.target.checked)} /> Frameless windows (QRZero draws its own title bar)
+            {frame.os === "macos" && frame.saved !== frame.on && <span className="muted"> (after QRZero restarts)</span>}
+          </label>
+        )}
       </fieldset>
 
       <fieldset>

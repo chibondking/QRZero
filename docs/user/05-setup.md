@@ -64,6 +64,7 @@ The options people change most. They apply at once and are kept with your other 
 
 - **Colours**: follow Windows, or always dark or light.
 - **Text size**: 11 to 18 px.
+- **Frameless windows** (desktop app): QRZero draws its own title bar. Untick it for the system's usual window frame (on macOS, from the next start). See [Arranging the window](06-layout).
 - **Distances**: kilometres or miles.
 - **Dates in the log**: 2026-10-08, 08/10/2026 or 10/08/2026. Frequencies in the log can read in MHz (14.074) or kHz (14074). Stored QSOs are not changed, and exports stay ADIF.
 - **Local time**: show the computer's time next to the UTC clock in the top bar.

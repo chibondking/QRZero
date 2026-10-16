@@ -200,6 +200,16 @@ kbd { font: 11px var(--mono); opacity: 0.75; margin-left: 4px; }
 .vfo-pop .item.vfo.tx { box-shadow: inset 3px 0 0 var(--err); }
 .burger { font-size: 15px; line-height: 1; padding: 2px 9px; }
 
+/* Minimize, maximize and close when QRZero draws the title bar (desktop app, frameless). */
+.caption-buttons { display: flex; align-self: stretch; margin: -4px -8px -4px 0; }
+.popout-bar .caption-buttons { margin: -2px -8px -2px 0; }
+button.caption { display: flex; align-items: center; justify-content: center; width: 44px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--text); }
+button.caption:hover:not(:disabled) { background: var(--line); }
+button.caption.close:hover:not(:disabled) { background: #c42b1c; color: #fff; }
+button.caption svg { fill: none; stroke: currentColor; stroke-width: 1; shape-rendering: crispEdges; }
+/* macOS keeps its own window buttons at the top left of the bar. */
+:root[data-frame="macos"] .topbar, :root[data-frame="macos"] .popout-bar, :root[data-frame="macos"] .qe-head { padding-left: 78px; min-height: 28px; }
+
 /* Panels */
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; display: flex; flex-direction: column; min-width: 0; }
 .panel-title {

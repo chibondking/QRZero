@@ -111,3 +111,4 @@
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
+.qe-head .caption-buttons { margin: -2px -4px -2px 0; }

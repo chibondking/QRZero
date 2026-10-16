@@ -6,6 +6,8 @@ import { BANDS, MODES, bandForFreq } from "../modes";
 import { usePref } from "../prefs";
 import type { Equipment, Fields, Location, Qso, StationCallsign } from "../types";
 import QrzPageLink from "./QrzPageLink";
+import WindowControls from "./WindowControls";
+import { barMouseDown, useFrame } from "../frame";
 import { confirmDelete } from "../display";
 import "../editor.css";
 import { isShortcut, show, useBinding } from "../shortcuts";
@@ -258,6 +260,7 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
     }
   };
 
+  const frame = useFrame();
   const requestClose = () => {
     if (dirty && !confirm("Discard your changes to this QSO?")) return;
     onClose();
@@ -392,7 +395,7 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
         }
       }}
     >
-      <header className="qe-head">
+      <header className="qe-head" onMouseDown={barMouseDown}>
         {onStep && (
           <span className="qe-step">
             <button className="tiny" aria-label="Previous QSO" title="Previous QSO (Alt+Up)" onClick={() => onStep(-1)}>&#9650;</button>
@@ -406,7 +409,11 @@ export default function QsoEditor({ qso, locations, equipment, callsigns, onClos
         </span>
         <span className="spacer" />
         {dirty && <span className="qe-changes">{changeCount === 1 ? "1 change" : `${changeCount} changes`}</span>}
-        <button className="ghost qe-close" aria-label="Close editor" title="Close (Esc)" onClick={requestClose}>&#10005;</button>
+        {frame.on && frame.os !== "macos" ? (
+          <WindowControls onClose={requestClose} closeTitle="Close (Esc)" closeLabel="Close editor" />
+        ) : (
+          <button className="ghost qe-close" aria-label="Close editor" title="Close (Esc)" onClick={requestClose}>&#10005;</button>
+        )}
       </header>
 
       <div className="qe-body">

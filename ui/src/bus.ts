@@ -1,6 +1,7 @@
 // Messages between the main window and panes popped out into their own windows.
 
 import { api } from "./api";
+import { frameParams, shell } from "./frame";
 import { localGet, localSet } from "./prefs";
 import type { DecodePick } from "./components/FtxMonitor";
 import type { EntryContext, Prefill } from "./components/EntryPanel";
@@ -100,6 +101,7 @@ export function openPopout(id: WindowId): Window | null {
   url.hash = "";
   url.searchParams.set("popout", id);
   url.searchParams.set("token", api.token());
+  for (const [k, v] of frameParams()) url.searchParams.set(k, v);
   const features = [`popup=yes`, `width=${g.w}`, `height=${g.h}`];
   if (g.x !== null && g.y !== null) features.push(`left=${g.x}`, `top=${g.y}`);
   return window.open(url.toString(), `qrzero-${id}`, features.join(","));
@@ -117,12 +119,11 @@ export const canStayOnTop = () => !!(window as unknown as { __qrzeroDesktop?: bo
 /** Whether this pane's window was last left on top of other windows. */
 export const getOnTop = (id: WindowId) => !!localGet<Geometry | null>(geoKey(id), null)?.top;
 
-/** Keeps this window on top (or not) and remembers it. The desktop shell watches for the title, as with closing. */
-export function setOnTop(id: WindowId, on: boolean, title: string) {
+/** Keeps this window on top (or not) and remembers it. */
+export function setOnTop(id: WindowId, on: boolean) {
   const g = localGet<Geometry>(geoKey(id), { w: window.innerWidth, h: window.innerHeight, x: window.screenX, y: window.screenY });
   localSet(geoKey(id), { ...g, top: on });
-  document.title = on ? "qrzero:top:1" : "qrzero:top:0";
-  setTimeout(() => (document.title = title), 100);
+  shell(`top:${on ? 1 : 0}`);
 }
 
 /** Closes this window. The desktop shell can ignore window.close(), so it also watches for this title and closes the window itself. */
