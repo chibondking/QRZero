@@ -602,6 +602,9 @@ table.list th { text-align: left; font-size: 12px; font-weight: 600; padding: 2p
 .seg button:last-child { border-radius: 0 2px 2px 0; }
 .seg button.on { border-color: var(--accent); color: var(--accent); position: relative; font-weight: 600; }
 .award-score { white-space: nowrap; }
+.award-cols { position: relative; font-size: 12px; }
+.award-cols summary { cursor: pointer; border: 1px solid var(--line); border-radius: 3px; padding: 2px 8px; background: var(--panel); }
+.award-cols-list { position: absolute; z-index: 5; top: 100%; left: 0; margin-top: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; display: grid; grid-template-columns: repeat(3, auto); gap: 2px 14px; white-space: nowrap; }
 .award-scroll { flex: 1; overflow: auto; min-height: 0; }
 .award-table { border-collapse: collapse; font-size: 12px; }
 .award-table th, .award-table td { padding: 2px 6px; text-align: center; border-bottom: 1px solid var(--line); min-width: 34px; }

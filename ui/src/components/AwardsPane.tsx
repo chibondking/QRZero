@@ -52,11 +52,11 @@ function dxccSummary(t: AwardTable) {
 
 const COL_NAMES: Record<string, string> = { mixed: "Mixed", cw: "CW", phone: "Phone", digital: "Digital" };
 
-interface Opts { award: AwardKind | ClubKind; call: string; lotw: boolean; paper: boolean; eqsl: boolean; needed: boolean }
+interface Opts { award: AwardKind | ClubKind; call: string; lotw: boolean; paper: boolean; eqsl: boolean; needed: boolean; hideCols: Record<string, string[]> }
 
 /** Award progress: one row per entity, state, zone or prefix, worked or confirmed per band and mode. */
 export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: number; callsigns: StationCallsign[]; onShowQsos: (f: QsoFilter) => void }) {
-  const [opts, setOpts] = useState<Opts>(() => localGet("qrzero.awards", { award: "dxcc", call: "", lotw: true, paper: true, eqsl: false, needed: false }));
+  const [opts, setOpts] = useState<Opts>(() => localGet("qrzero.awards", { award: "dxcc", call: "", lotw: true, paper: true, eqsl: false, needed: false, hideCols: {} }));
   const [table, setTable] = useState<AwardTable | null>(null);
   const [err, setErr] = useState("");
   const [stamp, setStamp] = useState(0);
@@ -102,6 +102,10 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
 
   const club = isClub(current) ? current : null;
   const rows = useMemo(() => (table ? (opts.needed ? table.rows.filter((r) => r.cells.mixed !== "confirmed" && r.cells.mixed !== "verified") : table.rows) : []), [table, opts.needed]);
+  // Columns (bands and modes) switched off for this award; totals and counts still use every column.
+  const off = opts.hideCols[current] ?? [];
+  const cols = table ? table.columns.filter((c) => !off.includes(c.key)) : [];
+  const toggleCol = (key: string) => set({ hideCols: { ...opts.hideCols, [current]: off.includes(key) ? off.filter((k) => k !== key) : [...off, key] } });
   const award = AWARDS.find((a) => a.key === current) ?? AWARDS[0];
   const summary = useMemo(() => (table && current === "dxcc" ? dxccSummary(table) : null), [table, current]);
   const mixed = club ? undefined : table?.columns.find((c) => c.key === "mixed");
@@ -146,6 +150,17 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         <label className="check"><input type="checkbox" checked={opts.eqsl} onChange={(e) => set({ eqsl: e.target.checked })} /> eQSL</label>
         <label className="check"><input type="checkbox" checked={opts.needed} onChange={(e) => set({ needed: e.target.checked })} /> Not yet confirmed</label>
         </>}
+        {!club && table && (
+          <details className="award-cols">
+            <summary title="Choose which band and mode columns to show for this award">Columns{off.length > 0 ? ` (${off.length} hidden)` : ""}</summary>
+            <div className="award-cols-list">
+              {table.columns.map((c) => (
+                <label key={c.key} className="check"><input type="checkbox" checked={!off.includes(c.key)} onChange={() => toggleCol(c.key)} /> {COL_NAMES[c.key] ?? c.key.replace(/(\d)m$/, "$1 m")}</label>
+              ))}
+              {off.length > 0 && <button className="small" onClick={() => set({ hideCols: { ...opts.hideCols, [current]: [] } })}>Show all</button>}
+            </div>
+          </details>
+        )}
         <span className="spacer" />
         {mixed && (
           <span className="award-score">
@@ -154,9 +169,8 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         )}
       </div>
       {summary && !club && (
-        <div className="ftx-msg small">
-          <b>DXCC Challenge:</b> {summary.slots.confirmed} confirmed, {summary.slots.worked} worked band slots (160 to 6 m; 1000 for the award).{" "}
-          <b>5BDXCC</b> (100 entities confirmed on each band): {FIVE_BANDS.map((b) => `${b.replace("m", " m")} ${summary.five[b]}`).join(", ")}.
+        <div className="ftx-msg small" title="DXCC Challenge: confirmed and worked entity-band slots on 160 to 6 m (not 60 m); 1000 are needed for the award. 5BDXCC: entities confirmed on each band; 100 on every one of 80, 40, 20, 15 and 10 m are needed.">
+          <b>Challenge</b> {summary.slots.confirmed}/{summary.slots.worked} (1000) · <b>5BDXCC</b> {FIVE_BANDS.map((b) => `${b} ${summary.five[b]}`).join(" · ")}
         </div>
       )}
       {err && <div className="ftx-msg small err">{err}</div>}
@@ -167,11 +181,11 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
             <thead>
               <tr>
                 <th className="name">{award.row}</th>
-                {table.columns.map((c) => <th key={c.key} className={c.key === "digital" || c.key === "mixed" ? "sep" : ""}>{COL_NAMES[c.key] ?? c.key}</th>)}
+                {cols.map((c) => <th key={c.key} className={c.key === "digital" || c.key === "mixed" ? "sep" : ""}>{COL_NAMES[c.key] ?? c.key}</th>)}
               </tr>
               <tr className="totals">
                 <th className="name muted">Confirmed / worked</th>
-                {table.columns.map((c) => (
+                {cols.map((c) => (
                   <th key={c.key} className={c.key === "digital" || c.key === "mixed" ? "sep" : ""}>
                     {c.confirmed}<span className="muted">/{c.worked}</span>
                   </th>
@@ -185,7 +199,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
                     {current === "dxcc" || current === "was" ? <span className="mono muted key">{r.key}</span> : null}
                     {r.name}
                   </td>
-                  {table.columns.map((c) => {
+                  {cols.map((c) => {
                     const st = r.cells[c.key];
                     return (
                       <td key={c.key} className={`${st ?? ""} ${c.key === "digital" || c.key === "mixed" ? "sep" : ""}`}>
@@ -196,7 +210,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td className="muted" colSpan={table.columns.length + 1}>{opts.needed ? "Everything worked is confirmed." : "Nothing worked yet."}</td></tr>
+                <tr><td className="muted" colSpan={cols.length + 1}>{opts.needed ? "Everything worked is confirmed." : "Nothing worked yet."}</td></tr>
               )}
             </tbody>
           </table>

@@ -505,6 +505,14 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await page.getByRole("tab", { name: "Awards" }).click();
   await page.getByRole("button", { name: "WAZ" }).click();
   await expect(page.locator(".award-table")).toContainText("Zone 40");
+  // Hide a band column for this award; it comes back with Show all.
+  await expect(page.locator(".award-table thead tr").first()).toContainText("70cm");
+  await page.locator(".award-cols summary").click();
+  await page.locator(".award-cols-list").getByLabel("70cm", { exact: true }).uncheck();
+  await expect(page.locator(".award-table thead tr").first()).not.toContainText("70cm");
+  await page.getByRole("button", { name: "Show all" }).click();
+  await expect(page.locator(".award-table thead tr").first()).toContainText("70cm");
+  await page.locator(".award-cols summary").click();
   await page.getByRole("tab", { name: "Log", exact: true }).click();
 
   // Antennas with bands: the QSO panel picks the one for the band.
@@ -779,7 +787,7 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(page.locator(".award-table td.verified").first()).toHaveText("V");
   await expect(page.locator(".award-table td.confirmed").first()).toHaveText("C");
   // 5BDXCC counts entities per band, as the award needs 100 on each.
-  await expect(page.locator(".ftx-msg", { hasText: "5BDXCC" })).toContainText(/80 m \d+, 40 m \d+, 20 m \d+, 15 m \d+, 10 m \d+/);
+  await expect(page.locator(".ftx-msg", { hasText: "5BDXCC" })).toContainText(/80m \d+ · 40m \d+ · 20m \d+ · 15m \d+ · 10m \d+/);
   await page.screenshot({ path: "e2e-results/awards-verified.png" });
   await page.getByRole("button", { name: "SKCC" }).click();
   const centurion = page.locator(".club-table tbody tr", { hasText: "Centurion" }).first();
