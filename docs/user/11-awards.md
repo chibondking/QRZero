@@ -14,9 +14,9 @@ The **Awards** pane, a tab next to the log to start with, shows how far you are 
 
 - **SKCC** and **CWops**: the CW club awards, described under **CW club awards** below. They have their own buttons next to the others.
 
-On the **DXCC** tab a line under the toolbar also shows the **DXCC Challenge** (confirmed and worked entity-band slots on 160 to 6 m, not counting 60 m, 1000 needed) and **5BDXCC** (the entities confirmed on each of 80, 40, 20, 15 and 10 m, listed band by band; the award needs 100 on every one of the five).
+On the **DXCC** tab a short line under the toolbar shows the **Challenge** (confirmed/worked entity-band slots on 160 to 6 m, not counting 60 m; 1000 are needed) and **5BDXCC** (the entities confirmed on each of 80, 40, 20, 15 and 10 m; the award needs 100 on every one of the five). Hover the line for the full wording.
 
-Each row is an entity, state, zone, prefix and so on. The columns are **Mixed**, then **CW**, **Phone** and **Digital**, then each band from 160 m to 6 m (60 m included), plus 2 m and 70 cm. A green **V** on a shaded cell means verified, a green **C** means confirmed and an amber **W** means worked but not yet confirmed. The second header row shows confirmed and worked totals for each column, and the top right shows the overall total.
+Each row is an entity, state, zone, prefix and so on. The columns are **Mixed**, then **CW**, **Phone** and **Digital**, then each band from 160 m to 6 m (60 m included), plus 2 m and 70 cm. A green **V** on a shaded cell means verified, a green **C** means confirmed and an amber **W** means worked but not yet confirmed. Use **Columns** in the toolbar to hide the modes and bands you don't chase (for example 2 m and 70 cm for DXCC); the choice is kept separately for each award, and only changes what is shown, not any total. The second header row shows confirmed and worked totals for each column, and the top right shows the overall total.
 
 ## Choosing which awards to show
 
