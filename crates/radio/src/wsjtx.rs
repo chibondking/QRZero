@@ -501,7 +501,11 @@ fn is_report(t: &str) -> bool {
 /// "from" is the sending station (second call), "to" the addressed one (first call).
 pub fn parse_ft_message(text: &str) -> FtMessage {
     let upper = text.trim().to_ascii_uppercase();
-    let t: Vec<&str> = upper.split_whitespace().collect();
+    let mut t: Vec<&str> = upper.split_whitespace().collect();
+    // WSJT-X adds " a1".." a9" to a-priori decodes (JTDX a "?" to doubtful ones); it is not part of the message.
+    if t.len() > 2 && t.last().is_some_and(|x| *x == "?" || (x.len() <= 3 && x.starts_with('A') && x[1..].bytes().all(|b| b.is_ascii_digit()) && x.len() > 1)) {
+        t.pop();
+    }
     let own = |s: Option<&str>| s.map(str::to_owned);
     let mut m = FtMessage::default();
     if t.first() == Some(&"CQ") {
@@ -906,6 +910,13 @@ mod tests {
         assert_eq!(ft("CQ <PJ4/K1ABC>").from, s("PJ4/K1ABC"));
         assert_eq!(ft("CQ DX"), FtMessage::default());
         assert_eq!(ft("CQ K1ABC HELLO"), FtMessage::default());
+    }
+
+    #[test]
+    fn ft_a_priori_marker() {
+        let m = ft("W0NY DD5GG JN39 a9");
+        assert_eq!((m.to, m.from, m.grid), (s("W0NY"), s("DD5GG"), s("JN39")));
+        assert_eq!(ft("CQ K1ABC FN42 a2").from, s("K1ABC"));
     }
 
     #[test]
