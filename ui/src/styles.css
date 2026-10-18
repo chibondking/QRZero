@@ -506,6 +506,16 @@ table.list.fields input:not([type=checkbox]), table.list.fields select { width: 
 .ftx-txline { padding: 1px 6px; font-size: 12px; color: var(--err); font-weight: 600; border-left: 3px solid var(--src, var(--line)); background: color-mix(in srgb, var(--err) 10%, transparent); }
 .ftx .src-0 { --src: var(--src-0); } .ftx .src-1 { --src: var(--src-1); } .ftx .src-2 { --src: var(--src-2); } .ftx .src-3 { --src: var(--src-3); }
 .ftx .src-4 { --src: var(--src-4); } .ftx .src-5 { --src: var(--src-5); } .ftx .src-6 { --src: var(--src-6); } .ftx .src-7 { --src: var(--src-7); }
+/* Period timer: a thin bar per source, filling over its T/R period. */
+.ftx-cycle-bars { border-bottom: 1px solid var(--line); }
+.ftx-cycle-bar { display: flex; align-items: center; gap: 8px; padding: 1px 6px; font-size: 11.5px; border-left: 3px solid var(--src, var(--line)); }
+.ftx-cycle-bar .src-tag { color: var(--src); font-weight: 700; min-width: 18px; }
+.ftx-cycle-bar .mode { min-width: 30px; color: var(--muted); }
+.ftx-cycle-bar .track { flex: 1; height: 5px; background: color-mix(in srgb, var(--line) 60%, transparent); border-radius: 1px; overflow: hidden; }
+.ftx-cycle-bar .fill { height: 100%; width: 0; background: var(--src, var(--accent)); }
+.ftx-cycle-bar .fill.tx { background: var(--err); }
+.ftx-cycle-bar .secs { min-width: 70px; text-align: right; color: var(--muted); }
+.ftx-cycle-bar .state { min-width: 20px; font-weight: 600; color: var(--muted); }
 .ftx-msg { padding: 2px 8px; border-bottom: 1px solid var(--line); }
 .ftx-table { flex: 1; overflow: auto; min-height: 100px; }
 .ftx-row { display: grid; grid-template-columns: 76px 32px 38px 46px 48px minmax(180px, 2fr) minmax(90px, 1fr) 50px minmax(110px, 1.2fr); align-items: center; font-size: 12.5px; border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent); cursor: default; border-left: 3px solid var(--src, transparent); }

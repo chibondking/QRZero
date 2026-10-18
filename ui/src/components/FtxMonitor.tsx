@@ -6,6 +6,7 @@ import { ALERTS, activeAlerts, isWorked, passes, useFtxAlerts, type AlertKind, t
 import type { FtxDecode, FtxInstance } from "../types";
 import FtxAlertsDialog from "./FtxAlertsDialog";
 import FtxControls from "./FtxControls";
+import FtxCycleBars from "./FtxCycleBars";
 import "../watch.css";
 
 const KEEP = 600;
@@ -32,6 +33,8 @@ interface Filters {
   cycles: boolean;
   /** Keep decodes calling us in a group at the top (on unless set to false). */
   pinMe?: boolean;
+  /** Show the period timer bars (on unless set to false). */
+  timer?: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
   /** Line view order inside each decode period. */
@@ -276,6 +279,12 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
         describe={(i) => describe(i.id, i)}
         onMsg={setMsg}
       />
+      {filters.timer !== false && (
+        <FtxCycleBars
+          instances={filters.instance ? instances.filter((i) => i.id === filters.instance) : instances}
+          tag={(i) => tagFor(i.id, i.slice, i.color_index)}
+        />
+      )}
       {editing && <FtxAlertsDialog cfg={cfg} onChange={setCfg} onClose={() => setEditing(false)} />}
       {msg && <div className="ftx-msg small">{msg}</div>}
       {filters.view === "calls" ? (
@@ -351,6 +360,9 @@ function OptionsMenu({ filters, setFilter, onAlerts }: { filters: Filters; setFi
           </label>
           <label className="item" title="Keep decodes calling you in a group at the top of the list">
             <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
+          </label>
+          <label className="item" title="Show a thin bar per source with the position in its T/R period, on the UTC clock">
+            <input type="checkbox" checked={filters.timer !== false} onChange={(e) => setFilter({ timer: e.target.checked })} /> Period timer
           </label>
           <hr />
           <button role="menuitem" className="item" onClick={() => { setOpen(false); onAlerts(); }} title="Choose which stations stand out, their colours, and which to hide">Alerts and filters…</button>

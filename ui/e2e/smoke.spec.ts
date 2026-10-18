@@ -178,6 +178,9 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   // one from the period before has moved on down the list.
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row")).toHaveCount(1);
   await expect(ftx.getByRole("rowgroup", { name: "Calling you" }).locator(".ftx-row .msg").first()).toHaveText("N0CALL EA8AB R-10");
+  // The period timer shows one bar for the WSJT-X, with the FT8 period.
+  await expect(ftx.getByLabel("Period timer").locator(".ftx-cycle-bar")).toHaveCount(1);
+  await expect(ftx.locator(".ftx-cycle-bar .secs")).toContainText("/ 15 s");
   // The FTx options menu holds view, sort, period breaks and the pin; it stays open while choosing.
   const opts = async () => {
     const b = ftx.getByRole("button", { name: "Options" });
