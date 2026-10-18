@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../api";
 import { qsoStage } from "../ftxStage";
 import type { FtxInstance } from "../types";
+import FtxCycleTimer from "./FtxCycleTimer";
 
 const SPECIAL = ["", "NA VHF contest", "EU VHF contest", "Field Day", "RTTY Roundup", "WW Digi contest", "Fox", "Hound"];
 const MODES = ["FT8", "FT4"];
@@ -11,8 +12,10 @@ const MODES = ["FT8", "FT4"];
  * its UDP interface allows. Everything here is a request; WSJT-X only acts on it with
  * "Accept UDP requests" ticked.
  */
-export default function FtxControls({ instances, mycall, label, tagFor, describe, onMsg }: {
+export default function FtxControls({ instances, mycall, label, tagFor, describe, onMsg, timer }: {
   instances: FtxInstance[];
+  /** Show the period timer on each line. */
+  timer: boolean;
   mycall: string;
   label: (i: FtxInstance) => string;
   tagFor: (i: FtxInstance) => string;
@@ -22,13 +25,14 @@ export default function FtxControls({ instances, mycall, label, tagFor, describe
   if (instances.length === 0) return null;
   return (
     <div className="ftx-strip" aria-label="WSJT-X control">
-      {instances.map((i) => <InstanceLine key={i.id} i={i} mycall={mycall} label={label(i)} tag={tagFor(i)} title={describe(i)} onMsg={onMsg} />)}
+      {instances.map((i) => <InstanceLine key={i.id} i={i} mycall={mycall} timer={timer} label={label(i)} tag={tagFor(i)} title={describe(i)} onMsg={onMsg} />)}
     </div>
   );
 }
 
-function InstanceLine({ i, mycall, label, tag, title, onMsg }: {
+function InstanceLine({ i, mycall, timer, label, tag, title, onMsg }: {
   i: FtxInstance;
+  timer: boolean;
   mycall: string;
   label: string;
   tag: string;
@@ -94,6 +98,7 @@ function InstanceLine({ i, mycall, label, tag, title, onMsg }: {
         <span className="src-tag mono" title={title}>{tag}</span>
         <strong className="who" title={title}>{name}</strong>
         <span className={`state ${i.transmitting ? "tx" : i.tx_enabled ? "armed" : ""}`} title={i.transmitting ? "On the air" : i.tx_enabled ? "Enable Tx is ticked" : "Enable Tx is off"} data-testid="ftx-state">{state}</span>
+        {timer && <FtxCycleTimer i={i} />}
         <span className="mono txmsg" title="The message being sent, or to be sent next" data-testid="ftx-txmsg">Tx: {i.tx_message || "-"}</span>
         {stage.kind !== "idle" && <span className={`stage stage-${stage.kind}`} title="Where the QSO is, from the message being sent" data-testid="ftx-stage">{stage.text}</span>}
         {i.tx_watchdog && <span className="warn" title="WSJT-X's Tx watchdog stopped transmitting. Tick Enable Tx in WSJT-X, or answer a station, to carry on.">Tx watchdog</span>}

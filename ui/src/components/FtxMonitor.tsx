@@ -6,7 +6,6 @@ import { ALERTS, activeAlerts, isWorked, passes, useFtxAlerts, type AlertKind, t
 import type { FtxDecode, FtxInstance } from "../types";
 import FtxAlertsDialog from "./FtxAlertsDialog";
 import FtxControls from "./FtxControls";
-import FtxCycleBars from "./FtxCycleBars";
 import "../watch.css";
 
 const KEEP = 600;
@@ -278,13 +277,8 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
         tagFor={(i) => tagFor(i.id, i.slice, i.color_index)}
         describe={(i) => describe(i.id, i)}
         onMsg={setMsg}
+        timer={filters.timer !== false}
       />
-      {filters.timer !== false && (
-        <FtxCycleBars
-          instances={filters.instance ? instances.filter((i) => i.id === filters.instance) : instances}
-          tag={(i) => tagFor(i.id, i.slice, i.color_index)}
-        />
-      )}
       {editing && <FtxAlertsDialog cfg={cfg} onChange={setCfg} onClose={() => setEditing(false)} />}
       {msg && <div className="ftx-msg small">{msg}</div>}
       {filters.view === "calls" ? (
@@ -361,7 +355,7 @@ function OptionsMenu({ filters, setFilter, onAlerts }: { filters: Filters; setFi
           <label className="item" title="Keep decodes calling you in a group at the top of the list">
             <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
           </label>
-          <label className="item" title="Show a thin bar per source with the position in its T/R period, on the UTC clock">
+          <label className="item" title="Show a small bar on each source's line with the position in its T/R period and whether it is an even or odd one">
             <input type="checkbox" checked={filters.timer !== false} onChange={(e) => setFilter({ timer: e.target.checked })} /> Period timer
           </label>
           <hr />
