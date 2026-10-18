@@ -32,7 +32,7 @@ interface Filters {
   cycles: boolean;
   /** Keep decodes calling us in a group at the top (on unless set to false). */
   pinMe?: boolean;
-  /** Show the period timer bars (on unless set to false). */
+  /** Show the period timer (on unless set to false). */
   timer?: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
@@ -355,7 +355,7 @@ function OptionsMenu({ filters, setFilter, onAlerts }: { filters: Filters; setFi
           <label className="item" title="Keep decodes calling you in a group at the top of the list">
             <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
           </label>
-          <label className="item" title="Show a small bar on each source's line with the position in its T/R period and whether it is an even or odd one">
+          <label className="item" title="Show the seconds left in each source's T/R period and whether it is an even or odd one">
             <input type="checkbox" checked={filters.timer !== false} onChange={(e) => setFilter({ timer: e.target.checked })} /> Period timer
           </label>
           <hr />

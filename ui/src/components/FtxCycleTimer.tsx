@@ -15,12 +15,11 @@ export function periodMs(mode: string, trPeriod: number): number {
 const txSlots = new Map<string, number>();
 
 /**
- * A small bar for one source, inline on its control line: how far through its T/R period the UTC
- * clock is, and whether this period is an even or odd one (marked TX once that is known). One
- * timer edits the bar's style and text directly, so nothing re-renders while it runs.
+ * A short text readout for one source, inline on its control line: whether this period is even
+ * (E) or odd (O), the whole seconds left in it, and TX or RX once the slot is known. One timer
+ * edits the text directly, only when it changes, so nothing re-renders while it runs.
  */
 export default function FtxCycleTimer({ i }: { i: FtxInstance }) {
-  const fill = useRef<HTMLSpanElement>(null);
   const text = useRef<HTMLSpanElement>(null);
   const live = useRef(i);
   live.current = i;
@@ -36,8 +35,7 @@ export default function FtxCycleTimer({ i }: { i: FtxInstance }) {
       // Past the first half second, so a status sent just after the boundary isn't counted in the old slot.
       if (cur.transmitting && into > 500) txSlots.set(cur.id, slot);
       const mine = txSlots.get(cur.id);
-      if (fill.current) fill.current.style.width = `${(into / p) * 100}%`;
-      const label = `${slot ? "O" : "E"}${mine === undefined ? "" : slot === mine ? " TX" : " RX"}`;
+      const label = `${slot ? "O" : "E"} ${Math.ceil((p - into) / 1000)}${mine === undefined ? "" : slot === mine ? " TX" : " RX"}`;
       if (text.current && label !== shown) {
         shown = label;
         text.current.textContent = label;
@@ -45,14 +43,15 @@ export default function FtxCycleTimer({ i }: { i: FtxInstance }) {
       }
     };
     tick();
-    const t = setInterval(tick, 100);
+    const t = setInterval(tick, 200);
     return () => clearInterval(t);
   }, [p]);
 
   return (
-    <span className="ftx-timer" title={`${i.mode} period of ${p / 1000} s on the UTC clock. E is an even period, O an odd one; TX marks the slot this program transmits in, learned from its first transmission.`}>
-      <span className="track"><span className="fill" ref={fill} /></span>
-      <span className="mono slot" ref={text} />
-    </span>
+    <span
+      className="mono ftx-timer"
+      ref={text}
+      title={`${i.mode} period of ${p / 1000} s on the UTC clock: E is an even period, O an odd one, then the seconds left. TX or RX marks this slot once the program has transmitted; WSJT-X doesn't report its slot, so it is learned from the first transmission.`}
+    />
   );
 }
