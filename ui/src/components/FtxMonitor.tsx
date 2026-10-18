@@ -32,6 +32,8 @@ interface Filters {
   cycles: boolean;
   /** Keep decodes calling us in a group at the top (on unless set to false). */
   pinMe?: boolean;
+  /** Show the period timer (on unless set to false). */
+  timer?: boolean;
   /** "lines": one row per decode; "calls": a box per station heard, like JTAlert. */
   view: "lines" | "calls";
   /** Line view order inside each decode period. */
@@ -275,6 +277,7 @@ export default function FtxMonitor({ onPick, mycall }: { onPick: (p: DecodePick)
         tagFor={(i) => tagFor(i.id, i.slice, i.color_index)}
         describe={(i) => describe(i.id, i)}
         onMsg={setMsg}
+        timer={filters.timer !== false}
       />
       {editing && <FtxAlertsDialog cfg={cfg} onChange={setCfg} onClose={() => setEditing(false)} />}
       {msg && <div className="ftx-msg small">{msg}</div>}
@@ -351,6 +354,9 @@ function OptionsMenu({ filters, setFilter, onAlerts }: { filters: Filters; setFi
           </label>
           <label className="item" title="Keep decodes calling you in a group at the top of the list">
             <input type="checkbox" checked={filters.pinMe !== false} onChange={(e) => setFilter({ pinMe: e.target.checked })} /> Pin calling you
+          </label>
+          <label className="item" title="Show the seconds left in each source's T/R period and whether it is an even or odd one">
+            <input type="checkbox" checked={filters.timer !== false} onChange={(e) => setFilter({ timer: e.target.checked })} /> Period timer
           </label>
           <hr />
           <button role="menuitem" className="item" onClick={() => { setOpen(false); onAlerts(); }} title="Choose which stations stand out, their colours, and which to hide">Alerts and filters…</button>
