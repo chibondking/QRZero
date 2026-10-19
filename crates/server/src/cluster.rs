@@ -102,11 +102,11 @@ impl Cluster {
     /// Flags the kept spots again (after the goals change) and tells the UI to reload them.
     pub fn reflag(&self) {
         let Some(hub) = self.hub.upgrade() else { return };
-        let spots: Vec<(u64, String, Option<Entity>, Option<String>, String, String)> =
-            self.lock().spots.iter().map(|s| (s.seq, s.call.clone(), s.entity.clone(), s.band.clone(), s.mode.clone(), s.comment.clone())).collect();
+        // Worked out without holding the lock, as each spot takes the hub's.
+        let spots: Vec<SpotInfo> = self.lock().spots.iter().cloned().collect();
         let flags: HashMap<u64, _> = spots
-            .into_iter()
-            .map(|(seq, call, entity, band, mode, comment)| (seq, hub.spot_needs(&call, entity.as_ref(), band.as_deref(), &mode, &comment)))
+            .iter()
+            .map(|s| (s.seq, hub.spot_needs(&s.call, s.entity.as_ref(), s.band.as_deref(), &s.mode, &s.comment)))
             .collect();
         for s in self.lock().spots.iter_mut() {
             if let Some((goals, marathon)) = flags.get(&s.seq) {
