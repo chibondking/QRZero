@@ -795,7 +795,7 @@ function SpotGoals() {
         ))}
       </div>
       <label className="check">
-        <input type="checkbox" checked={g.marathon} onChange={(e) => save({ marathon: e.target.checked })} /> <b>DX Marathon</b>: flag countries and CQ zones not yet worked this year
+        <input type="checkbox" checked={g.marathon} onChange={(e) => save({ marathon: e.target.checked })} /> <span><b>DX Marathon</b>: flag countries and CQ zones not yet worked this year</span>
       </label>
       <div className="row">
         <span className="small muted">Bands:</span>
