@@ -45,9 +45,16 @@ jobs:
         run: cargo check -p qrzero
       - name: Large-log speed check
         run: cargo test --release -p qrzero-core --test perf -- --ignored --nocapture
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
       - name: End-to-end test
         working-directory: ui
-        run: npx playwright install --with-deps chromium && npm run e2e
+        run: npx tsc --noEmit -p . && npx playwright install --with-deps chromium && npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: ui/e2e-results
 
   windows:
     name: Windows build and installer
