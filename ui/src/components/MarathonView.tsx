@@ -61,7 +61,7 @@ export default function MarathonView({ logId, call, stamp, onShowQsos }: { logId
         <tbody>
           {countries.map((h) => (
             <tr key={h.key} onClick={() => onShowQsos({ call: h.call })} title="Show QSOs with this call in the log">
-              <td className="name"><span className="mono muted key">{h.key}</span>{h.name}</td>
+              <td className="name">{!h.key.startsWith("DXCC ") && <span className="mono muted key">{h.key}</span>}{h.name}</td>
               <td className="name mono">{h.call}</td>
               <td>{h.date}</td>
             </tr>
