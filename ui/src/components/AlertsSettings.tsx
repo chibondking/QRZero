@@ -4,7 +4,7 @@ import type { NtfyConfig, NtfyView } from "../types";
 
 /** A topic nobody will guess: anyone who knows a topic on a public ntfy server can read it. */
 function randomTopic(): string {
-  const bytes = new Uint8Array(9);
+  const bytes = new Uint8Array(12);
   crypto.getRandomValues(bytes);
   return `qrzero-${Array.from(bytes, (b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("")}`;
 }
