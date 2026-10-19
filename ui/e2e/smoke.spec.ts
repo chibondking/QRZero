@@ -806,6 +806,9 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await page.getByRole("button", { name: "WAZ", exact: true }).click();
   await expect(page.locator(".ftx-msg", { hasText: "5BWAZ" })).toContainText(/5BWAZ [1-9]\d* \(150\) · 80m \d+ · 40m \d+ · 20m [1-9]/);
   await page.screenshot({ path: "e2e-results/awards-waz.png" });
+  await page.getByRole("button", { name: "DXCC", exact: true }).click();
+  await expect(page.locator(".ftx-msg", { hasText: "Honor Roll" })).toBeVisible();
+  await page.screenshot({ path: "e2e-results/awards-dxcc.png" });
   await page.getByRole("button", { name: "SKCC" }).click();
   const centurion = page.locator(".club-table tbody tr", { hasText: "Centurion" }).first();
   await expect(centurion).toContainText("100");
