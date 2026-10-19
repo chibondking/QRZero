@@ -226,10 +226,12 @@ async fn dx_marathon_counts_one_year() {
     assert_eq!(api.get(&format!("/logs/{log}/marathon?year=2025&calls=N0NONE")).await["score"], 0);
 }
 
+/// What the stand-in ntfy server got: (topic, title, priority, authorization, body).
+type NtfyPost = (String, String, String, String, String);
+
 #[tokio::test]
 async fn ntfy_test_message_goes_to_the_topic() {
-    // A stand-in ntfy server that records (path, title, priority, authorization, body).
-    let seen: Arc<std::sync::Mutex<Vec<(String, String, String, String, String)>>> = Arc::default();
+    let seen: Arc<std::sync::Mutex<Vec<NtfyPost>>> = Arc::default();
     let rec = seen.clone();
     let app = Router::new().route(
         "/{topic}",
