@@ -333,14 +333,14 @@ fn new_lotw_confirmation_marks_club_log_upload_modified() {
     let items = || [(&w1aw, rcvd.clone(), Fields::new()), (&k1abc, rcvd.clone(), Fields::new())];
     let same = |a: &Fields, b: &Fields| a["CALL"] == b["CALL"];
     st.apply_confirmations(&[log], items(), same).unwrap();
-    let status = |id| st.get_qso(id).unwrap().fields.get("CLUBLOG_QSO_UPLOAD_STATUS").cloned();
-    assert_eq!(status(sent.id).as_deref(), Some("M"));
-    assert_eq!(status(unsent.id), None, "a QSO not on Club Log is left alone");
+    let status = |st: &Store, id| st.get_qso(id).unwrap().fields.get("CLUBLOG_QSO_UPLOAD_STATUS").cloned();
+    assert_eq!(status(&st, sent.id).as_deref(), Some("M"));
+    assert_eq!(status(&st, unsent.id), None, "a QSO not on Club Log is left alone");
 
     // Once re-uploaded, the same confirmation downloaded again doesn't queue it a second time.
     st.mark_qsos(&[sent.id], &f(&[("CLUBLOG_QSO_UPLOAD_STATUS", "Y")])).unwrap();
     st.apply_confirmations(&[log], items(), same).unwrap();
-    assert_eq!(status(sent.id).as_deref(), Some("Y"));
+    assert_eq!(status(&st, sent.id).as_deref(), Some("Y"));
 }
 
 #[test]
