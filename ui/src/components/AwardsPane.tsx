@@ -32,23 +32,40 @@ const isClub = (k: string): k is ClubKind => CLUBS.some((c) => c.key === k);
 /** Awards with a fixed list, so unworked rows are shown (the rest only list what you have worked). */
 const FIXED = new Set<AwardKind>(["dxcc", "was", "waz", "wac", "itu"]);
 
-/** The DXCC Challenge counts entity-band slots on these 10 bands; 5BDXCC wants 100 entities confirmed on each of these 5. */
+/** The DXCC Challenge counts entity-band slots on these 10 bands; the 5-band awards (5BDXCC, 5BWAS, 5BWAZ) count these 5. */
 const CHALLENGE_BANDS = ["160m", "80m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"];
 const FIVE_BANDS = ["80m", "40m", "20m", "15m", "10m"];
+const HONOR_COLS = ["mixed", "cw", "phone", "digital"];
+/** The DXCC Honor Roll takes current entities confirmed to within this many of the total. */
+const HONOR_ROLL_MARGIN = 9;
 
-function dxccSummary(t: AwardTable) {
+const isConfirmed = (c: string | undefined) => c === "confirmed" || c === "verified";
+
+function summarize(t: AwardTable) {
   const slots = { worked: 0, confirmed: 0 };
   const five: Record<string, number> = Object.fromEntries(FIVE_BANDS.map((b) => [b, 0]));
+  const honor: Record<string, { confirmed: number; verified: number }> = Object.fromEntries(HONOR_COLS.map((c) => [c, { confirmed: 0, verified: 0 }]));
+  let deleted = 0;
   for (const r of t.rows) {
     for (const b of CHALLENGE_BANDS) {
       const c = r.cells[b];
       if (c) slots.worked++;
-      if (c === "confirmed" || c === "verified") slots.confirmed++;
+      if (isConfirmed(c)) slots.confirmed++;
     }
-    for (const b of FIVE_BANDS) if (r.cells[b] === "confirmed" || r.cells[b] === "verified") five[b]++;
+    for (const b of FIVE_BANDS) if (isConfirmed(r.cells[b])) five[b]++;
+    if (r.deleted) {
+      if (r.cells.mixed) deleted++;
+      continue;
+    }
+    for (const c of HONOR_COLS) {
+      if (isConfirmed(r.cells[c])) honor[c].confirmed++;
+      if (r.cells[c] === "verified") honor[c].verified++;
+    }
   }
-  return { slots, five };
+  return { slots, five, honor, deleted };
 }
+
+const bandList = (five: Record<string, number>) => FIVE_BANDS.map((b) => `${b.replace("m", " m")} ${five[b]}`).join(", ");
 
 const COL_NAMES: Record<string, string> = { mixed: "Mixed", cw: "CW", phone: "Phone", digital: "Digital" };
 
@@ -103,7 +120,8 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
   const club = isClub(current) ? current : null;
   const rows = useMemo(() => (table ? (opts.needed ? table.rows.filter((r) => r.cells.mixed !== "confirmed" && r.cells.mixed !== "verified") : table.rows) : []), [table, opts.needed]);
   const award = AWARDS.find((a) => a.key === current) ?? AWARDS[0];
-  const summary = useMemo(() => (table && current === "dxcc" ? dxccSummary(table) : null), [table, current]);
+  const summary = useMemo(() => (table && table.award === current ? summarize(table) : null), [table, current]);
+  const fiveTotal = summary ? FIVE_BANDS.reduce((n, b) => n + summary.five[b], 0) : 0;
   const mixed = club ? undefined : table?.columns.find((c) => c.key === "mixed");
 
   const show = (key: string) => {
@@ -149,14 +167,27 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         <span className="spacer" />
         {mixed && (
           <span className="award-score">
-            <b>{mixed.worked}</b> worked, <b>{mixed.confirmed}</b> confirmed{verified && mixed.verified > 0 ? <>, <b>{mixed.verified}</b> verified</> : null}{table && table.total > 0 ? ` of ${table.total}` : ""} {award.what}
+            <b>{mixed.worked}</b> worked, <b>{mixed.confirmed}</b> confirmed{verified && mixed.verified > 0 ? <>, <b>{mixed.verified}</b> verified</> : null}{table && table.total > 0 ? ` of ${table.total}` : ""} {award.what}{summary && summary.deleted > 0 ? `, ${summary.deleted} deleted` : ""}
           </span>
         )}
       </div>
-      {summary && !club && (
+      {summary && !club && current === "dxcc" && table && (
         <div className="ftx-msg small">
           <b>DXCC Challenge:</b> {summary.slots.confirmed} confirmed, {summary.slots.worked} worked band slots (160 to 6 m; 1000 for the award).{" "}
-          <b>5BDXCC</b> (100 entities confirmed on each band): {FIVE_BANDS.map((b) => `${b.replace("m", " m")} ${summary.five[b]}`).join(", ")}.
+          <b>5BDXCC</b> (100 entities confirmed on each band): {bandList(summary.five)}.<br />
+          <b>Honor Roll</b> (current entities confirmed; {table.total - HONOR_ROLL_MARGIN} for the Honor Roll, {table.total} for #1):{" "}
+          {HONOR_COLS.map((c) => `${COL_NAMES[c]} ${summary.honor[c].confirmed}${verified ? ` (${summary.honor[c].verified} verified)` : ""}`).join(", ")}.
+        </div>
+      )}
+      {summary && !club && current === "was" && (
+        <div className="ftx-msg small">
+          <b>5BWAS</b> (50 states confirmed on each band): {bandList(summary.five)}.
+          {table?.triple_play && <>{" "}<b>Triple Play</b> (LoTW only, QSOs from 2009; 50 on each): CW {table.triple_play.cw}, Phone {table.triple_play.phone}, Digital {table.triple_play.digital}; all three {table.triple_play.all}.</>}
+        </div>
+      )}
+      {summary && !club && current === "waz" && (
+        <div className="ftx-msg small">
+          <b>5BWAZ</b> (zone-bands confirmed on 80 to 10 m; 150 for the award, 200 for all): {fiveTotal}, by band {bandList(summary.five)}.
         </div>
       )}
       {err && <div className="ftx-msg small err">{err}</div>}
@@ -183,7 +214,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
                 <tr key={r.key} onClick={() => show(r.key)} title="Show these QSOs in the log">
                   <td className="name">
                     {current === "dxcc" || current === "was" ? <span className="mono muted key">{r.key}</span> : null}
-                    {r.name}
+                    {r.name}{r.deleted && <span className="muted"> (deleted)</span>}
                   </td>
                   {table.columns.map((c) => {
                     const st = r.cells[c.key];
@@ -203,7 +234,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         </div>
       )}
       {!club && <div className="ftx-msg small muted">
-        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}{verified && current === "dxcc" && "V verified (LoTW granted DXCC credit), "}C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
+        {current === "vucc" && "VUCC counts 4-character grid squares on 6 m and up. "}{current === "counties" && "Counties come from the County field (like OH,Franklin), which LoTW and QRZ fill in. "}{verified && (current === "dxcc" || current === "was") && `V verified (LoTW granted ${current === "dxcc" ? "DXCC" : "WAS"} credit), `}C confirmed, W worked but not confirmed. Click a row to see its QSOs in the log. Get confirmations with QSL, Download confirmations.
       </div>}
     </div>
   );
