@@ -36,7 +36,8 @@ const FIXED = new Set<AwardKind>(["dxcc", "was", "waz", "wac", "itu"]);
 const CHALLENGE_BANDS = ["160m", "80m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"];
 const FIVE_BANDS = ["80m", "40m", "20m", "15m", "10m"];
 const HONOR_COLS = ["mixed", "cw", "phone", "digital"];
-/** The DXCC Honor Roll takes current entities confirmed to within this many of the total. */
+/** The DXCC Honor Roll takes current entities confirmed to within this many of the total (the thresholds
+ * are left out while the country file isn't loaded, as the total is then unknown). */
 const HONOR_ROLL_MARGIN = 9;
 
 const isConfirmed = (c: string | undefined) => c === "confirmed" || c === "verified";
@@ -175,7 +176,7 @@ export default function AwardsPane({ logId, callsigns, onShowQsos }: { logId: nu
         <div className="ftx-msg small">
           <b>DXCC Challenge:</b> {summary.slots.confirmed} confirmed, {summary.slots.worked} worked band slots (160 to 6 m; 1000 for the award).{" "}
           <b>5BDXCC</b> (100 entities confirmed on each band): {bandList(summary.five)}.<br />
-          <b>Honor Roll</b> (current entities confirmed; {table.total - HONOR_ROLL_MARGIN} for the Honor Roll, {table.total} for #1):{" "}
+          <b>Honor Roll</b> (current entities confirmed{table.total > 100 ? `; ${table.total - HONOR_ROLL_MARGIN} for the Honor Roll, ${table.total} for #1` : ""}):{" "}
           {HONOR_COLS.map((c) => `${COL_NAMES[c]} ${summary.honor[c].confirmed}${verified ? ` (${summary.honor[c].verified} verified)` : ""}`).join(", ")}.
         </div>
       )}
