@@ -1592,7 +1592,11 @@ async fn import(State(s): State<Shared>, Path(id): Path<i64>, Query(q): Query<Im
         skip_duplicates: q.skip_duplicates,
         add_station_callsigns: q.add_station_callsigns,
     };
-    let report = db(&s, move |st| st.import_adif(id, &body, &opts)).await?;
+    // Parse before taking the store lock, so a big file doesn't hold it while it is only being read.
+    let file = tokio::task::spawn_blocking(move || qrzero_core::adif::parse(&body))
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let report = db(&s, move |st| st.import_parsed(id, &file, &opts)).await?;
     s.hub.rebuild_worked();
     Ok(Json(report))
 }
