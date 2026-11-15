@@ -108,13 +108,7 @@ pub fn create(data_dir: &Path, kind: Kind) -> Result<Backup> {
 fn create_at(data_dir: &Path, kind: Kind, at: NaiveDateTime) -> Result<Backup> {
     let dir = backup_dir(data_dir);
     fs::create_dir_all(&dir)?;
-    let stamp = at.format(NAME_TIME);
-    let mut name = format!("qrzero-{stamp}-{}.db", kind.suffix());
-    let mut n = 2;
-    while dir.join(&name).exists() {
-        name = format!("qrzero-{stamp}-{n}-{}.db", kind.suffix());
-        n += 1;
-    }
+    let name = free_name(&dir, kind, at);
     // Write under a temporary name so a half-written file is never listed.
     let tmp = dir.join(format!(".{name}.tmp"));
     let _ = fs::remove_file(&tmp);
@@ -131,6 +125,41 @@ fn create_at(data_dir: &Path, kind: Kind, at: NaiveDateTime) -> Result<Backup> {
     fs::rename(&tmp, dir.join(&name))?;
     let size = fs::metadata(dir.join(&name))?.len();
     Ok(Backup { created: local_ts(at), name, size, kind })
+}
+
+/// A backup file name not yet used in `dir`.
+fn free_name(dir: &Path, kind: Kind, at: NaiveDateTime) -> String {
+    let stamp = at.format(NAME_TIME);
+    let mut name = format!("qrzero-{stamp}-{}.db", kind.suffix());
+    let mut n = 2;
+    while dir.join(&name).exists() {
+        name = format!("qrzero-{stamp}-{n}-{}.db", kind.suffix());
+        n += 1;
+    }
+    name
+}
+
+/// Keeps the log as plain files (the database and its -wal) as a "before
+/// restore" backup, for when SQLite can't read it to make a proper backup
+/// because it is damaged. Returns the backup's name.
+fn copy_raw(data_dir: &Path) -> Result<String> {
+    let dir = backup_dir(data_dir);
+    fs::create_dir_all(&dir)?;
+    let name = free_name(&dir, Kind::BeforeRestore, Local::now().naive_local());
+    let target = dir.join(&name);
+    let result = (|| -> Result<()> {
+        fs::copy(db_path(data_dir), &target)?;
+        let wal = data_dir.join(format!("{DB_FILE}-wal"));
+        if wal.is_file() {
+            fs::copy(&wal, dir.join(format!("{name}-wal")))?;
+        }
+        Ok(())
+    })();
+    if let Err(e) = result {
+        let _ = remove_db_files(&target);
+        return Err(e);
+    }
+    Ok(name)
 }
 
 fn local_ts(at: NaiveDateTime) -> i64 {
@@ -197,8 +226,12 @@ pub fn file_path(data_dir: &Path, name: &str) -> Result<PathBuf> {
 }
 
 pub fn delete(data_dir: &Path, name: &str) -> Result<()> {
-    fs::remove_file(file_path(data_dir, name)?)?;
-    Ok(())
+    let path = file_path(data_dir, name)?;
+    fs::remove_file(&path)?;
+    // A raw copy of a damaged log keeps its -wal file beside it.
+    let mut wal = path.into_os_string();
+    wal.push("-wal");
+    remove_file_if_exists(Path::new(&wal))
 }
 
 /// True when no automatic backup has been made on `today` (local date).
@@ -307,11 +340,19 @@ pub fn cancel(data_dir: &Path) -> Result<()> {
 
 /// Swaps a staged restore in. Call on startup before the log is opened.
 ///
-/// The current log is first saved as a "before restore" backup; if that
-/// fails, nothing is changed and the restore stays pending. The old log's
-/// -wal and -shm files are removed so they can't be replayed into the
-/// restored file. Returns what was restored.
+/// The current log is first saved as a "before restore" backup. If SQLite
+/// can't make one because the log is damaged (the usual reason to restore),
+/// the log's files are copied as they are instead. If even that fails,
+/// nothing is changed and the restore stays pending. The old log's -wal and
+/// -shm files are removed so they can't be replayed into the restored file.
+/// Returns what was restored.
 pub fn apply_pending(data_dir: &Path) -> Result<Option<Pending>> {
+    Ok(apply_pending_noted(data_dir)?.map(|(p, _)| p))
+}
+
+/// Like [`apply_pending`], and also returns the name of the raw copy of the
+/// old log when it was too damaged for a normal backup.
+pub fn apply_pending_noted(data_dir: &Path) -> Result<Option<(Pending, Option<String>)>> {
     let Some(pending) = pending(data_dir) else {
         return Ok(None);
     };
@@ -321,13 +362,18 @@ pub fn apply_pending(data_dir: &Path) -> Result<Option<Pending>> {
         return Err(e);
     }
     let db = db_path(data_dir);
+    let mut damaged_copy = None;
     if db.exists() {
-        create(data_dir, Kind::BeforeRestore)?;
+        if let Err(e) = create(data_dir, Kind::BeforeRestore) {
+            damaged_copy = Some(copy_raw(data_dir).map_err(|raw| {
+                Error::Invalid(format!("the current log couldn't be backed up ({e}) or copied ({raw}), so nothing was changed"))
+            })?);
+        }
     }
     remove_db_files(&db)?;
     fs::rename(&staged, &db)?;
     remove_file_if_exists(&data_dir.join(PENDING_INFO))?;
-    Ok(Some(pending))
+    Ok(Some((pending, damaged_copy)))
 }
 
 /// Puts back the newest "before restore" backup, for when a restored log
@@ -345,8 +391,24 @@ pub fn roll_back(data_dir: &Path) -> Result<String> {
         let _ = remove_db_files(&tmp);
         return Err(e.into());
     }
+    // A raw copy of a damaged log has its -wal file beside it.
+    let wal = backup_dir(data_dir).join(format!("{}-wal", before.name));
+    if wal.is_file() {
+        let mut tmp_wal = tmp.clone().into_os_string();
+        tmp_wal.push("-wal");
+        if let Err(e) = fs::copy(&wal, &tmp_wal) {
+            let _ = remove_db_files(&tmp);
+            return Err(e.into());
+        }
+    }
     remove_db_files(&db)?;
     fs::rename(&tmp, &db)?;
+    // The file is now the live log, so its -wal moves into place too.
+    let mut tmp_wal = tmp.into_os_string();
+    tmp_wal.push("-wal");
+    if Path::new(&tmp_wal).is_file() {
+        fs::rename(&tmp_wal, data_dir.join(format!("{DB_FILE}-wal")))?;
+    }
     Ok(before.name)
 }
 
