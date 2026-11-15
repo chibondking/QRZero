@@ -569,6 +569,7 @@ impl Store {
                     }
                 }
             }
+            mark_resend(&old.fields, &mut fields);
         }
         let c = Columns::from_fields(&fields)?;
         self.expect_changed(
@@ -1055,6 +1056,7 @@ impl Store {
                         }
                     }
                 }
+                mark_resend(&old, &mut fields);
                 put.execute(params![serde_json::to_string(&fields)?, now(), id])?;
                 changed += 1;
             }
@@ -1642,6 +1644,25 @@ const BULK_PROTECTED: [&str; 12] = [
     "CALL", "QSO_DATE", "TIME_ON", "BAND", "BAND_RX", "FREQ", "FREQ_RX", "MODE", "SUBMODE", "STATION_CALLSIGN", "DXCC", "TIME_OFF",
 ];
 const MODIFIED_STATUS: [&str; 2] = ["QRZCOM_QSO_UPLOAD_STATUS", "CLUBLOG_QSO_UPLOAD_STATUS"];
+
+/// Fields LoTW and eQSL match or show; changing one after upload makes the old upload useless.
+const SIGNED_FIELDS: [&str; 9] = ["CALL", "QSO_DATE", "TIME_ON", "BAND", "MODE", "SUBMODE", "FREQ", "STATION_CALLSIGN", "RST_SENT"];
+const SENT_STATUS: [&str; 2] = ["LOTW_QSL_SENT", "EQSL_QSL_SENT"];
+
+/// A corrected QSO that LoTW or eQSL already has is sent again: the sent mark
+/// goes back to "R" (requested), which the pending lists include.
+fn mark_resend(old: &Fields, new: &mut Fields) {
+    if SIGNED_FIELDS.iter().all(|k| old.get(*k) == new.get(*k)) {
+        return;
+    }
+    for key in SENT_STATUS {
+        if let Some(v) = new.get_mut(key) {
+            if v == "Y" {
+                *v = "R".into();
+            }
+        }
+    }
+}
 
 /// QSL and upload bookkeeping, as opposed to what happened on the air.
 fn is_qsl_field(k: &str) -> bool {
