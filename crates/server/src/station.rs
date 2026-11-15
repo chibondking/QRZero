@@ -1385,6 +1385,7 @@ impl Hub {
     fn auto_log(&self, mut fields: Fields, source: &str, n1mm_id: Option<(&str, bool)>) {
         let active = self.active();
         let Some(log_id) = active.log_id else { return };
+        let sent = fields.clone();
         if !active.station_callsign.is_empty() {
             fields.entry("STATION_CALLSIGN".into()).or_insert_with(|| active.station_callsign.clone());
         }
@@ -1398,8 +1399,19 @@ impl Hub {
                 fields.insert("APP_QRZERO_N1MM_ID".into(), id.to_string());
                 if replace {
                     if let Some(existing) = st.find_qso_by_field(log_id, "APP_QRZERO_N1MM_ID", id)? {
+                        // An edit in N1MM changes only what N1MM sent: keep the location's MY_* details,
+                        // lookup fill-ins and upload marks (update_qso turns uploaded ones to "modified").
                         let old = st.get_qso(existing)?;
-                        st.update_qso(existing, old.location_id, &fields)?;
+                        let mut merged = old.fields;
+                        if sent.get("CALL").is_some_and(|c| merged.get("CALL") != Some(c)) {
+                            for k in ["DXCC", "COUNTRY", "CONT", "CQZ", "ITUZ"] {
+                                merged.remove(k);
+                            }
+                        }
+                        merged.extend(sent);
+                        merged.insert("APP_QRZERO_N1MM_ID".into(), id.to_string());
+                        self.fill_from_cty(&mut merged);
+                        st.update_qso(existing, old.location_id, &merged)?;
                         return Ok(None);
                     }
                 }

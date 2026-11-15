@@ -54,6 +54,10 @@ impl Api {
         self.send(reqwest::Method::GET, path, None, None).await
     }
 
+    async fn put(&self, path: &str, body: Value) -> Value {
+        self.send(reqwest::Method::PUT, path, Some(body), None).await
+    }
+
     async fn post(&self, path: &str, body: Value) -> Value {
         self.send(reqwest::Method::POST, path, Some(body), None).await
     }
@@ -262,8 +266,19 @@ async fn wsjtx_decodes_replies_and_logging() {
     let search = json!({"filter": {"call": "W9XYZ"}});
     let found = api.wait_for(&format!("/logs/{log}/qsos/search"), Some(search.clone()), |v| v["total"] == 1).await;
     assert_eq!(found["rows"][0]["fields"]["BAND"], "40m");
+    // QRZero adds details of its own to the QSO, which an edit in N1MM must keep.
+    let id = found["rows"][0]["id"].as_i64().unwrap();
+    let mut stored = found["rows"][0]["fields"].clone();
+    stored["MY_GRIDSQUARE"] = json!("EN34");
+    stored["NAME"] = json!("Walt");
+    stored["QRZCOM_QSO_UPLOAD_STATUS"] = json!("Y");
+    api.put(&format!("/qsos/{id}"), json!({"location_id": null, "fields": stored})).await;
     n1mm.send_to(contact("contactreplace", "579").as_bytes(), &n1mm_addr).await.unwrap();
-    api.wait_for(&format!("/logs/{log}/qsos/search"), Some(search.clone()), |v| v["rows"][0]["fields"]["RST_SENT"] == "579").await;
+    let edited = api.wait_for(&format!("/logs/{log}/qsos/search"), Some(search.clone()), |v| v["rows"][0]["fields"]["RST_SENT"] == "579").await;
+    let kept = &edited["rows"][0]["fields"];
+    assert_eq!(kept["MY_GRIDSQUARE"], "EN34");
+    assert_eq!(kept["NAME"], "Walt");
+    assert_eq!(kept["QRZCOM_QSO_UPLOAD_STATUS"], "M", "an edit of an uploaded QSO is a modification");
     let delete = "<?xml version=\"1.0\" encoding=\"utf-8\"?><contactdelete><timestamp>2024-01-03 10:11:12</timestamp><call>W9XYZ</call><contestname>DXCC</contestname><StationName>PC</StationName><ID>abc123</ID></contactdelete>";
     n1mm.send_to(delete.as_bytes(), &n1mm_addr).await.unwrap();
     api.wait_for(&format!("/logs/{log}/qsos/search"), Some(search), |v| v["total"] == 0).await;
