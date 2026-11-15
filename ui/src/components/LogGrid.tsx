@@ -189,9 +189,24 @@ export default function LogGrid({ logId, refreshKey, filter, onFilter, selection
     const next = new Set(e.ctrlKey || e.metaKey ? selection : []);
     if (e.shiftKey && lastClicked.current !== null) {
       const [a, b] = [Math.min(lastClicked.current, i), Math.max(lastClicked.current, i)];
+      let missing = false;
       for (let k = a; k <= b; k++) {
         const r = rowAt(k);
         if (r) next.add(r.id);
+        else missing = true;
+      }
+      if (missing) {
+        // Part of the range is on pages that were never loaded: ask the server for its ids.
+        const gen = generation.current;
+        const keep = new Set(next);
+        api
+          .searchIds(logId, filter, a, b - a + 1)
+          .then((ids) => {
+            if (gen !== generation.current) return;
+            ids.forEach((id) => keep.add(id));
+            onSelection(keep);
+          })
+          .catch((err) => setError((err as Error).message));
       }
     } else if ((e.ctrlKey || e.metaKey) && selection.has(q.id)) {
       next.delete(q.id);

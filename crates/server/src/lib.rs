@@ -270,6 +270,7 @@ fn router(state: Shared, loopback_only: bool) -> Router {
         .route("/locations/{id}/default", post(default_location))
         .route("/logs/{id}/qsos", post(insert_qso))
         .route("/logs/{id}/qsos/search", post(search_qsos))
+        .route("/logs/{id}/qsos/search-ids", post(search_qso_ids))
         .route("/qsos/{id}", get(get_qso).put(update_qso))
         .route("/qsos/delete", post(delete_qsos))
         .route("/qsos/mark", post(mark_qsos))
@@ -1268,6 +1269,10 @@ async fn search_qsos(State(s): State<Shared>, Path(id): Path<i64>, Json(b): Json
     db(&s, move |st| st.search(id, &b.filter, b.sort, b.offset, b.limit))
         .await
         .map(|(total, rows)| Json(SearchResult { total, rows }))
+}
+
+async fn search_qso_ids(State(s): State<Shared>, Path(id): Path<i64>, Json(b): Json<SearchBody>) -> ApiResult<Vec<i64>> {
+    db(&s, move |st| st.search_ids(id, &b.filter, b.sort, b.offset, b.limit)).await.map(Json)
 }
 
 #[derive(Serialize)]
