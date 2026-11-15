@@ -656,6 +656,12 @@ impl Store {
                     hit = true;
                     let before = fields.clone();
                     fields.extend(set.iter().map(|(k, v)| (k.clone(), v.clone())));
+                    // A confirmation says the QSO is on the service, not that the corrected version is.
+                    for key in MODIFIED_STATUS {
+                        if before.get(key).is_some_and(|v| v == "M") {
+                            fields.insert(key.to_string(), "M".into());
+                        }
+                    }
                     for (k, v) in &fill {
                         if fields.get(k).is_none_or(|x| x.trim().is_empty()) && !v.trim().is_empty() {
                             fields.insert(k.clone(), v.clone());
@@ -1004,6 +1010,40 @@ impl Store {
         }
         tx.commit()?;
         Ok(())
+    }
+
+    /// Marks QSOs as uploaded after a send. `sent` holds each QSO's id and the fields that
+    /// were actually sent. A QSO edited since (its content differs from what went up) is not
+    /// marked: for QRZ and Club Log it becomes "M" so the corrected version goes up again,
+    /// for other services it stays pending. Returns how many were edited meanwhile.
+    pub fn mark_uploaded(&mut self, status_key: &str, sent: &[(i64, &Fields)], set: &Fields) -> Result<usize> {
+        if set.keys().any(|k| !is_qsl_field(k)) {
+            return Err(Error::Invalid("only QSL fields can be set in bulk".into()));
+        }
+        let content = |f: &Fields| f.iter().filter(|(k, _)| !is_qsl_field(k)).map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>();
+        let mut edited = 0;
+        let tx = self.conn.transaction()?;
+        {
+            let mut get = tx.prepare("SELECT fields FROM qsos WHERE id = ?1")?;
+            let mut put = tx.prepare("UPDATE qsos SET fields = ?1, updated_at = ?2 WHERE id = ?3")?;
+            for (id, sent_fields) in sent {
+                let Some(raw) = get.query_row([id], |r| r.get::<_, String>(0)).optional()? else { continue };
+                let mut fields: Fields = serde_json::from_str(&raw)?;
+                if content(&fields) == content(sent_fields) {
+                    fields.extend(set.iter().map(|(k, v)| (k.clone(), v.clone())));
+                } else {
+                    edited += 1;
+                    if !MODIFIED_STATUS.contains(&status_key) {
+                        continue;
+                    }
+                    fields.extend(set.iter().map(|(k, v)| (k.clone(), v.clone())));
+                    fields.insert(status_key.to_string(), "M".into());
+                }
+                put.execute(params![serde_json::to_string(&fields)?, now(), id])?;
+            }
+        }
+        tx.commit()?;
+        Ok(edited)
     }
 
     /// Sets (`set`) and clears (`clear`) optional fields on every QSO of the log

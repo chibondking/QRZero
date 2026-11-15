@@ -529,3 +529,48 @@ fn asci_submode_is_shown_as_rtty() {
     st.for_each_stats_qso(log, &[], &Default::default(), |_| Some(291), |q| modes.push(q.mode.clone())).unwrap();
     assert_eq!(modes, ["RTTY"]);
 }
+
+#[test]
+fn edit_during_upload_is_not_marked_uploaded() {
+    let (mut st, log) = setup();
+    let base = [("CALL", "W1AW"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "20m"), ("MODE", "CW"), ("STATION_CALLSIGN", "N0CALL")];
+    let a = st.insert_qso(log, None, &f(&base)).unwrap();
+    let b = st.insert_qso(log, None, &f(&[("CALL", "K1ABC"), ("QSO_DATE", "20240101"), ("TIME_ON", "1300"), ("BAND", "20m"), ("MODE", "CW"), ("STATION_CALLSIGN", "N0CALL")])).unwrap();
+    let key = "QRZCOM_QSO_UPLOAD_STATUS";
+    let set = f(&[(key, "Y"), ("QRZCOM_QSO_UPLOAD_DATE", "20240102")]);
+    // Both are read for upload, then `a` is edited before the upload finishes.
+    let (sent_a, sent_b) = (a.fields.clone(), b.fields.clone());
+    let mut edited = a.fields.clone();
+    edited.insert("RST_SENT".into(), "579".into());
+    st.update_qso(a.id, a.location_id, &edited).unwrap();
+    assert_eq!(st.mark_uploaded(key, &[(a.id, &sent_a), (b.id, &sent_b)], &set).unwrap(), 1);
+    let status = |st: &Store, id| st.get_qso(id).unwrap().fields.get(key).cloned();
+    assert_eq!(status(&st, a.id).as_deref(), Some("M"), "the edited QSO goes up again");
+    assert_eq!(status(&st, b.id).as_deref(), Some("Y"));
+    assert_eq!(st.get_qso(a.id).unwrap().fields["RST_SENT"], "579");
+    // For a service without an "M" state the QSO simply stays pending.
+    let c_key = "LOTW_QSL_SENT";
+    let (a2, b2) = (st.get_qso(a.id).unwrap(), st.get_qso(b.id).unwrap());
+    let mut edited = b2.fields.clone();
+    edited.insert("RST_SENT".into(), "589".into());
+    st.update_qso(b.id, b.location_id, &edited).unwrap();
+    st.mark_uploaded(c_key, &[(a2.id, &a2.fields), (b2.id, &b2.fields)], &f(&[(c_key, "Y")])).unwrap();
+    assert_eq!(status_of(&st, a.id, c_key).as_deref(), Some("Y"));
+    assert_eq!(status_of(&st, b.id, c_key), None);
+}
+
+fn status_of(st: &Store, id: i64, key: &str) -> Option<String> {
+    st.get_qso(id).unwrap().fields.get(key).cloned()
+}
+
+#[test]
+fn confirmation_keeps_pending_reupload() {
+    let (mut st, log) = setup();
+    let q = f(&[("CALL", "W1AW"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "20m"), ("MODE", "CW"), ("STATION_CALLSIGN", "N0CALL"), ("QRZCOM_QSO_UPLOAD_STATUS", "M")]);
+    let a = st.insert_qso(log, None, &q).unwrap();
+    let rec = f(&[("CALL", "W1AW"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "20m"), ("MODE", "CW")]);
+    let set = f(&[("QRZCOM_QSO_UPLOAD_STATUS", "Y"), ("QRZCOM_QSO_DOWNLOAD_STATUS", "Y")]);
+    st.apply_confirmations(&[log], [(&rec, set, Fields::new())], |a, b| a["CALL"] == b["CALL"]).unwrap();
+    assert_eq!(status_of(&st, a.id, "QRZCOM_QSO_UPLOAD_STATUS").as_deref(), Some("M"));
+    assert_eq!(status_of(&st, a.id, "QRZCOM_QSO_DOWNLOAD_STATUS").as_deref(), Some("Y"));
+}
