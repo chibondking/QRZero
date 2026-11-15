@@ -45,7 +45,7 @@ pub(crate) fn load_settings(st: &Store) -> qrzero_core::Result<BackupSettings> {
 /// open is replaced by the one from before the restore.
 pub(crate) fn open_store(data_dir: &FsPath) -> anyhow::Result<(Store, Option<RestoreResult>)> {
     let path = backup::db_path(data_dir);
-    let applied = match backup::apply_pending(data_dir) {
+    let applied = match backup::apply_pending_noted(data_dir) {
         Ok(Some(p)) => Some(p),
         Ok(None) => None,
         Err(e) => {
@@ -54,12 +54,18 @@ pub(crate) fn open_store(data_dir: &FsPath) -> anyhow::Result<(Store, Option<Res
             return Ok((Store::open(&path)?, Some(result)));
         }
     };
-    let Some(p) = applied else {
+    let Some((p, damaged)) = applied else {
         return Ok((Store::open(&path)?, None));
     };
     match Store::open(&path) {
         Ok(store) => {
-            let message = format!("Restored from {} ({} QSOs). The log as it was before is kept as a \"before restore\" backup.", p.source, p.summary.qsos);
+            let message = match damaged {
+                None => format!("Restored from {} ({} QSOs). The log as it was before is kept as a \"before restore\" backup.", p.source, p.summary.qsos),
+                Some(name) => format!(
+                    "Restored from {} ({} QSOs). The log it replaced was damaged, so it was kept as a plain file copy ({name} and its -wal file in the backups folder) instead of a normal backup. It may be recoverable with SQLite tools.",
+                    p.source, p.summary.qsos
+                ),
+            };
             tracing::info!("{message}");
             Ok((store, Some(RestoreResult { ok: true, message })))
         }

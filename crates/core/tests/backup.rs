@@ -212,3 +212,29 @@ fn rolling_back_puts_the_pre_restore_log_back_whole() {
         .collect();
     assert!(stray.is_empty(), "{stray:?}");
 }
+
+#[test]
+fn a_restore_goes_through_over_a_damaged_log_and_keeps_a_raw_copy() {
+    let dir = tempfile::tempdir().unwrap();
+    let st = open_with(dir.path(), &["W1AW", "K1ABC"]);
+    let b = backup::create(dir.path(), Kind::Manual).unwrap();
+    drop(st);
+    backup::stage_backup(dir.path(), &b.name).unwrap();
+    // The current log is garbage, so SQLite can't make a backup of it.
+    let garbage = vec![0x5Au8; 8192];
+    std::fs::write(backup::db_path(dir.path()), &garbage).unwrap();
+    std::fs::write(dir.path().join("qrzero.db-wal"), b"wal bytes").unwrap();
+
+    let (applied, raw) = backup::apply_pending_noted(dir.path()).unwrap().unwrap();
+    assert_eq!(applied.source, b.name);
+    let raw = raw.expect("a raw copy was made");
+    assert!(backup::pending(dir.path()).is_none());
+    assert_eq!(qso_count(&Store::open(&backup::db_path(dir.path())).unwrap()), 2);
+    // Both files of the damaged log are kept, byte for byte.
+    let kept = backup::backup_dir(dir.path());
+    assert_eq!(std::fs::read(kept.join(&raw)).unwrap(), garbage);
+    assert_eq!(std::fs::read(kept.join(format!("{raw}-wal"))).unwrap(), b"wal bytes");
+    // Deleting that backup removes its -wal file too.
+    backup::delete(dir.path(), &raw).unwrap();
+    assert!(!kept.join(format!("{raw}-wal")).exists());
+}

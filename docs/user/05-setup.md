@@ -146,6 +146,8 @@ Restoring replaces the **whole** log file, all logs and QSOs in it, with the bac
 3. The tab then says **Restart QRZero to finish restoring**. Close QRZero and start it again. Until you do, nothing has changed, and **Cancel restore** drops it.
 4. When QRZero starts, it first saves the log as it is then as a *before restore* backup, then puts the backup in its place. Backups from older versions of QRZero are brought up to date as they open.
 
+If the current log is damaged, which is often why you are restoring, SQLite can't make a normal backup of it. QRZero then keeps the damaged log's files as they are in the backups folder (the `.db` file and its `-wal` file, named as a *before restore* backup) and restores anyway. Start-up tells you when this happened. Such a copy can't be restored from the list, but it is kept in case the damaged log can be recovered with SQLite tools.
+
 QSOs logged between choosing **Restore** and restarting are not in the restored log, but they are in the *before restore* backup. If you restored the wrong file, restore that *before restore* backup to undo it.
 
 ## Keyboard shortcuts
