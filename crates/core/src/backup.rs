@@ -26,6 +26,7 @@ pub const DB_FILE: &str = "qrzero.db";
 pub const BACKUP_DIR: &str = "backups";
 const PENDING_DB: &str = "restore-pending.db";
 const PENDING_INFO: &str = "restore-pending.json";
+const STAGING_WAL: &str = "restore-wal-save.tmp";
 const STAGING: &str = "restore-staging.tmp";
 const NAME_TIME: &str = "%Y-%m-%d-%H%M%S";
 /// Tables every QRZero log has had since the first schema.
@@ -142,16 +143,26 @@ fn free_name(dir: &Path, kind: Kind, at: NaiveDateTime) -> String {
 /// Keeps the log as plain files (the database and its -wal) as a "before
 /// restore" backup, for when SQLite can't read it to make a proper backup
 /// because it is damaged. Returns the backup's name.
-fn copy_raw(data_dir: &Path) -> Result<String> {
+///
+/// `saved_wal` is a copy of the -wal taken before the failed backup attempt:
+/// SQLite may delete the original when it closes a connection to a file it
+/// couldn't read.
+fn copy_raw(data_dir: &Path, saved_wal: Option<&Path>) -> Result<String> {
     let dir = backup_dir(data_dir);
     fs::create_dir_all(&dir)?;
     let name = free_name(&dir, Kind::BeforeRestore, Local::now().naive_local());
     let target = dir.join(&name);
     let result = (|| -> Result<()> {
         fs::copy(db_path(data_dir), &target)?;
-        let wal = data_dir.join(format!("{DB_FILE}-wal"));
-        if wal.is_file() {
-            fs::copy(&wal, dir.join(format!("{name}-wal")))?;
+        let live = data_dir.join(format!("{DB_FILE}-wal"));
+        match saved_wal {
+            Some(wal) => {
+                fs::copy(wal, dir.join(format!("{name}-wal")))?;
+            }
+            None if live.is_file() => {
+                fs::copy(&live, dir.join(format!("{name}-wal")))?;
+            }
+            None => {}
         }
         Ok(())
     })();
@@ -364,10 +375,18 @@ pub fn apply_pending_noted(data_dir: &Path) -> Result<Option<(Pending, Option<St
     let db = db_path(data_dir);
     let mut damaged_copy = None;
     if db.exists() {
-        if let Err(e) = create(data_dir, Kind::BeforeRestore) {
-            damaged_copy = Some(copy_raw(data_dir).map_err(|raw| {
+        let live_wal = data_dir.join(format!("{DB_FILE}-wal"));
+        let saved = data_dir.join(STAGING_WAL);
+        let have_saved = live_wal.is_file() && fs::copy(&live_wal, &saved).is_ok();
+        let made = create(data_dir, Kind::BeforeRestore);
+        if let Err(e) = made {
+            let raw = copy_raw(data_dir, have_saved.then_some(saved.as_path()));
+            let _ = fs::remove_file(&saved);
+            damaged_copy = Some(raw.map_err(|raw| {
                 Error::Invalid(format!("the current log couldn't be backed up ({e}) or copied ({raw}), so nothing was changed"))
             })?);
+        } else {
+            let _ = fs::remove_file(&saved);
         }
     }
     remove_db_files(&db)?;
