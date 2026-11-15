@@ -1119,6 +1119,25 @@ impl Store {
         Ok((total, rows.collect::<std::result::Result<_, _>>()?))
     }
 
+    /// The ids of `limit` matching QSOs from `offset`, in the same order as `search`. Used to
+    /// select a range of rows the grid has not loaded; it reads the indexes only.
+    pub fn search_ids(&self, log_id: i64, filter: &QsoFilter, sort: Sort, offset: i64, limit: i64) -> Result<Vec<i64>> {
+        let (where_sql, mut args) = build_where_with(log_id, filter, true);
+        let indexed = filter.call.is_some() || filter.exact_call.is_some() || !filter.bands.is_empty() || !filter.modes.is_empty()
+            || filter.dxcc.is_some() || filter.ids.is_some();
+        let t = if indexed { "+time_on" } else { "time_on" };
+        let order = match sort {
+            Sort::Newest => format!("{t} DESC, id DESC"),
+            Sort::Oldest => format!("{t} ASC, id ASC"),
+            Sort::Call => "call ASC, time_on DESC".to_string(),
+        };
+        args.push(Value::Integer(limit.clamp(0, 1_000_000)));
+        args.push(Value::Integer(offset.max(0)));
+        let mut stmt = self.conn.prepare(&format!("SELECT id FROM qsos WHERE {where_sql} ORDER BY {order} LIMIT ? OFFSET ?"))?;
+        let rows = stmt.query_map(params_from_iter(args.iter()), |r| r.get(0))?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
     /// Moves every QSO matching the filter from one log to another, all or nothing. Station
     /// callsigns the target doesn't list yet are added to it.
     pub fn move_qsos(&mut self, log_id: i64, filter: &QsoFilter, target: i64) -> Result<usize> {

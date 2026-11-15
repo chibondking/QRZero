@@ -529,3 +529,15 @@ fn asci_submode_is_shown_as_rtty() {
     st.for_each_stats_qso(log, &[], &Default::default(), |_| Some(291), |q| modes.push(q.mode.clone())).unwrap();
     assert_eq!(modes, ["RTTY"]);
 }
+
+#[test]
+fn search_ids_matches_search_order_for_a_range() {
+    let (st, log) = setup();
+    for i in 0..10 {
+        st.insert_qso(log, None, &f(&[("CALL", &format!("W{i}AW")), ("QSO_DATE", "20240101"), ("TIME_ON", &format!("{:02}00", i))])).unwrap();
+    }
+    let (_, rows) = st.search(log, &QsoFilter::default(), Sort::Newest, 0, 10).unwrap();
+    let want: Vec<i64> = rows[3..7].iter().map(|q| q.id).collect();
+    let got = st.search_ids(log, &QsoFilter::default(), Sort::Newest, 3, 4).unwrap();
+    assert_eq!(got, want);
+}

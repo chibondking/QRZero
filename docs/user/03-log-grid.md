@@ -11,6 +11,7 @@ The grid shows every QSO in the open log, newest first. It stays fast with hundr
 ## Selecting
 
 - Click a row to select it. <kbd>Ctrl</kbd>+click adds or removes rows, <kbd>Shift</kbd>+click selects a range.
+  The range includes rows you have not scrolled to yet.
 - Or tick the box at the start of each row.
 
 With rows selected, the toolbar shows one **N selected…** menu with **Clear selection**, **Export selected**, **Bulk edit**, **Delete** and the **Paper QSL** actions, so the toolbar stays on one row. Deleting asks first and can't be undone.
