@@ -74,7 +74,7 @@ The list shows up to 2000 QSOs; **Upload** sends all of them, not only the ones 
 
 ## QRZ Logbook
 
-Paste each callsign's logbook **API key** (on QRZ.com: Logbook, Settings, API); saving a key ticks that callsign for upload. Untick a callsign to pause it. **Test** checks the key. With **Upload new QSOs automatically** ticked, new and edited QSOs go up a couple of minutes after you log them (change **Wait (min)** beside it). **Upload now** sends what's waiting straight away.
+Paste each callsign's logbook **API key** (on QRZ.com: Logbook, Settings, API); saving a key ticks that callsign for upload. Untick a callsign to pause it. **Test** checks the key. With **Upload new QSOs automatically** ticked, new and edited QSOs go up a couple of minutes after you log them (change **Wait (min)** beside it). **Upload now** sends what's waiting straight away. If you edit a QSO while an upload is running, the edited QSO is not marked as sent; it goes up again with the next upload.
 
 When you edit a QSO that was already uploaded, QRZero marks it modified and sends the corrected version.
 

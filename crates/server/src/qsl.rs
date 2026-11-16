@@ -500,6 +500,12 @@ impl Qsl {
         f(&mut st)
     }
 
+    /// Marks QSOs uploaded, leaving out any edited since they were read (see `Store::mark_uploaded`).
+    fn mark_uploaded(&self, svc: &Service, qsos: &[&qrzero_core::model::Qso], set: &Fields) -> qrzero_core::Result<usize> {
+        let sent: Vec<(i64, &Fields)> = qsos.iter().map(|q| (q.id, &q.fields)).collect();
+        self.db(|st| st.mark_uploaded(svc.status_key, &sent, set))
+    }
+
     pub fn config(&self) -> QslConfig {
         self.lock().config.clone()
     }
@@ -840,14 +846,14 @@ impl Qsl {
                                 self.log(svc.name, format!("{call}: batch of {} QSO(s) accepted by Club Log", chunk.len()));
                                 let set: Fields = [(svc.status_key.to_string(), "Y".to_string()), (svc.date_key.to_string(), today())].into();
                                 let (confirmed, plain): (Vec<_>, Vec<_>) = chunk.iter().partition(|q| lotw_confirmed(&q.fields));
-                                let (confirmed, plain): (Vec<i64>, Vec<i64>) = (confirmed.iter().map(|q| q.id).collect(), plain.iter().map(|q| q.id).collect());
-                                let marked = self.db(|st| {
-                                    st.mark_qsos(&plain, &set)?;
-                                    st.mark_qsos(&confirmed, &with_lotw_sent(svc, &set))
-                                });
-                                if let Err(e) = marked {
-                                    run.error = Some(e.to_string());
-                                    return run;
+                                let marked = self.mark_uploaded(svc, &plain, &set).and_then(|a| Ok(a + self.mark_uploaded(svc, &confirmed, &with_lotw_sent(svc, &set))?));
+                                match marked {
+                                    Ok(0) => {}
+                                    Ok(n) => self.log(svc.name, format!("{call}: {n} QSO(s) were edited during the upload and will go up again")),
+                                    Err(e) => {
+                                        run.error = Some(e.to_string());
+                                        return run;
+                                    }
                                 }
                                 run.uploaded += chunk.len();
                                 changed_logs.extend(chunk.iter().map(|q| q.log_id));
@@ -889,9 +895,13 @@ impl Qsl {
                         if lotw_confirmed(&qso.fields) {
                             set = with_lotw_sent(svc, &set);
                         }
-                        if let Err(e) = self.db(|st| st.mark_qsos(&[qso.id], &set)) {
-                            run.error = Some(e.to_string());
-                            return run;
+                        match self.mark_uploaded(svc, &[&qso], &set) {
+                            Ok(0) => {}
+                            Ok(_) => self.log(svc.name, format!("{call}: {} was edited during the upload and will go up again", qso.fields.get("CALL").cloned().unwrap_or_default())),
+                            Err(e) => {
+                                run.error = Some(e.to_string());
+                                return run;
+                            }
                         }
                         changed_logs.insert(qso.log_id);
                     }
@@ -1241,7 +1251,8 @@ impl Qsl {
             }
             let ids: Vec<i64> = pending.iter().map(|q| q.id).collect();
             let set: Fields = [(LOTW.status_key.to_string(), "Y".to_string()), (LOTW.date_key.to_string(), today())].into();
-            if let Err(e) = self.db(|st| st.mark_qsos(&ids, &set)) {
+            let refs: Vec<&_> = pending.iter().collect();
+            if let Err(e) = self.mark_uploaded(&LOTW, &refs, &set) {
                 run.error = Some(e.to_string());
                 return run;
             }
