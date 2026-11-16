@@ -2076,6 +2076,67 @@ mod tests {
         assert!(plan.contains("qsos_pota"), "{plan}");
     }
 
+    /// The narrow scan table that awards, worked-before and field filters read must always match
+    /// what a fresh read of `qsos` gives, after every kind of write.
+    #[test]
+    fn scan_table_matches_qsos_after_every_kind_of_write() {
+        const SCAN_SELECT: &str = "SELECT qsos.log_id, qsos.id, qsos.call, qsos.band, IFNULL(qsos.submode, qsos.mode), qsos.dxcc, qsos.time_on, qsos.station_callsign,
+            CAST(json_extract(qsos.fields, '$.STATE') AS TEXT), CAST(json_extract(qsos.fields, '$.CQZ') AS TEXT), CAST(json_extract(qsos.fields, '$.CONT') AS TEXT),
+            CAST(json_extract(qsos.fields, '$.ITUZ') AS TEXT), CAST(json_extract(qsos.fields, '$.GRIDSQUARE') AS TEXT), CAST(json_extract(qsos.fields, '$.IOTA') AS TEXT),
+            CAST(json_extract(qsos.fields, '$.CNTY') AS TEXT), CAST(json_extract(qsos.fields, '$.LOTW_QSL_RCVD') AS TEXT), CAST(json_extract(qsos.fields, '$.QSL_RCVD') AS TEXT),
+            CAST(json_extract(qsos.fields, '$.EQSL_QSL_RCVD') AS TEXT), CAST(json_extract(qsos.fields, '$.CREDIT_GRANTED') AS TEXT),
+            CAST(json_extract(qsos.fields, '$.APP_LOTW_CREDIT_GRANTED') AS TEXT) FROM qsos";
+        fn check(st: &Store, what: &str, expected_rows: i64) {
+            let n = |sql: &str| st.conn.query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap();
+            let scan = "SELECT log_id, qso_id, call, band, mode, dxcc, time_on, station_callsign, state, cqz, cont, ituz, gridsquare, iota, cnty, lotw_rcvd, qsl_rcvd, eqsl_rcvd, credit_granted, app_credit FROM qso_scan";
+            assert_eq!(n("SELECT COUNT(*) FROM qsos"), expected_rows, "{what}: qsos row count");
+            assert_eq!(n("SELECT COUNT(*) FROM qso_scan"), expected_rows, "{what}: scan row count");
+            assert_eq!(n(&format!("SELECT COUNT(*) FROM ({scan} EXCEPT {SCAN_SELECT})")), 0, "{what}: scan has rows that qsos does not give");
+            assert_eq!(n(&format!("SELECT COUNT(*) FROM ({SCAN_SELECT} EXCEPT {scan})")), 0, "{what}: qsos has rows missing from scan");
+        }
+        let f = |pairs: &[(&str, &str)]| -> Fields { pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect() };
+
+        let mut st = Store::open_in_memory().unwrap();
+        let a = st.create_log("A").unwrap().id;
+        let b = st.create_log("B").unwrap().id;
+        check(&st, "empty", 0);
+
+        // Insert, with award fields and a submode.
+        let q1 = st
+            .insert_qso(a, None, &f(&[("CALL", "DL1ABC"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "20m"), ("MODE", "MFSK"), ("SUBMODE", "FT4"), ("DXCC", "230"), ("CQZ", "14"), ("STATE", "BY"), ("STATION_CALLSIGN", "W0NY"), ("LOTW_QSL_RCVD", "Y"), ("CREDIT_GRANTED", "DXCC:CW")]))
+            .unwrap();
+        let q2 = st.insert_qso(a, None, &f(&[("CALL", "K1ABC"), ("QSO_DATE", "20240102"), ("TIME_ON", "1300"), ("BAND", "40m"), ("MODE", "CW"), ("GRIDSQUARE", "FN42")])).unwrap();
+        let q3 = st.insert_qso(a, None, &f(&[("CALL", "JA1XYZ"), ("QSO_DATE", "20240103"), ("TIME_ON", "1400"), ("BAND", "15m"), ("MODE", "SSB"), ("IOTA", "AS-007")])).unwrap();
+        check(&st, "insert", 3);
+        let scan_mode: String = st.conn.query_row("SELECT mode FROM qso_scan WHERE qso_id = ?1", [q1.id], |r| r.get(0)).unwrap();
+        assert_eq!(scan_mode, "FT4", "the scan table keeps the submode in place of the mode");
+
+        // Edit: change indexed columns and clear and set JSON-only fields.
+        st.update_qso(q1.id, None, &f(&[("CALL", "DL1ABC"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "17m"), ("MODE", "CW"), ("DXCC", "230"), ("QSL_RCVD", "Y"), ("APP_LOTW_CREDIT_GRANTED", "DXCC")])).unwrap();
+        st.update_qso(q2.id, None, &f(&[("CALL", "K1ABC/P"), ("QSO_DATE", "20240102"), ("TIME_ON", "1301"), ("BAND", "40m"), ("MODE", "CW"), ("CNTY", "MA,Middlesex"), ("EQSL_QSL_RCVD", "Y"), ("ITUZ", "8")])).unwrap();
+        check(&st, "edit", 3);
+
+        // Move between logs.
+        let moved = st.move_qsos(a, &QsoFilter { exact_call: Some("JA1XYZ".into()), ..Default::default() }, b).unwrap();
+        assert_eq!(moved, 1);
+        check(&st, "move", 3);
+        let scan_log: i64 = st.conn.query_row("SELECT log_id FROM qso_scan WHERE qso_id = ?1", [q3.id], |r| r.get(0)).unwrap();
+        assert_eq!(scan_log, b, "a moved QSO is scanned under its new log");
+
+        // ADIF import.
+        let report = st
+            .import_adif(a, b"<CALL:5>VK2ZZ <QSO_DATE:8>20240105 <TIME_ON:4>0900 <BAND:3>10m <MODE:3>SSB <DXCC:3>150 <CQZ:2>30 <EOR>", &ImportOptions::default())
+            .unwrap();
+        assert_eq!(report.imported, 1);
+        check(&st, "import", 4);
+
+        // Delete one QSO, then a whole log.
+        assert_eq!(st.delete_qsos(&[q2.id]).unwrap(), 1);
+        check(&st, "delete", 3);
+        st.delete_log(b).unwrap();
+        check(&st, "delete log", 2);
+    }
+
     #[test]
     fn upgrade_merges_identical_locations_across_logs() {
         let conn = Connection::open_in_memory().unwrap();
