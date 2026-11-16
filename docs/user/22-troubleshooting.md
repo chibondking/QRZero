@@ -29,6 +29,7 @@ Short answers to common problems, with a link to the page that explains the deta
 
 ## The log and the window
 
+- **QRZero says it could not open its log, and closes.** The message names the reason and the folder. Nothing has been deleted. If another QRZero (or a program that scans or backs up that folder) has the log open, close it and start again. If the log is damaged, close QRZero, rename `qrzero.db` (and `qrzero.db-wal` and `qrzero.db-shm`, if they are there), then copy the newest file from the `backups` folder next to it into the data folder and name the copy `qrzero.db`. If the message says the log was made by a newer QRZero, install the newest QRZero.
 - **Restoring a backup.** Nothing changes until you close QRZero and start it again. See [Callsigns, locations and logs](05-setup).
 - **Where is my log?** In `qrzero.db`, in `%APPDATA%\QRZero` on Windows, `~/Library/Application Support/QRZero` on a Mac or `~/.local/share/QRZero` on Linux. See [Getting started](01-getting-started).
 - **The first start after an update takes a moment on a very large log.** Some updates add a compact copy of the facts that Awards and the filters read, and building it takes a few seconds per 100,000 QSOs (about 20 seconds for 750,000). It happens once, and the window opens as soon as it is done.

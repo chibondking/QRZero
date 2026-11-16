@@ -1,6 +1,7 @@
 // The desktop app: starts the QRZero server on 127.0.0.1 and opens a window on it.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod startup_error;
 mod window_state;
 
 use std::collections::{HashMap, HashSet};
@@ -232,34 +233,46 @@ fn main() {
             }
         })
         .setup(|app| {
-            let config = qrzero_server::Config::local(qrzero_server::default_data_dir());
-            let running = tauri::async_runtime::block_on(qrzero_server::start(config))?;
-            let mut url: tauri::Url = running.url().parse()?;
-            url.query_pairs_mut()
-                .append_pair("desktop", if frameless() { "frameless" } else { "framed" })
-                .append_pair("os", OS);
-            let home = url.origin().ascii_serialization();
-            let main = with_frame(WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url)))
-                .title("QRZero")
-                .on_new_window(popout_handler(app.handle().clone(), home))
-                .on_document_title_changed(title_changed)
-                .on_page_load(page_loaded)
-                .initialization_script(init_script())
-                // Tauri's file-drop handler swallows the page's own drag and drop on
-                // Windows, which stopped pane tabs from being dragged.
-                .disable_drag_drop_handler()
-                .inner_size(1440.0, 900.0)
-                .min_inner_size(960.0, 600.0)
-                .visible(false)
-                .build()?;
-            // Open where it was closed: the same size and place, or maximized (restore then goes back to that size).
-            if let Some(s) = window_state::load("main") {
-                window_state::apply(&main, s);
+            let data_dir = qrzero_server::default_data_dir();
+            // If the log can't be opened there is no window to show that in, so say it in a message box.
+            let result = start_main_window(app, data_dir.clone());
+            if let Err(e) = &result {
+                startup_error::show(&startup_error::message(e, &data_dir));
+                std::process::exit(1);
             }
-            let _ = main.show();
-            app.manage(running);
-            Ok(())
+            result
         })
         .run(tauri::generate_context!())
         .expect("QRZero failed to start");
+}
+
+/// Starts the server on the log in `data_dir` and opens the main window on it.
+fn start_main_window(app: &mut tauri::App, data_dir: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let config = qrzero_server::Config::local(data_dir);
+    let running = tauri::async_runtime::block_on(qrzero_server::start(config))?;
+    let mut url: tauri::Url = running.url().parse()?;
+    url.query_pairs_mut()
+        .append_pair("desktop", if frameless() { "frameless" } else { "framed" })
+        .append_pair("os", OS);
+    let home = url.origin().ascii_serialization();
+    let main = with_frame(WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url)))
+        .title("QRZero")
+        .on_new_window(popout_handler(app.handle().clone(), home))
+        .on_document_title_changed(title_changed)
+        .on_page_load(page_loaded)
+        .initialization_script(init_script())
+        // Tauri's file-drop handler swallows the page's own drag and drop on
+        // Windows, which stopped pane tabs from being dragged.
+        .disable_drag_drop_handler()
+        .inner_size(1440.0, 900.0)
+        .min_inner_size(960.0, 600.0)
+        .visible(false)
+        .build()?;
+    // Open where it was closed: the same size and place, or maximized (restore then goes back to that size).
+    if let Some(s) = window_state::load("main") {
+        window_state::apply(&main, s);
+    }
+    let _ = main.show();
+    app.manage(running);
+    Ok(())
 }

@@ -117,6 +117,9 @@ export const api = {
   paperQueue: (logId: number) => json<Qso[]>("GET", `/logs/${logId}/paper-queue`),
   search: (logId: number, filter: QsoFilter, offset: number, limit: number, sort = "newest") =>
     json<{ total: number; rows: Qso[] }>("POST", `/logs/${logId}/qsos/search`, { filter, offset, limit, sort }),
+  /** Just the ids of a row range, for selecting rows the grid has not loaded. */
+  searchIds: (logId: number, filter: QsoFilter, offset: number, limit: number, sort = "newest") =>
+    json<number[]>("POST", `/logs/${logId}/qsos/search-ids`, { filter, offset, limit, sort }),
   /**
    * Looks a call up. `fill` is for the Fill button and the editor: it also asks the next
    * service for anything the first one left blank, which costs a second request.
