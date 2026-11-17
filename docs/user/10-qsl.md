@@ -59,6 +59,8 @@ To see which QSOs LoTW has confirmed (for the **Awards** tab), enter your LoTW *
 
 After a LoTW or eQSL download that confirms QSOs, a **New toward your awards** list appears under the button. It shows what those confirmations counted toward for the first time: a new entity, state, zone or prefix, and the new bands and modes (like `20m, CW`) it filled. It follows your settings: awards switched off in **Settings, Awards** are left out, and only the confirmation sources ticked in the Awards pane (LoTW, Paper, eQSL) count, so an eQSL confirmation of an entity LoTW already confirmed isn't new. The list stays until the next download (or you quit QRZero). When a download started by a timer confirms QSOs, a one-line notice also appears at the top of the window.
 
+If you correct a QSO's call, date, time, band, mode, frequency, station callsign or sent report after it went to LoTW or eQSL, its sent mark goes back to R (requested), so the next upload sends the corrected QSO. Notes and other edits leave the mark alone.
+
 A confirmation matches a QSO when the call and band are the same, the mode is the same kind (CW, phone or digital) and the times are within 30 minutes. Confirmations that match nothing are counted as **not found in the log**; hover over that text to see them.
 
 ## Uploading a date range by hand

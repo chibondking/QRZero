@@ -531,6 +531,28 @@ fn asci_submode_is_shown_as_rtty() {
 }
 
 #[test]
+fn correcting_a_sent_qso_queues_it_for_lotw_and_eqsl_again() {
+    let (st, log) = setup();
+    let sent = &[("LOTW_QSL_SENT", "Y"), ("EQSL_QSL_SENT", "Y")];
+    let mut p = vec![("CALL", "W1AW"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "20m"), ("MODE", "CW")];
+    p.extend_from_slice(sent);
+    let a = st.insert_qso(log, None, &f(&p)).unwrap();
+
+    // A note doesn't change what LoTW holds.
+    let mut fields = a.fields.clone();
+    fields.insert("COMMENT".into(), "nice".into());
+    let a = st.update_qso(a.id, None, &fields).unwrap();
+    assert_eq!(a.fields["LOTW_QSL_SENT"], "Y");
+
+    // A corrected call or band goes up again.
+    let mut fields = a.fields.clone();
+    fields.insert("BAND".into(), "40m".into());
+    let a = st.update_qso(a.id, None, &fields).unwrap();
+    assert_eq!(a.fields["LOTW_QSL_SENT"], "R");
+    assert_eq!(a.fields["EQSL_QSL_SENT"], "R");
+}
+
+#[test]
 fn edit_during_upload_is_not_marked_uploaded() {
     let (mut st, log) = setup();
     let base = [("CALL", "W1AW"), ("QSO_DATE", "20240101"), ("TIME_ON", "1200"), ("BAND", "20m"), ("MODE", "CW"), ("STATION_CALLSIGN", "N0CALL")];
