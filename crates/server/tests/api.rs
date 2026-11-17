@@ -138,6 +138,8 @@ async fn token_is_required() {
     assert_eq!(ui.status(), 200);
     assert_eq!(ui.headers()["x-frame-options"], "DENY");
     assert_eq!(ui.headers()["x-content-type-options"], "nosniff");
+    let csp = ui.headers()["content-security-policy"].to_str().unwrap();
+    assert!(csp.contains("default-src 'self'") && csp.contains("script-src 'self'") && csp.contains("connect-src 'self'"));
 }
 
 #[tokio::test]

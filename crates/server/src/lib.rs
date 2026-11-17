@@ -366,12 +366,18 @@ fn router(state: Shared, loopback_only: bool) -> Router {
     app
 }
 
+/// The UI loads only its own files and talks only to this server (every outside service is called by the server, not the page), so a
+/// script injected into the page can't run or send anything elsewhere. Inline styles stay allowed because the UI sets style attributes.
+pub const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; \
+font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+
 /// Headers that keep the UI from being framed, sniffed or leaking its address (the first load carries the token in the URL).
 async fn security_headers(req: Request, next: Next) -> Response {
     let mut resp = next.run(req).await;
     let h = resp.headers_mut();
     h.insert("x-content-type-options", "nosniff".parse().unwrap());
     h.insert("x-frame-options", "DENY".parse().unwrap());
+    h.insert("content-security-policy", CONTENT_SECURITY_POLICY.parse().unwrap());
     h.insert("referrer-policy", "no-referrer".parse().unwrap());
     resp
 }
