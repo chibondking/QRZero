@@ -434,6 +434,17 @@ pub struct Hub {
     auto_lookup: Mutex<Option<tokio::sync::mpsc::UnboundedSender<(i64, i64, String)>>>,
 }
 
+/// Runs blocking work (a database call that may wait for the store lock) from code that might be
+/// on a tokio worker thread. On the multi-threaded runtime the worker hands its other tasks to
+/// another thread for the duration, so live events and other requests keep flowing; anywhere else
+/// (a blocking-pool thread, a plain thread, a single-threaded test runtime) it just runs `f`.
+pub(crate) fn off_worker<T>(f: impl FnOnce() -> T) -> T {
+    match tokio::runtime::Handle::try_current() {
+        Ok(h) if h.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => tokio::task::block_in_place(f),
+        _ => f(),
+    }
+}
+
 impl Hub {
     pub fn new(store: Arc<Mutex<Store>>, data_dir: PathBuf) -> Arc<Self> {
         let (events, _) = broadcast::channel(1024);
@@ -606,9 +617,14 @@ impl Hub {
         self.inner.lock().unwrap_or_else(|p| p.into_inner())
     }
 
+    /// Runs a database call under the store lock. Called from an async task it may wait a long
+    /// time (an import holds the lock for seconds), so it lets the runtime move other tasks off
+    /// this thread first (see `off_worker`).
     pub(crate) fn with_store<T>(&self, f: impl FnOnce(&mut Store) -> qrzero_core::Result<T>) -> qrzero_core::Result<T> {
-        let mut st = self.store.lock().unwrap_or_else(|p| p.into_inner());
-        f(&mut st)
+        off_worker(|| {
+            let mut st = self.store.lock().unwrap_or_else(|p| p.into_inner());
+            f(&mut st)
+        })
     }
 
     pub(crate) fn setting(&self, key: &str) -> Option<String> {
@@ -2027,5 +2043,31 @@ mod tests {
         assert_eq!(tx_period_start(at(23, 59, 59.8), "FT8", 15), 0);
         // "Not set" from WSJT-X must not overflow into a period that puts every line at 00:00:00.
         assert_eq!(tx_period_start(at(18, 50, 31.0), "FT8", u32::MAX), at(18, 50, 30.0));
+    }
+
+    /// Tasks waiting on a long-held lock must not starve the runtime: with only two workers and
+    /// four waiters, a timer task still has to run.
+    #[test]
+    fn waiting_on_the_store_lock_does_not_block_the_runtime() {
+        let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_time().build().unwrap();
+        let lock = Arc::new(Mutex::new(()));
+        let held = lock.lock().unwrap();
+        let waiters: Vec<_> = (0..4)
+            .map(|_| {
+                let l = lock.clone();
+                rt.spawn(async move { off_worker(|| drop(l.lock().unwrap())) })
+            })
+            .collect();
+        let ticked = rt.block_on(async {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            tokio::time::timeout(std::time::Duration::from_secs(5), tokio::spawn(async { 1 })).await
+        });
+        assert!(ticked.is_ok(), "the runtime stalled behind the lock");
+        drop(held);
+        rt.block_on(async {
+            for w in waiters {
+                w.await.unwrap();
+            }
+        });
     }
 }

@@ -1326,7 +1326,12 @@ impl Store {
     // ---- ADIF ----------------------------------------------------------
 
     pub fn import_adif(&mut self, log_id: i64, data: &[u8], opts: &ImportOptions) -> Result<ImportReport> {
-        let file = adif::parse(data);
+        self.import_parsed(log_id, &adif::parse(data), opts)
+    }
+
+    /// Like `import_adif` for a file already parsed with `adif::parse`, so a caller can parse
+    /// before taking the store lock.
+    pub fn import_parsed(&mut self, log_id: i64, file: &adif::AdifFile, opts: &ImportOptions) -> Result<ImportReport> {
         let mut report = ImportReport::default();
         report.messages.extend(file.warnings.iter().take(5).cloned());
         let location = match opts.location_id {

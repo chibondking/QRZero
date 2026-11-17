@@ -496,8 +496,10 @@ impl Qsl {
     }
 
     fn db<T>(&self, f: impl FnOnce(&mut Store) -> qrzero_core::Result<T>) -> qrzero_core::Result<T> {
-        let mut st = self.store.lock().unwrap_or_else(|p| p.into_inner());
-        f(&mut st)
+        crate::station::off_worker(|| {
+            let mut st = self.store.lock().unwrap_or_else(|p| p.into_inner());
+            f(&mut st)
+        })
     }
 
     /// Marks QSOs uploaded, leaving out any edited since they were read (see `Store::mark_uploaded`).
