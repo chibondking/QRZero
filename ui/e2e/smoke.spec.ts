@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import dgram from "node:dgram";
 
 const ADIF = `Test file<EOH>
@@ -148,19 +150,22 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
 
   // Export 40m only, full fields.
   await fromMenu(page, "Export ADIF…");
+  await expect(page.getByLabel(/Whole log/)).toBeVisible();
   await page.getByLabel("Choose filters").check();
   await page.locator("label.chip", { hasText: /^40m$/ }).locator("input").check();
   await page.getByLabel(/Full: every stored field/).check();
   await expect(page.getByText("2 QSOs will be exported")).toBeVisible();
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("dialog").getByRole("button", { name: "Export" }).click(),
-  ]);
-  const text = readFileSync((await download.path())!, "utf8");
+  const outDir = mkdtempSync(join(tmpdir(), "qrzero-export-"));
+  await page.getByLabel("Folder").fill(outDir);
+  await page.getByLabel("File name").fill("forty.adi");
+  await page.getByRole("dialog").getByRole("button", { name: "Export", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Saved 2 QSOs to");
+  const text = readFileSync(join(outDir, "forty.adi"), "utf8");
   expect(text).toContain("<CALL:5>K1ABC");
   expect(text).toContain("<APP_L4ONG_TEST:1>1");
   expect(text).toContain("<MY_GRIDSQUARE:4>EN34");
   expect(text).not.toContain("W1AW");
+  await page.locator(".modal .buttons").getByRole("button", { name: "Close" }).click();
 
   // Bulk edit: set a comment on the 40m QSOs only, then see it in an export.
   page.once("dialog", (d) => void d.accept());
@@ -173,13 +178,14 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await page.getByRole("button", { name: "Edit QSOs" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
   await fromMenu(page, "Export ADIF…");
-  await page.getByLabel("Choose filters").check();
-  const [bulkDownload] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("dialog").getByRole("button", { name: "Export" }).click(),
-  ]);
-  const bulkText = readFileSync((await bulkDownload.path())!, "utf8");
+  await page.getByLabel(/Whole log/).check();
+  await page.getByLabel("Folder").fill(outDir);
+  await page.getByLabel("File name").fill("whole.adi");
+  await page.getByRole("dialog").getByRole("button", { name: "Export", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Saved");
+  const bulkText = readFileSync(join(outDir, "whole.adi"), "utf8");
   expect(bulkText.match(/<COMMENT:9>bulk note/g)).toHaveLength(2);
+  await page.locator(".modal .buttons").getByRole("button", { name: "Close" }).click();
 
   // The FTx monitor waits for WSJT-X, and the integrations are set up in Settings.
   await page.getByRole("tab", { name: "FTx monitor" }).click();

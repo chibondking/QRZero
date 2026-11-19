@@ -23,11 +23,12 @@ Choose **Export ADIF…** from the **☰** menu, or select rows in the grid and 
 
 **What to export**
 
+- **Whole log**: every QSO in the log (the choice when nothing is selected).
 - **Selected QSOs**: the rows you selected in the grid.
 - **What the log grid shows now**: whatever your current search and band/mode filter shows.
 - **Choose filters**: any combination of date range (UTC), bands, modes, station callsigns, locations, and one ADIF field value. For example, field `LOTW_QSL_SENT` with an empty value exports QSOs that have no LoTW sent status.
 
-The dialog shows how many QSOs will be exported before you start.
+The dialog shows how many QSOs will be exported before you start. **Save to** shows the folder the file will be written to and its name. The folder starts as your Documents folder and QRZero remembers the one you used last. Type a path, or press **Browse…** to pick a folder from a list. The file name is filled in from the log name and date, and you can change it. When the export finishes, the dialog shows the full path of the file. The folder is on the computer running QRZero.
 
 **Fields**
 

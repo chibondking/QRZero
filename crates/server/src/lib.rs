@@ -298,6 +298,8 @@ fn router(state: Shared, loopback_only: bool) -> Router {
             post(import).layer(DefaultBodyLimit::max(512 * 1024 * 1024)),
         )
         .route("/logs/{id}/export", post(export))
+        .route("/logs/{id}/export-file", post(export_file))
+        .route("/fs/dirs", get(fs_dirs))
         .route("/logs/{id}/equipment", get(list_equipment))
         .route("/locations/{id}/equipment", post(create_equipment))
         .route("/equipment/{id}", put(update_equipment).delete(delete_equipment))
@@ -1640,6 +1642,98 @@ async fn export(State(s): State<Shared>, Path(id): Path<i64>, Json(b): Json<Expo
     headers.insert(header::CONTENT_TYPE, "text/plain; charset=utf-8".parse().unwrap());
     headers.insert("x-qso-count", count.into());
     Ok((headers, axum::body::Body::from_stream(stream)).into_response())
+}
+
+#[derive(Deserialize)]
+struct ExportFileBody {
+    #[serde(default)]
+    filter: QsoFilter,
+    #[serde(default)]
+    profile: ExportProfile,
+    dir: String,
+    name: String,
+}
+
+#[derive(Serialize)]
+struct ExportFileDone {
+    path: String,
+    count: i64,
+}
+
+/// Writes the export straight to a folder on the machine running the server.
+async fn export_file(State(s): State<Shared>, Path(id): Path<i64>, Json(b): Json<ExportFileBody>) -> Result<Json<ExportFileDone>, ApiError> {
+    let name = b.name.trim().to_string();
+    if name.is_empty() || name.contains(['/', '\\', ':']) || name == "." || name == ".." {
+        return Err(ApiError(StatusCode::BAD_REQUEST, "The file name can't be empty or contain slashes.".into()));
+    }
+    let dir = std::path::PathBuf::from(b.dir.trim());
+    if !dir.is_dir() {
+        return Err(ApiError(StatusCode::BAD_REQUEST, format!("The folder {} doesn't exist.", dir.display())));
+    }
+    let path = dir.join(&name);
+    let filter = b.filter.clone();
+    let count = dbr(&s, move |st| st.count_matching(id, &filter)).await?;
+    let hub = s.hub.clone();
+    let out = path.clone();
+    let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
+        use std::io::Write;
+        let mut f = std::io::BufWriter::new(std::fs::File::create(&out).map_err(|e| format!("Can't write {}: {e}", out.display()))?);
+        let mut werr: Option<std::io::Error> = None;
+        hub.with_reader(|st| {
+            st.export_adif_chunks(id, &b.filter, b.profile, VERSION, &mut |chunk| match f.write_all(chunk.as_bytes()) {
+                Ok(()) => true,
+                Err(e) => {
+                    werr = Some(e);
+                    false
+                }
+            })
+        })
+        .map_err(|e| e.to_string())?;
+        if let Some(e) = werr {
+            return Err(format!("Can't write {}: {e}", out.display()));
+        }
+        f.flush().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    res.map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(ExportFileDone { path: path.display().to_string(), count: count as i64 }))
+}
+
+#[derive(Deserialize)]
+struct DirsQuery {
+    #[serde(default)]
+    path: String,
+}
+
+#[derive(Serialize)]
+struct DirListing {
+    path: String,
+    parent: Option<String>,
+    dirs: Vec<String>,
+    /// Where exports go until the user picks another folder.
+    default_dir: String,
+}
+
+/// Folder names under a path, for the export folder browser. Empty path means the default folder.
+async fn fs_dirs(Query(q): Query<DirsQuery>) -> Result<Json<DirListing>, ApiError> {
+    let default_dir = dirs::document_dir().or_else(dirs::home_dir).unwrap_or_else(|| std::path::PathBuf::from("."));
+    let default_str = default_dir.display().to_string();
+    let want = if q.path.trim().is_empty() { default_dir } else { std::path::PathBuf::from(q.path.trim()) };
+    let rd = std::fs::read_dir(&want).map_err(|e| ApiError(StatusCode::BAD_REQUEST, format!("Can't open {}: {e}", want.display())))?;
+    let mut dirs: Vec<String> = rd
+        .flatten()
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| !n.starts_with('.'))
+        .collect();
+    dirs.sort_by_key(|n| n.to_lowercase());
+    Ok(Json(DirListing {
+        path: want.display().to_string(),
+        parent: want.parent().map(|p| p.display().to_string()).filter(|p| !p.is_empty()),
+        dirs,
+        default_dir: default_str,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Default)]
