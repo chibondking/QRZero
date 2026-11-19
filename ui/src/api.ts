@@ -141,6 +141,11 @@ export const api = {
     return { text: await resp.text(), count: Number(resp.headers.get("x-qso-count") ?? 0) };
   },
 
+  exportToFile: (logId: number, filter: QsoFilter, profile: "standard" | "full", dir: string, name: string) =>
+    json<{ path: string; count: number }>("POST", `/logs/${logId}/export-file`, { filter, profile, dir, name }),
+  listDirs: (path: string) =>
+    json<{ path: string; parent: string | null; dirs: string[]; default_dir: string }>("GET", `/fs/dirs?path=${encodeURIComponent(path)}`),
+
   equipment: (logId: number) => json<Equipment[]>("GET", `/logs/${logId}/equipment`),
   createEquipment: (locationId: number, kind: string, name: string, fields: Fields) =>
     json<Equipment>("POST", `/locations/${locationId}/equipment`, { kind, name, fields }),

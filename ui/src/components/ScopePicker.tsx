@@ -3,7 +3,7 @@ import { BANDS, useModes } from "../modes";
 import type { Location, QsoFilter, StationCallsign } from "../types";
 import { dayEnd, dayStart } from "../util";
 
-type Scope = "selected" | "grid" | "custom";
+type Scope = "selected" | "grid" | "custom" | "all";
 
 function toggle<T>(list: T[], v: T): T[] {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
@@ -15,12 +15,15 @@ interface PickerProps {
   callsigns: StationCallsign[];
   locations: Location[];
   onFilter: (f: QsoFilter) => void;
+  /** Offer "Whole log" (export only; too easy to misuse for bulk edits). */
+  allowAll?: boolean;
+  logTotal?: number | null;
 }
 
 /** Chooses which QSOs a dialog acts on: the selection, what the grid shows, or filters. */
-export default function ScopePicker({ selection, gridFilter, callsigns, locations, onFilter }: PickerProps) {
+export default function ScopePicker({ selection, gridFilter, callsigns, locations, onFilter, allowAll, logTotal }: PickerProps) {
   const listed = useModes();
-  const [scope, setScope] = useState<Scope>(selection.size ? "selected" : "custom");
+  const [scope, setScope] = useState<Scope>(selection.size ? "selected" : allowAll ? "all" : "custom");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [bands, setBands] = useState<string[]>([]);
@@ -34,6 +37,7 @@ export default function ScopePicker({ selection, gridFilter, callsigns, location
   const filter: QsoFilter = useMemo(() => {
     if (scope === "selected") return { ids: [...selection] };
     if (scope === "grid") return gridFilter;
+    if (scope === "all") return {};
     const f: QsoFilter = {
       from: dayStart(from),
       to: dayEnd(to),
@@ -52,6 +56,7 @@ export default function ScopePicker({ selection, gridFilter, callsigns, location
   return (
     <>
       <div className="radio-row">
+        {allowAll && <label className="check"><input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> Whole log{typeof logTotal === "number" ? ` (${logTotal.toLocaleString()})` : ""}</label>}
         <label className="check"><input type="radio" checked={scope === "selected"} disabled={!selection.size} onChange={() => setScope("selected")} /> Selected QSOs ({selection.size})</label>
         <label className="check"><input type="radio" checked={scope === "grid"} onChange={() => setScope("grid")} /> What the log grid shows now</label>
         <label className="check"><input type="radio" checked={scope === "custom"} onChange={() => setScope("custom")} /> Choose filters</label>
