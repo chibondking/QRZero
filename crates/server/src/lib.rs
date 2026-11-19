@@ -1154,7 +1154,8 @@ async fn paper_queue(State(s): State<Shared>, Path(id): Path<i64>) -> ApiResult<
 fn fill_blanks(fields: &mut Fields, station: &Fields) -> Vec<String> {
     let mut filled = Vec::new();
     for (k, v) in station {
-        if k == "CALL" || k.starts_with("MY_") || v.trim().is_empty() {
+        // The mailing address is shown on request (paper QSL queue), never copied into every QSO.
+        if k == "CALL" || k == "QRZ_ADDRESS" || k.starts_with("MY_") || v.trim().is_empty() {
             continue;
         }
         if fields.get(k).is_none_or(|old| old.trim().is_empty()) {

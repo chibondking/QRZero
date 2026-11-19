@@ -215,6 +215,16 @@ fn to_adif(q: &BTreeMap<String, String>) -> Fields {
     // whichever service they came from.
     put("QRZ_NICKNAME", q.get("nick"));
     put("QRZ_IMAGE", q.get("picture"));
+    let street: Vec<&str> = ["adr_street1", "adr_street2", "adr_street3"].iter().filter_map(|k| q.get(*k).map(String::as_str)).collect();
+    let mail = crate::qrz::mailing_block(
+        &[q.get("adr_name").map(String::as_str), street.first().copied(), street.get(1).copied(), street.get(2).copied()],
+        q.get("adr_city").map(|s| s.trim()).unwrap_or(""),
+        q.get("adr_zip").map(String::as_str),
+        q.get("adr_country").or(q.get("country")).map(String::as_str),
+    );
+    if !mail.is_empty() {
+        f.insert("QRZ_ADDRESS".into(), mail);
+    }
     if let Some(lat) = q.get("latitude").and_then(|v| v.parse::<f64>().ok()) {
         f.insert("LAT".into(), adif_coord(lat, 'N', 'S'));
     }
@@ -242,7 +252,7 @@ mod tests {
   <search>
     <callsign>ok2cqr</callsign><nick>Petr</nick><qth>Neratovice</qth>
     <country>Czech Republic</country><adif>503</adif><itu>28</itu><cq>15</cq>
-    <grid>jo70gg</grid><adr_name>Petr Hlozek</adr_name><adr_city>Neratovice</adr_city>
+    <grid>jo70gg</grid><adr_name>Petr Hlozek</adr_name><adr_street1>Hlavni 1</adr_street1><adr_city>Neratovice</adr_city><adr_zip>27711</adr_zip><adr_country>Czech Republic</adr_country>
     <latitude>50.07</latitude><longitude>14.52</longitude><continent>EU</continent>
     <utc_offset>-1</utc_offset><picture>https://www.hamqth.com/userfiles/o/ok/ok2cqr/_profile/ok2cqr.jpg</picture>
   </search>
@@ -256,6 +266,7 @@ mod tests {
         assert_eq!(f["CALL"], "ok2cqr");
         assert_eq!(f["NAME"], "Petr");
         assert_eq!(f["QTH"], "Neratovice");
+        assert_eq!(f["QRZ_ADDRESS"], "Petr Hlozek\nHlavni 1\n27711 Neratovice\nCzech Republic");
         assert_eq!(f["COUNTRY"], "Czech Republic");
         assert_eq!(f["DXCC"], "503");
         assert_eq!(f["CQZ"], "15");

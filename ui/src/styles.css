@@ -777,3 +777,5 @@ pre.udp-sent { font: 11px var(--mono); background: var(--panel-2); border: 1px s
 /* Keyboard row selection in the spot and decode lists. */
 .kb-list:focus { outline: none; }
 .kb-list:focus [data-kb-sel] { outline: 1px solid var(--accent); outline-offset: -1px; }
+.mail-to .mail-address { margin: 0 0 4px; font: inherit; white-space: pre-wrap; user-select: text; }
+.queue-detail .ql-card.mail-to { margin-top: 8px; }

@@ -487,6 +487,8 @@ test("first run, log, import, search, edit and export", async ({ page }) => {
   await expect(queue.locator(".queue-detail")).toContainText("Date");
   await expect(queue.locator(".queue-detail")).toContainText("Contest ID");
   await expect(queue.locator(".queue-detail")).not.toContainText("QSO_DATE");
+  // No address in the log and no lookup login: the Mail to card says so.
+  await expect(queue.locator(".mail-to")).toContainText(/Lookups are off|lookups are off|No address/i);
   await queue.getByText("Choose fields").click();
   await queue.getByLabel("Band", { exact: true }).check();
   await expect(queue.locator(".queue-detail .ql-card:last-child dl")).toContainText("Band");
