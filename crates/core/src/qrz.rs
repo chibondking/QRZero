@@ -211,6 +211,12 @@ fn to_adif(q: &BTreeMap<String, String>) -> Fields {
     for (k, v) in [("QRZ_NICKNAME", "nickname"), ("QRZ_IMAGE", "image"), ("QRZ_LOTW", "lotw"), ("QRZ_EQSL", "eqsl"), ("QRZ_MQSL", "mqsl")] {
         put(k, q.get(v));
     }
+    let city = [q.get("addr2"), q.get("state")].into_iter().flatten().map(|s| s.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(", ");
+    let country = q.get("country").or(q.get("land"));
+    let mail = mailing_block(&[full_name.as_deref(), q.get("addr1").map(String::as_str)], &city, q.get("zip").map(String::as_str), country.map(String::as_str));
+    if !mail.is_empty() {
+        f.insert("QRZ_ADDRESS".into(), mail);
+    }
     if let Some(lat) = q.get("lat").and_then(|v| v.parse::<f64>().ok()) {
         f.insert("LAT".into(), adif_coord(lat, 'N', 'S'));
     }
@@ -218,6 +224,29 @@ fn to_adif(q: &BTreeMap<String, String>) -> Fields {
         f.insert("LON".into(), adif_coord(lon, 'E', 'W'));
     }
     f
+}
+
+/// The postal address as it is written on an envelope: name, street, city line, country.
+/// US-style addresses put the zip after the city; everywhere else it goes before.
+pub fn mailing_block(top: &[Option<&str>], city: &str, zip: Option<&str>, country: Option<&str>) -> String {
+    let zip = zip.map(str::trim).unwrap_or("");
+    let country = country.map(str::trim).unwrap_or("");
+    let us = country.is_empty() || country.starts_with("United States");
+    let line = match (us, city.is_empty(), zip.is_empty()) {
+        (_, true, true) => String::new(),
+        (_, true, false) => zip.to_string(),
+        (_, false, true) => city.to_string(),
+        (true, false, false) => format!("{city} {zip}"),
+        (false, false, false) => format!("{zip} {city}"),
+    };
+    let mut lines: Vec<String> = top.iter().flatten().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+    lines.push(line);
+    if !us {
+        lines.push(country.to_string());
+    }
+    lines.retain(|l| !l.is_empty());
+    // A record with only a name has no address worth showing.
+    if lines.len() <= 1 { String::new() } else { lines.join("\n") }
 }
 
 /// ADIF location format: XDDD MM.MMM
@@ -237,7 +266,7 @@ mod tests {
 <QRZDatabase version="1.34" xmlns="http://xmldata.qrz.com">
   <Callsign>
     <call>AA7BQ</call><fname>FRED L</fname><name>LLOYD</name>
-    <addr2>MESA</addr2><state>AZ</state><country>United States</country>
+    <addr1>1 Main St</addr1><addr2>MESA</addr2><zip>85201</zip><state>AZ</state><country>United States</country>
     <lat>34.23456</lat><lon>-112.34356</lon><grid>DM32af</grid><county>Maricopa</county>
     <dxcc>291</dxcc><cqzone>3</cqzone><ituzone>6</ituzone><lotw>1</lotw>
   </Callsign>
@@ -252,6 +281,7 @@ mod tests {
         assert_eq!(f["CALL"], "AA7BQ");
         assert_eq!(f["NAME"], "FRED L LLOYD");
         assert_eq!(f["QTH"], "MESA");
+        assert_eq!(f["QRZ_ADDRESS"], "FRED L LLOYD\n1 Main St\nMESA, AZ 85201");
         assert_eq!(f["DXCC"], "291");
         assert_eq!(f["GRIDSQUARE"], "DM32af");
         assert_eq!(f["LAT"], "N034 14.074");

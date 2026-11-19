@@ -140,6 +140,52 @@ function QsoDetails({ q }: { q: Qso }) {
   );
 }
 
+/** Where the card goes, written as on an envelope: from the log if a QSO has it, else from the lookup services. */
+function MailTo({ rows, call, logId }: { rows: Qso[]; call: string; logId: number }) {
+  const stored = rows.map((q) => f(q, "ADDRESS")).find((v) => v.trim()) ?? "";
+  const [found, setFound] = useState<{ text: string; source: string; note: string } | null>(null);
+  const [copied, setCopied] = useState("");
+  useEffect(() => {
+    setFound(null);
+    setCopied("");
+    if (stored || !call) return;
+    let live = true;
+    api.lookup(logId, call).then(
+      (r) => live && setFound({ text: r.station?.QRZ_ADDRESS ?? "", source: r.source ?? "", note: r.error ?? "" }),
+      (e) => live && setFound({ text: "", source: "", note: e.message }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [logId, call, stored]);
+  const via = rows.map((q) => f(q, "QSL_VIA")).find((v) => v.trim()) ?? "";
+  const text = (stored || found?.text || "").trim();
+  const copy = () =>
+    navigator.clipboard.writeText(text).then(
+      () => setCopied("Copied."),
+      () => setCopied("Couldn't copy; select the address and press Ctrl+C."),
+    );
+  return (
+    <div className="ql-card mail-to">
+      <h3>Mail to</h3>
+      {text ? (
+        <>
+          <pre className="mail-address">{text}</pre>
+          <div className="row">
+            <button className="small" onClick={copy}>Copy address</button>
+            <span className="muted small">{copied || (stored ? "from your log" : `from ${found?.source}`)}</span>
+          </div>
+        </>
+      ) : (
+        <p className="muted small">
+          {!stored && !found ? "Looking up…" : found?.note || "No address in your log or on the lookup services."}
+        </p>
+      )}
+      {via && <p className="small">QSL via <b className="mono">{via}</b>: this card may go to the manager or bureau instead.</p>}
+    </div>
+  );
+}
+
 /** The queue: QSOs marked to send a card for. Review one, print its label, mark it sent. */
 export default function PaperQsl({ logId }: { logId: number }) {
   const [queue, setQueue] = useState<Qso[] | null>(null);
@@ -283,7 +329,10 @@ export default function PaperQsl({ logId }: { logId: number }) {
           </div>
           {current && (
             <div className="queue-detail">
-              <Contact rows={all.length ? all : [current]} call={currentCall} />
+              <div>
+                <Contact rows={all.length ? all : [current]} call={currentCall} noAddress />
+                <MailTo rows={all.length ? all : [current]} call={currentCall} logId={logId} />
+              </div>
               <QsoDetails q={current} />
             </div>
           )}

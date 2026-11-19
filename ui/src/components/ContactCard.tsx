@@ -20,7 +20,7 @@ export function cardStatus(q: Qso): string {
 }
 
 /** Label / value lines of the contact card; empty values are left out. */
-export function Contact({ rows, call }: { rows: Qso[]; call: string }) {
+export function Contact({ rows, call, noAddress }: { rows: Qso[]; call: string; noAddress?: boolean }) {
   const g = (k: string) => first(rows, k);
   const place = [g("QTH"), g("STATE"), g("CNTY")].filter(Boolean).join(", ");
   const zones = [g("CQZ") && `CQ ${g("CQZ")}`, g("ITU") && `ITU ${g("ITU")}`].filter(Boolean).join(", ");
@@ -28,7 +28,7 @@ export function Contact({ rows, call }: { rows: Qso[]; call: string }) {
   const sent = rows.filter((q) => qf(q, "QSL_SENT") === "Y").length;
   const lines: [string, string][] = [
     ["Name", g("NAME")],
-    ["Address", g("ADDRESS")],
+    ["Address", noAddress ? "" : g("ADDRESS")],
     ["QTH", place],
     ["Country", g("COUNTRY")],
     ["Grid", g("GRIDSQUARE")],
