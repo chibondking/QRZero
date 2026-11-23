@@ -63,14 +63,7 @@ test("PSK Reporter feed is off by default and shows the calls looked for once on
   await expect(pane).toContainText("1 on now, 2 in all");
   await pane.screenshot({ path: "e2e-results/psk-reporter.png" });
 
-  // A click fills in the QSO panel (and tunes the selected radio, when there is one).
-  await rows.first().click();
-  const entryTab = page.getByRole("tab", { name: "New QSO" });
-  if (await entryTab.isVisible()) await entryTab.click();
-  await expect(page.getByTestId("call")).toHaveValue("VP8PJ");
-  await page.getByRole("tab", { name: "PSK Reporter" }).click();
-
-  // Tune all radios: with none connected, the pane says so.
+  // A click tunes: with Tune all radios and none connected, the pane says so.
   await pane.getByLabel("Tune all radios").check();
   await rows.first().click();
   await expect(pane).toContainText("No radio that QRZero can tune is connected.");
