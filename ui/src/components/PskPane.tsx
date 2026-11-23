@@ -27,13 +27,13 @@ const snr = (n: number | null) => (n === null ? "" : n > 0 ? `+${n}` : String(n)
 
 const COLS: Col[] = [
   { key: "utc", label: "UTC", track: "50px", min: 50, cell: (s) => <span className="mono">{utc(s.last)}</span> },
-  { key: "age", label: "Heard", track: "54px", min: 54, cell: (s, now) => <span className="mono" title={`First heard ${utc(s.first)}z`}>{ago(Math.max(0, now - s.last))}</span> },
+  { key: "age", label: "Ago", track: "62px", min: 62, cell: (s, now) => <span className="mono" title={`First heard ${utc(s.first)}z`}>{ago(Math.max(0, now - s.last))}</span> },
   { key: "call", label: "Call", track: "96px", min: 96, cell: (s) => <span className="mono call">{s.call}</span> },
   { key: "freq", label: "Freq", track: "76px", min: 76, cell: (s) => <span className="mono num" title={s.tune_hz !== s.freq_hz ? `Heard on ${(s.freq_hz / 1000).toFixed(3)} kHz; a click tunes the dial to ${(s.tune_hz / 1000).toFixed(1)}` : undefined}>{(s.tune_hz / 1000).toFixed(1)}</span> },
   { key: "band", label: "Band", track: "48px", min: 48, cell: (s) => <span className="mono">{s.band ?? ""}</span> },
   { key: "mode", label: "Mode", track: "54px", min: 54, cell: (s) => { const g = modeGroup(s.mode); return <span className="mono mode" title={g ? MODE_GROUP_NAME[g] : "Mode not known"}>{s.mode}</span>; } },
   { key: "snr", label: "Best", track: "44px", min: 44, cell: (s) => <span className="mono num" title="Best signal report (dB)">{snr(s.best_snr)}</span> },
-  { key: "heard", label: "Heard by", track: "64px", min: 64, cell: (s) => <span className="mono num" title={`${s.reports} report${s.reports === 1 ? "" : "s"}`}>{s.receivers}</span> },
+  { key: "heard", label: "Heard by", track: "72px", min: 72, cell: (s) => <span className="mono num" title={`${s.reports} report${s.reports === 1 ? "" : "s"}`}>{s.receivers}</span> },
   { key: "last", label: "Last heard by", track: "minmax(130px, 1fr)", min: 130, cell: (s) => <span className="mono">{s.last_receiver}{s.last_receiver_grid ? ` ${s.last_receiver_grid.slice(0, 4)}` : ""}{s.last_snr !== null ? ` ${snr(s.last_snr)}` : ""}</span> },
   { key: "country", label: "Country", track: "minmax(80px, 1fr)", min: 80, cell: (s) => <span>{s.entity?.name ?? ""}</span> },
   { key: "flags", label: "Flags", track: "minmax(90px, 1fr)", min: 90, cell: (s) => <span className="flags">{potaNeeds(s.needed).map((n) => <span key={n} className="flag new">{n}</span>)}</span> },
