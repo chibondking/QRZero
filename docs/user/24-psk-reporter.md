@@ -15,7 +15,7 @@ The state next to the toolbar says whether QRZero is connected. Only the reports
 
 ## What it shows
 
-Each row is one station on one band and mode, made from all its reports: the time it was last heard (UTC) and how long ago, the call, the frequency, band and mode, the best signal report, how many different stations heard it, the last one that did (with their grid square and report), the station's country and flags. A green **New DXCC**, **New band** or **New mode** flag marks a station that would be new for you, from your open log.
+Each row is one station on one band and mode, made from all its reports: the time it was last heard (UTC) and how long ago (**Ago**), the call, the frequency, band and mode, the best signal report, how many different stations heard it, the last one that did (with their grid square and report), the station's country and flags. A green **New DXCC**, **New band** or **New mode** flag marks a station that would be new for you, from your open log.
 
 - A row heard in the **last 5 minutes** is highlighted and bold: the station is on the air there now.
 - A row not heard for **15 minutes** or more is grey.

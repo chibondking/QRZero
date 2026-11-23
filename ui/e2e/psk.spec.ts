@@ -65,7 +65,10 @@ test("PSK Reporter feed is off by default and shows the calls looked for once on
 
   // A click fills in the QSO panel (and tunes the selected radio, when there is one).
   await rows.first().click();
+  const entryTab = page.getByRole("tab", { name: "New QSO" });
+  if (await entryTab.isVisible()) await entryTab.click();
   await expect(page.getByTestId("call")).toHaveValue("VP8PJ");
+  await page.getByRole("tab", { name: "PSK Reporter" }).click();
 
   // Tune all radios: with none connected, the pane says so.
   await pane.getByLabel("Tune all radios").check();
