@@ -41,6 +41,8 @@ jobs:
             grep -A2 -E "panicked at|^test .* FAILED|^error" test.log | grep -v "^--$" | head -40 | sed 's/^/::error::/'
           fi
           exit "$status"
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
       - name: Linux desktop app builds
         run: cargo check -p qrzero
       - name: Large-log speed check
@@ -48,6 +50,11 @@ jobs:
       - name: End-to-end test
         working-directory: ui
         run: npx playwright install --with-deps chromium && npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: ui/e2e-results
 
   windows:
     name: Windows build and installer
